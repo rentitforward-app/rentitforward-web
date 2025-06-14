@@ -1,0 +1,29 @@
+{
+  "hosting": {
+    "public": "out",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "apphosting": {
+    "source": {
+      "projectId": "rent-it-forward-n2rht",
+      "location": "us-central1"
+    },
+    "build": {
+      "commands": [
+        "npm ci",
+        "npm run build"
+      ],
+      "env": {}
+    }
+  }
+} 
