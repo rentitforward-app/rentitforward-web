@@ -1,49 +1,31 @@
 import Link from 'next/link'
 import { Search, Plus, MessageCircle, Star, Shield, Globe } from 'lucide-react'
 
+const categories = [
+  { name: 'Tools & DIY', icon: '🔧', slug: 'tools-diy' },
+  { name: 'Electronics', icon: '📱', slug: 'electronics' },
+  { name: 'Cameras', icon: '📷', slug: 'cameras' },
+  { name: 'Sports & Outdoors', icon: '🏃', slug: 'sports-outdoors' },
+  { name: 'Event & Party', icon: '🎉', slug: 'event-party' },
+  { name: 'Instruments', icon: '🎸', slug: 'instruments' },
+  { name: 'Automotive', icon: '🚗', slug: 'automotive' },
+  { name: 'Home & Garden', icon: '🏡', slug: 'home-garden' },
+  { name: 'Appliances', icon: '🏠', slug: 'appliances' },
+  { name: 'Other', icon: '📦', slug: 'other' },
+]
+
+const topItems = [
+  { id: 1, name: 'Canon EOS 5D Mark IV', rating: 4.8, reviews: 12, price: 45 },
+  { id: 2, name: 'DeWalt Power Drill', rating: 4.9, reviews: 28, price: 15 },
+  { id: 3, name: '4-Person Camping Tent', rating: 4.7, reviews: 19, price: 25 },
+  { id: 4, name: 'DJ Equipment Set', rating: 4.9, reviews: 15, price: 75 },
+]
+
 export default function HomePage() {
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <nav className="container flex items-center justify-between py-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">R</span>
-            </div>
-            <span className="font-primary text-xl font-bold text-secondary">
-              Rent It Forward
-            </span>
-          </div>
-          
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="/browse" className="text-gray-700 hover:text-primary">
-              Browse Items
-            </Link>
-            <Link href="/how-it-works" className="text-gray-700 hover:text-primary">
-              How it Works
-            </Link>
-            <Link href="/learn-more" className="text-gray-700 hover:text-primary">
-              Learn more
-            </Link>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <Link href="/login" className="text-gray-700 hover:text-primary">
-              Login
-            </Link>
-            <Link href="/signup" className="btn-primary">
-              Sign Up
-            </Link>
-            <Link href="/create-listing" className="btn bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600">
-              Create Listing
-            </Link>
-          </div>
-        </nav>
-      </header>
-
+    <div>
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-primary-50 to-green-100 py-20">
+      <section className="relative bg-gradient-to-br from-primary-50 to-primary-100 py-20">
         <div className="container text-center">
           <h1 className="font-primary text-5xl md:text-6xl font-bold text-secondary mb-6">
             Share More, Buy Less
@@ -72,7 +54,7 @@ export default function HomePage() {
             <Link href="/browse" className="btn-primary text-lg px-8 py-3">
               Browse Items
             </Link>
-            <Link href="/create-listing" className="btn-outline text-lg px-8 py-3">
+            <Link href="/listings/create" className="btn-outline text-lg px-8 py-3">
               <Plus className="w-5 h-5 mr-2" />
               List an Item
             </Link>
@@ -113,7 +95,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-12 mt-12">
             <div className="space-y-8">
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <span className="text-2xl">💰</span>
                 </div>
                 <div>
@@ -125,7 +107,7 @@ export default function HomePage() {
               </div>
               
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <span className="text-2xl">💸</span>
                 </div>
                 <div>
@@ -139,7 +121,7 @@ export default function HomePage() {
             
             <div className="space-y-8">
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Shield className="w-6 h-6 text-primary" />
                 </div>
                 <div>
@@ -151,7 +133,7 @@ export default function HomePage() {
               </div>
               
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Globe className="w-6 h-6 text-primary" />
                 </div>
                 <div>
@@ -188,82 +170,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-secondary text-white py-12">
-        <div className="container">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold">R</span>
-                </div>
-                <span className="font-primary text-lg font-bold">Rent It Forward</span>
-              </div>
-              <p className="text-gray-300 mb-4">
-                Share More, Buy Less. Building a sustainable community through sharing.
-              </p>
-              <p className="text-gray-400 text-sm">
-                Address: Australia
-              </p>
-              <p className="text-gray-400 text-sm">
-                hello@rentitforward.com.au
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-gray-300">
-                <li><Link href="/about">About Us</Link></li>
-                <li><Link href="/guarantee">Guarantee</Link></li>
-                <li><Link href="/faq">FAQ's</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-gray-300">
-                <li><Link href="/contact">Contact Us</Link></li>
-                <li><Link href="/terms">Terms and Conditions</Link></li>
-                <li><Link href="/privacy">Privacy Policy</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Browse</h4>
-              <ul className="space-y-2 text-gray-300">
-                <li><Link href="/categories">All Categories</Link></li>
-                <li><Link href="/learn-more">Learn more</Link></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-600 mt-8 pt-8 text-center text-gray-400">
-            <p>Copyright © 2025 Rent It Forward. All rights reserved.</p>
-            <p className="mt-2">Build by Digital Linked.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }
-
-const categories = [
-  { name: 'Tools & DIY', icon: '🔧', slug: 'tools-diy' },
-  { name: 'Electronics', icon: '📱', slug: 'electronics' },
-  { name: 'Cameras', icon: '📷', slug: 'cameras' },
-  { name: 'Sports & Outdoors', icon: '🏃', slug: 'sports-outdoors' },
-  { name: 'Event & Party', icon: '🎉', slug: 'event-party' },
-  { name: 'Instruments', icon: '🎸', slug: 'instruments' },
-  { name: 'Automotive', icon: '🚗', slug: 'automotive' },
-  { name: 'Home & Garden', icon: '🏡', slug: 'home-garden' },
-  { name: 'Appliances', icon: '🏠', slug: 'appliances' },
-  { name: 'Other', icon: '📦', slug: 'other' },
-]
-
-const topItems = [
-  { id: 1, name: 'Canon EOS 5D Mark IV', rating: 4.8, reviews: 12, price: 45 },
-  { id: 2, name: 'DeWalt Power Drill', rating: 4.9, reviews: 28, price: 15 },
-  { id: 3, name: '4-Person Camping Tent', rating: 4.7, reviews: 19, price: 25 },
-  { id: 4, name: 'DJ Equipment Set', rating: 4.9, reviews: 15, price: 75 },
-]
