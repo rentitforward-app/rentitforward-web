@@ -24,11 +24,11 @@
         "npm run build"
       ],
       "env": {
-        "NEXT_PUBLIC_SUPABASE_URL": "your-supabase-project-url",
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "your-supabase-anon-key",
-        "SUPABASE_SERVICE_ROLE_KEY": "your-service-role-key",
+        "NEXT_PUBLIC_SUPABASE_URL": "https://ulcrjgjbsromujglyxbu.supabase.co",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "yeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY3JqZ2pic3JvbXVqZ2x5eGJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc4ODAzNTUsImV4cCI6MjA1MzQ1NjM1NX0.dGjSAmNMVN9cxF84TL-_fXISeou7y_MXiuin1VVi4Nk",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY3JqZ2pic3JvbXVqZ2x5eGJ1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzg4MDM1NSwiZXhwIjoyMDUzNDU2MzU1fQ.quYVXgU_GRso85fPud2FCRZfeOcw02PfCop44Zzp-YY",
         "NEXTAUTH_URL": "https://rentitforward-web--rent-it-forward.asia-east1.hosted.app",
-        "NEXTAUTH_SECRET": "your-nextauth-secret"
+        "NEXTAUTH_SECRET": "rent-it-forward-nextauth-secret-2025-production-key"
       }
     }
   }
