@@ -1,0 +1,11 @@
+env:
+  - variable: NEXT_PUBLIC_SUPABASE_URL
+    value: ${{ vars.SUPABASE_URL }}
+  - variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
+    value: ${{ secrets.SUPABASE_ANON_KEY }}
+  - variable: SUPABASE_SERVICE_ROLE_KEY
+    value: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  - variable: NEXTAUTH_URL
+    value: https://rentitforward-web--rent-it-forward.asia-east1.hosted.app
+  - variable: NEXTAUTH_SECRET
+    value: ${{ secrets.NEXTAUTH_SECRET }} 
