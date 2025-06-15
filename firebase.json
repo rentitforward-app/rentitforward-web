@@ -23,7 +23,13 @@
         "npm ci",
         "npm run build"
       ],
-      "env": {}
+      "env": {
+        "NEXT_PUBLIC_SUPABASE_URL": "your-supabase-project-url",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "your-supabase-anon-key",
+        "SUPABASE_SERVICE_ROLE_KEY": "your-service-role-key",
+        "NEXTAUTH_URL": "https://rentitforward-web--rent-it-forward.asia-east1.hosted.app",
+        "NEXTAUTH_SECRET": "your-nextauth-secret"
+      }
     }
   }
 } 
