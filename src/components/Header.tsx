@@ -28,8 +28,8 @@ export default function Header() {
           </Link>
         </div>
         
-        <div className="flex items-center space-x-4">
-          <Link href="/login" className="text-gray-700 hover:text-primary">
+        <div className="flex items-center space-x-3">
+          <Link href="/login" className="text-gray-700 hover:text-primary font-medium">
             Login
           </Link>
           <Link href="/register" className="btn-primary">
