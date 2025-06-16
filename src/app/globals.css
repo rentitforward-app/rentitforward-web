@@ -67,11 +67,11 @@ body {
   }
   
   body {
-    @apply bg-white text-gray-900 font-secondary;
+    @apply bg-white text-gray-900 font-manrope;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    @apply font-primary font-semibold;
+    @apply font-sora font-semibold;
   }
 }
 
