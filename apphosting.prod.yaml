@@ -1,6 +1,6 @@
 env:
   - variable: NEXT_PUBLIC_SUPABASE_URL
-    value: ${{ vars.SUPABASE_URL }}
+    value: ${{ secrets.SUPABASE_URL }}
   - variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
     value: ${{ secrets.SUPABASE_ANON_KEY }}
   - variable: SUPABASE_SERVICE_ROLE_KEY
