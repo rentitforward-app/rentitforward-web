@@ -3,6 +3,7 @@ import { Inter, Poppins, Roboto } from "next/font/google";
 import "./globals.css";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({ subsets: ["latin"] });
 const poppins = Poppins({
@@ -74,6 +75,26 @@ export default function RootLayout({
           </main>
           <Footer />
         </div>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+            success: {
+              style: {
+                background: '#44D62C',
+              },
+            },
+            error: {
+              style: {
+                background: '#f87171',
+              },
+            },
+          }}
+        />
       </body>
     </html>
   );

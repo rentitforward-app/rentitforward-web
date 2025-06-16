@@ -11,17 +11,15 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
+        get(name: string) {
+          return request.cookies.get(name)?.value
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+        set(name: string, value: string, options: any) {
+          request.cookies.set({ name, value, ...options })
           supabaseResponse = NextResponse.next({
             request,
           })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+          supabaseResponse.cookies.set(name, value, options)
         },
       },
     }
@@ -42,7 +40,9 @@ export async function middleware(request: NextRequest) {
     '/register',
     '/browse',
     '/listings',
-    '/auth'
+    '/auth',
+    '/forgot-password',
+    '/reset-password'
   ]
 
   // Define protected routes that require authentication
@@ -51,7 +51,8 @@ export async function middleware(request: NextRequest) {
     '/listings/create',
     '/bookings',
     '/profile',
-    '/messages'
+    '/messages',
+    '/onboarding'
   ]
 
   const isPublicRoute = publicRoutes.some(route => 

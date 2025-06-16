@@ -104,7 +104,7 @@ function RegisterForm() {
 
         if (authData.user.email_confirmed_at) {
           toast.success('Account created successfully!');
-          router.push(redirectTo);
+          router.push('/onboarding');
         } else {
           toast.success('Account created! Please check your email to verify your account.');
           router.push('/login?message=Please check your email to verify your account');

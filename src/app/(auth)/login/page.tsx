@@ -45,7 +45,24 @@ function LoginForm() {
         toast.error(error.message);
       } else {
         toast.success('Logged in successfully!');
-        router.push(redirectTo);
+        
+        // Check if user has completed onboarding
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, city, state')
+            .eq('id', user.id)
+            .single();
+          
+          if (profile && profile.full_name && profile.city && profile.state) {
+            router.push(redirectTo);
+          } else {
+            router.push('/onboarding');
+          }
+        } else {
+          router.push(redirectTo);
+        }
       }
     } catch (error) {
       toast.error('Something went wrong. Please try again.');
