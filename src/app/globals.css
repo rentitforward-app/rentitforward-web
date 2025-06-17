@@ -86,11 +86,11 @@ body {
   }
   
   .btn-primary {
-    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500;
+    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus-visible:ring-primary-500;
   }
   
   .btn-secondary {
-    @apply btn bg-secondary-500 text-white hover:bg-secondary-600 focus:ring-secondary-500;
+    @apply btn bg-secondary-500 text-white hover:bg-secondary-600 focus-visible:ring-secondary-500;
   }
   
   .btn-outline {
@@ -98,7 +98,7 @@ body {
   }
   
   .input {
-    @apply block w-full rounded-full border border-gray-300 px-4 py-3 text-sm placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:outline-none;
+    @apply block w-full rounded-full border border-gray-300 px-4 py-3 text-sm placeholder-gray-500 focus:border-primary-500 focus-visible:ring-primary-500 focus:outline-none;
   }
   
   .card {
