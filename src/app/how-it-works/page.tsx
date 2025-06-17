@@ -1,5 +1,7 @@
 import { Search, MessageCircle, CreditCard, Star, Shield, Clock } from 'lucide-react'
 import Link from 'next/link'
+import { Card, CardContent } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 
 export default function HowItWorksPage() {
   return (
@@ -174,45 +176,47 @@ export default function HowItWorksPage() {
               <p className="text-lg text-gray-600">Simple, fair fees with no hidden costs</p>
             </div>
             
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <div className="grid md:grid-cols-2 gap-8">
-                <div>
-                  <h3 className="text-2xl font-bold text-secondary mb-4">For Renters</h3>
-                  <ul className="space-y-3 text-gray-600">
-                    <li className="flex items-center">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Booking fee: 5% of rental cost
-                    </li>
-                    <li className="flex items-center">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Payment processing: 2.9% + $0.30
-                    </li>
-                    <li className="flex items-center">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Insurance coverage included
-                    </li>
-                  </ul>
+            <Card variant="elevated" padding="lg">
+              <CardContent className="p-0">
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div>
+                    <h3 className="text-2xl font-bold text-secondary mb-4">For Renters</h3>
+                    <ul className="space-y-3 text-gray-600">
+                      <li className="flex items-center">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                        Booking fee: 5% of rental cost
+                      </li>
+                      <li className="flex items-center">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                        Payment processing: 2.9% + $0.30
+                      </li>
+                      <li className="flex items-center">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                        Insurance coverage included
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-2xl font-bold text-secondary mb-4">For Lenders</h3>
+                    <ul className="space-y-3 text-gray-600">
+                      <li className="flex items-center">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                        Service fee: 3% of rental income
+                      </li>
+                      <li className="flex items-center">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                        Free listing creation
+                      </li>
+                      <li className="flex items-center">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                        Automatic payouts
+                      </li>
+                    </ul>
+                  </div>
                 </div>
-                
-                <div>
-                  <h3 className="text-2xl font-bold text-secondary mb-4">For Lenders</h3>
-                  <ul className="space-y-3 text-gray-600">
-                    <li className="flex items-center">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Service fee: 3% of rental income
-                    </li>
-                    <li className="flex items-center">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Free listing creation
-                    </li>
-                    <li className="flex items-center">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Automatic payouts
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
@@ -226,12 +230,16 @@ export default function HowItWorksPage() {
               Join thousands of Australians already sharing and earning through Rent It Forward
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/register" className="btn-primary text-lg px-8 py-3">
-                Sign Up Now
-              </Link>
-              <Link href="/browse" className="btn-outline text-lg px-8 py-3">
-                Browse Items
-              </Link>
+              <Button size="lg" asChild>
+                <Link href="/register">
+                  Sign Up Now
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/browse">
+                  Browse Items
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

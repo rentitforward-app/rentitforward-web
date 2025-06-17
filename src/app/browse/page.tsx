@@ -2,11 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Filter, MapPin, Heart, Star, Calendar } from 'lucide-react';
+import { Search, Filter, MapPin, Heart, Star, Calendar, Grid, List, X, ChevronDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'react-hot-toast';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import ListingCard from '@/components/ui/ListingCard';
 
 interface Listing {
   id: string;
@@ -77,6 +80,7 @@ function BrowseContent() {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
 
@@ -199,7 +203,7 @@ function BrowseContent() {
 
         if (error) throw error;
 
-        setFavorites(prev => new Set([...prev, listingId]));
+        setFavorites(prev => new Set(prev).add(listingId));
         toast.success('Added to favorites');
       }
     } catch (error) {
@@ -211,38 +215,40 @@ function BrowseContent() {
   const filterAndSortListings = () => {
     let filtered = [...listings];
 
-    // Search filter
+    // Apply search filter
     if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(listing =>
-        listing.title.toLowerCase().includes(searchLower) ||
-        listing.description.toLowerCase().includes(searchLower) ||
-        listing.category.toLowerCase().includes(searchLower) ||
-        listing.subcategory?.toLowerCase().includes(searchLower) ||
-        listing.brand?.toLowerCase().includes(searchLower) ||
-        listing.model?.toLowerCase().includes(searchLower)
+        listing.title.toLowerCase().includes(term) ||
+        listing.description.toLowerCase().includes(term) ||
+        listing.category.toLowerCase().includes(term) ||
+        listing.location.toLowerCase().includes(term) ||
+        listing.brand?.toLowerCase().includes(term) ||
+        listing.model?.toLowerCase().includes(term)
       );
     }
 
-    // Category filter
+    // Apply category filter
     if (selectedCategory) {
       filtered = filtered.filter(listing => listing.category === selectedCategory);
     }
 
-    // State filter
+    // Apply state filter
     if (selectedState) {
       filtered = filtered.filter(listing => listing.state === selectedState);
     }
 
-    // Price range filter
-    if (priceRange.min) {
-      filtered = filtered.filter(listing => listing.daily_rate >= parseInt(priceRange.min));
-    }
-    if (priceRange.max) {
-      filtered = filtered.filter(listing => listing.daily_rate <= parseInt(priceRange.max));
+    // Apply price range filter
+    if (priceRange.min || priceRange.max) {
+      filtered = filtered.filter(listing => {
+        const price = listing.daily_rate;
+        const min = priceRange.min ? parseFloat(priceRange.min) : 0;
+        const max = priceRange.max ? parseFloat(priceRange.max) : Infinity;
+        return price >= min && price <= max;
+      });
     }
 
-    // Sort
+    // Apply sorting
     switch (sortBy) {
       case 'price_low':
         filtered.sort((a, b) => a.daily_rate - b.daily_rate);
@@ -251,7 +257,7 @@ function BrowseContent() {
         filtered.sort((a, b) => b.daily_rate - a.daily_rate);
         break;
       case 'popular':
-        filtered.sort((a, b) => b.view_count - a.view_count);
+        filtered.sort((a, b) => (b.favorite_count + b.view_count) - (a.favorite_count + a.view_count));
         break;
       case 'newest':
       default:
@@ -274,239 +280,266 @@ function BrowseContent() {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
-      currency: 'AUD',
-      minimumFractionDigits: 0,
+      currency: 'AUD'
     }).format(price);
   };
 
+  const hasActiveFilters = searchTerm || selectedCategory || selectedState || priceRange.min || priceRange.max;
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-white rounded-lg shadow h-80"></div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Search and Filters Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row gap-4">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            {/* Title and Results Count */}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Browse Items</h1>
+              <p className="text-gray-600 mt-1">
+                {filteredListings.length} item{filteredListings.length !== 1 ? 's' : ''} available
+                {hasActiveFilters && ' (filtered)'}
+              </p>
+            </div>
+
             {/* Search Bar */}
-            <div className="flex-1">
+            <div className="flex-1 max-w-lg">
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400" />
-                </div>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Search for tools, electronics, cameras..."
+                  placeholder="Search items, categories, locations..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
             </div>
-
-            {/* Filter Toggle */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C]"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filters
-            </button>
-
-            {/* Sort Dropdown */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C]"
-            >
-              {sortOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </div>
-
-          {/* Filters Panel */}
-          {showFilters && (
-            <div className="mt-6 p-6 bg-gray-50 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Category Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                  >
-                    <option value="">All Categories</option>
-                    {Object.entries(categories).map(([key, category]) => (
-                      <option key={key} value={key}>
-                        {category.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* State Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    State
-                  </label>
-                  <select
-                    value={selectedState}
-                    onChange={(e) => setSelectedState(e.target.value)}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                  >
-                    <option value="">All States</option>
-                    {australianStates.map((state) => (
-                      <option key={state.code} value={state.code}>
-                        {state.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Price Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Daily Rate
-                  </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      value={priceRange.min}
-                      onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      value={priceRange.max}
-                      onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                {/* Clear Filters */}
-                <div className="flex items-end">
-                  <button
-                    onClick={clearFilters}
-                    className="w-full px-4 py-2 text-sm font-medium text-[#44D62C] bg-white border border-[#44D62C] rounded-md hover:bg-[#44D62C] hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C]"
-                  >
-                    Clear All
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Results */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {filteredListings.length} {filteredListings.length === 1 ? 'item' : 'items'} available
-          </h1>
-        </div>
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Filters Sidebar */}
+          <div className="lg:w-80 shrink-0">
+            {/* Mobile Filter Toggle */}
+            <div className="lg:hidden mb-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="w-full"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Filters
+                {hasActiveFilters && (
+                  <span className="ml-2 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    !
+                  </span>
+                )}
+              </Button>
+            </div>
 
-        {/* Listings Grid */}
-        {filteredListings.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredListings.map((listing) => (
-              <div key={listing.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative">
-                  <Link href={`/listings/${listing.id}`}>
-                    <div className="aspect-w-4 aspect-h-3 relative h-48">
-                      <Image
-                        src={listing.images[0] || '/placeholder-item.jpg'}
-                        alt={listing.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  </Link>
-                  
-                  {/* Favorite Button */}
-                  <button
-                    onClick={() => toggleFavorite(listing.id)}
-                    className="absolute top-2 right-2 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white/90 transition-colors"
-                  >
-                    <Heart
-                      className={`h-4 w-4 ${
-                        favorites.has(listing.id)
-                          ? 'text-red-500 fill-current'
-                          : 'text-gray-600'
-                      }`}
-                    />
-                  </button>
-
-                  {/* Category Badge */}
-                  <div className="absolute top-2 left-2">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#44D62C] text-white">
-                      {categories[listing.category as keyof typeof categories]?.label}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4">
-                  <Link href={`/listings/${listing.id}`}>
-                    <h3 className="text-lg font-semibold text-gray-900 hover:text-[#44D62C] cursor-pointer mb-2">
-                      {listing.title}
-                    </h3>
-                  </Link>
-                  
-                  <div className="flex items-center text-sm text-gray-600 mb-2">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    {listing.location}, {listing.state}
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="text-lg font-bold text-[#44D62C]">
-                      {formatPrice(listing.daily_rate)}/day
-                    </div>
-                    
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Star className="h-4 w-4 mr-1 fill-current text-yellow-400" />
-                      <span className="mr-2">4.8</span>
-                      <span>({listing.view_count} views)</span>
-                    </div>
-                  </div>
-
-                  {listing.brand && (
-                    <div className="mt-2 text-sm text-gray-600">
-                      {listing.brand} {listing.model}
-                    </div>
+            {/* Filters Panel */}
+            <div className={`${showFilters ? 'block' : 'hidden'} lg:block`}>
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="text-green-600 hover:text-green-700"
+                    >
+                      Clear all
+                    </Button>
                   )}
                 </div>
+
+                <div className="space-y-6">
+                  {/* Category Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Category
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="category"
+                          value=""
+                          checked={selectedCategory === ''}
+                          onChange={(e) => setSelectedCategory(e.target.value)}
+                          className="text-green-600 focus:ring-green-500"
+                        />
+                        <span className="ml-2 text-sm">All Categories</span>
+                      </label>
+                      {Object.entries(categories).map(([key, category]) => (
+                        <label key={key} className="flex items-center">
+                          <input
+                            type="radio"
+                            name="category"
+                            value={key}
+                            checked={selectedCategory === key}
+                            onChange={(e) => setSelectedCategory(e.target.value)}
+                            className="text-green-600 focus:ring-green-500"
+                          />
+                          <span className="ml-2 text-sm">
+                            {category.icon} {category.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Location Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      State
+                    </label>
+                    <select
+                      value={selectedState}
+                      onChange={(e) => setSelectedState(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    >
+                      <option value="">All States</option>
+                      {australianStates.map((state) => (
+                        <option key={state.code} value={state.code}>
+                          {state.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Price Range Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Daily Rate
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <input
+                          type="number"
+                          placeholder="Min"
+                          value={priceRange.min}
+                          onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="number"
+                          placeholder="Max"
+                          value={priceRange.max}
+                          onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 min-w-0">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                {/* Sort Dropdown */}
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  >
+                    {sortOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
               </div>
-            ))}
+
+              {/* View Mode Toggle */}
+              <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 ${viewMode === 'grid' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Results */}
+            {filteredListings.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                  <Search className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No items found</h3>
+                <p className="text-gray-600 mb-6">
+                  Try adjusting your search criteria or browse different categories.
+                </p>
+                {hasActiveFilters && (
+                  <Button onClick={clearFilters} variant="outline">
+                    Clear all filters
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className={viewMode === 'grid' 
+                ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6' 
+                : 'space-y-4'
+              }>
+                                 {filteredListings.map((listing) => (
+                   <ListingCard
+                     key={listing.id}
+                     id={listing.id}
+                     title={listing.title}
+                     images={listing.images}
+                     price={listing.daily_rate}
+                     period="day"
+                     rating={4.5} // TODO: Calculate from reviews
+                     reviewCount={12} // TODO: Get from reviews
+                     category={categories[listing.category as keyof typeof categories]?.label || listing.category}
+                     owner={{
+                       name: listing.profiles.full_name,
+                       avatar: listing.profiles.avatar_url || undefined,
+                     }}
+                   />
+                 ))}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">📦</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No items found</h3>
-            <p className="text-gray-600 mb-4">
-              Try adjusting your filters or search terms
-            </p>
-            <button
-              onClick={clearFilters}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#44D62C] hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C]"
-            >
-              Clear Filters
-            </button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -516,7 +549,7 @@ export default function BrowsePage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
+        <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     }>
       <BrowseContent />

@@ -1,5 +1,7 @@
 import { Mail, Phone, MapPin, Clock } from 'lucide-react'
 import Link from 'next/link'
+import { Card, CardContent } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 
 export default function ContactPage() {
   return (
@@ -84,8 +86,9 @@ export default function ContactPage() {
 
             {/* Contact Form */}
             <div>
-              <div className="bg-gray-50 p-8 rounded-xl">
-                <h2 className="text-2xl font-bold text-secondary mb-6">Send us a Message</h2>
+              <Card variant="elevated" padding="lg">
+                <CardContent className="p-0">
+                  <h2 className="text-2xl font-bold text-secondary mb-6">Send us a Message</h2>
                 
                 <form className="space-y-6">
                   <div className="grid md:grid-cols-2 gap-4">
@@ -161,11 +164,12 @@ export default function ContactPage() {
                     />
                   </div>
 
-                  <button type="submit" className="btn-primary w-full">
+                  <Button type="submit" className="w-full">
                     Send Message
-                  </button>
+                  </Button>
                 </form>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
@@ -181,12 +185,16 @@ export default function ContactPage() {
               or browse our help articles for detailed guides.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/faq" className="btn-primary text-lg px-8 py-3">
-                View FAQ
-              </Link>
-              <Link href="/how-it-works" className="btn-outline text-lg px-8 py-3">
-                How It Works
-              </Link>
+              <Button size="lg" asChild>
+                <Link href="/faq">
+                  View FAQ
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/how-it-works">
+                  How It Works
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

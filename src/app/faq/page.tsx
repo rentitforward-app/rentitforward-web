@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
+import { Card, CardContent } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 
 interface FAQItem {
   question: string
@@ -86,10 +88,10 @@ export default function FAQPage() {
           <div className="max-w-4xl mx-auto">
             <div className="space-y-4">
               {faqs.map((faq, index) => (
-                <div key={index} className="bg-gray-50 rounded-xl overflow-hidden">
+                <Card key={index} variant="elevated" padding="none" className="overflow-hidden">
                   <button
                     onClick={() => toggleItem(index)}
-                    className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-100 transition-colors"
+                    className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
                   >
                     <h3 className="text-lg font-semibold text-secondary pr-4">
                       {faq.question}
@@ -101,13 +103,13 @@ export default function FAQPage() {
                     )}
                   </button>
                   {openItems.includes(index) && (
-                    <div className="px-6 pb-4">
+                    <CardContent className="pt-0">
                       <p className="text-gray-600 leading-relaxed">
                         {faq.answer}
                       </p>
-                    </div>
+                    </CardContent>
                   )}
-                </div>
+                </Card>
               ))}
             </div>
           </div>
@@ -124,12 +126,16 @@ export default function FAQPage() {
               We typically respond within 24 hours.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/contact" className="btn-primary text-lg px-8 py-3">
-                Contact Support
-              </Link>
-              <Link href="/how-it-works" className="btn-outline text-lg px-8 py-3">
-                How It Works
-              </Link>
+              <Button size="lg" asChild>
+                <Link href="/contact">
+                  Contact Support
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/how-it-works">
+                  How It Works
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

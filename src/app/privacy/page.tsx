@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
 
 export default function PrivacyPage() {
   return (
@@ -138,12 +139,16 @@ export default function PrivacyPage() {
               our support team is here to help.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/contact" className="btn-primary text-lg px-8 py-3">
-                Contact Support
-              </Link>
-              <Link href="/terms" className="btn-outline text-lg px-8 py-3">
-                Terms of Service
-              </Link>
+              <Button size="lg" asChild>
+                <Link href="/contact">
+                  Contact Support
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/terms">
+                  Terms of Service
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

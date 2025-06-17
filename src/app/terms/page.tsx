@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
 
 export default function TermsPage() {
   return (
@@ -165,12 +166,16 @@ export default function TermsPage() {
               Join our community today!
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/register" className="btn-primary text-lg px-8 py-3">
-                Create Account
-              </Link>
-              <Link href="/privacy" className="btn-outline text-lg px-8 py-3">
-                Privacy Policy
-              </Link>
+              <Button size="lg" asChild>
+                <Link href="/register">
+                  Create Account
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/privacy">
+                  Privacy Policy
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

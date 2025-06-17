@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, ArrowRight, Check } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 import { z } from 'zod';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 
 const australianStates = [
   { code: 'NSW', name: 'New South Wales' },
@@ -56,9 +58,19 @@ function RegisterForm() {
     register,
     handleSubmit,
     formState: { errors },
+    watch,
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
   });
+
+  const password = watch('password');
+
+  const passwordRequirements = [
+    { met: password && password.length >= 8, text: 'At least 8 characters' },
+    { met: password && /[A-Z]/.test(password), text: 'One uppercase letter' },
+    { met: password && /[a-z]/.test(password), text: 'One lowercase letter' },
+    { met: password && /\d/.test(password), text: 'One number' },
+  ];
 
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
@@ -119,33 +131,23 @@ function RegisterForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="flex justify-center">
-            <div className="text-3xl font-bold text-[#44D62C]">
-              Rent It Forward
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-lg w-full">
+        <Card className="p-8 shadow-lg border-0">
+          {/* Logo and Header */}
+          <div className="text-center mb-8">
+            <div className="mx-auto w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mb-6">
+              <span className="text-white text-2xl font-bold">R</span>
             </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Join Rent It Forward</h1>
+            <p className="text-gray-600">Create your account and start sharing</p>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link
-              href="/login"
-              className="font-medium text-[#44D62C] hover:text-[#3AB827]"
-            >
-              sign in to your existing account
-            </Link>
-          </p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-4">
+
+          {/* Registration Form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email address
               </label>
               <div className="relative">
@@ -156,21 +158,23 @@ function RegisterForm() {
                   {...register('email')}
                   type="email"
                   autoComplete="email"
-                  className={`appearance-none relative block w-full px-3 py-2 pl-10 border ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                  placeholder="Email address"
+                  className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                    errors.email 
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
+                  } placeholder-gray-500 text-gray-900 text-sm`}
+                  placeholder="Enter your email"
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
               )}
             </div>
 
             {/* Full Name */}
             <div>
-              <label htmlFor="fullName" className="sr-only">
-                Full Name
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
+                Full name
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -180,21 +184,97 @@ function RegisterForm() {
                   {...register('fullName')}
                   type="text"
                   autoComplete="name"
-                  className={`appearance-none relative block w-full px-3 py-2 pl-10 border ${
-                    errors.fullName ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                  placeholder="Full name"
+                  className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                    errors.fullName 
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
+                  } placeholder-gray-500 text-gray-900 text-sm`}
+                  placeholder="Enter your full name"
                 />
               </div>
               {errors.fullName && (
-                <p className="mt-1 text-sm text-red-600">{errors.fullName.message}</p>
+                <p className="mt-2 text-sm text-red-600">{errors.fullName.message}</p>
               )}
             </div>
 
-            {/* Phone */}
+            {/* Location Fields Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Location */}
+              <div>
+                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                  Suburb/City
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MapPin className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    {...register('location')}
+                    type="text"
+                    className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                      errors.location 
+                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
+                    } placeholder-gray-500 text-gray-900 text-sm`}
+                    placeholder="e.g. Sydney"
+                  />
+                </div>
+                {errors.location && (
+                  <p className="mt-2 text-sm text-red-600">{errors.location.message}</p>
+                )}
+              </div>
+
+              {/* Postcode */}
+              <div>
+                <label htmlFor="postcode" className="block text-sm font-medium text-gray-700 mb-2">
+                  Postcode
+                </label>
+                <input
+                  {...register('postcode')}
+                  type="text"
+                  maxLength={4}
+                  className={`block w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                    errors.postcode 
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
+                  } placeholder-gray-500 text-gray-900 text-sm`}
+                  placeholder="2000"
+                />
+                {errors.postcode && (
+                  <p className="mt-2 text-sm text-red-600">{errors.postcode.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* State */}
             <div>
-              <label htmlFor="phone" className="sr-only">
-                Phone Number
+              <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
+                State
+              </label>
+              <select
+                {...register('state')}
+                className={`block w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                  errors.state 
+                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                    : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
+                } text-gray-900 text-sm`}
+              >
+                <option value="">Select your state</option>
+                {australianStates.map((state) => (
+                  <option key={state.code} value={state.code}>
+                    {state.name}
+                  </option>
+                ))}
+              </select>
+              {errors.state && (
+                <p className="mt-2 text-sm text-red-600">{errors.state.message}</p>
+              )}
+            </div>
+
+            {/* Phone (Optional) */}
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                Phone number <span className="text-gray-400">(optional)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -204,86 +284,22 @@ function RegisterForm() {
                   {...register('phone')}
                   type="tel"
                   autoComplete="tel"
-                  className={`appearance-none relative block w-full px-3 py-2 pl-10 border ${
-                    errors.phone ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                  placeholder="Phone number (optional)"
+                  className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                    errors.phone 
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
+                  } placeholder-gray-500 text-gray-900 text-sm`}
+                  placeholder="0400 000 000"
                 />
               </div>
               {errors.phone && (
-                <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+                <p className="mt-2 text-sm text-red-600">{errors.phone.message}</p>
               )}
-            </div>
-
-            {/* Location */}
-            <div>
-              <label htmlFor="location" className="sr-only">
-                Location
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MapPin className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  {...register('location')}
-                  type="text"
-                  className={`appearance-none relative block w-full px-3 py-2 pl-10 border ${
-                    errors.location ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                  placeholder="Suburb/City"
-                />
-              </div>
-              {errors.location && (
-                <p className="mt-1 text-sm text-red-600">{errors.location.message}</p>
-              )}
-            </div>
-
-            {/* State and Postcode */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="state" className="sr-only">
-                  State
-                </label>
-                <select
-                  {...register('state')}
-                  className={`appearance-none relative block w-full px-3 py-2 border ${
-                    errors.state ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                >
-                  <option value="">Select State</option>
-                  {australianStates.map((state) => (
-                    <option key={state.code} value={state.code}>
-                      {state.code}
-                    </option>
-                  ))}
-                </select>
-                {errors.state && (
-                  <p className="mt-1 text-sm text-red-600">{errors.state.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="postcode" className="sr-only">
-                  Postcode
-                </label>
-                <input
-                  {...register('postcode')}
-                  type="text"
-                  maxLength={4}
-                  className={`appearance-none relative block w-full px-3 py-2 border ${
-                    errors.postcode ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                  placeholder="Postcode"
-                />
-                {errors.postcode && (
-                  <p className="mt-1 text-sm text-red-600">{errors.postcode.message}</p>
-                )}
-              </div>
             </div>
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
               <div className="relative">
@@ -294,10 +310,12 @@ function RegisterForm() {
                   {...register('password')}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  className={`appearance-none relative block w-full px-3 py-2 pl-10 pr-10 border ${
-                    errors.password ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                  placeholder="Password"
+                  className={`block w-full pl-10 pr-10 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                    errors.password 
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
+                  } placeholder-gray-500 text-gray-900 text-sm`}
+                  placeholder="Create a strong password"
                 />
                 <button
                   type="button"
@@ -305,21 +323,34 @@ function RegisterForm() {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
+              
+              {/* Password Requirements */}
+              {password && (
+                <div className="mt-3 space-y-2">
+                  {passwordRequirements.map((req, index) => (
+                    <div key={index} className="flex items-center text-sm">
+                      <Check className={`w-4 h-4 mr-2 ${req.met ? 'text-green-500' : 'text-gray-300'}`} />
+                      <span className={req.met ? 'text-green-700' : 'text-gray-500'}>{req.text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>
               )}
             </div>
 
             {/* Confirm Password */}
             <div>
-              <label htmlFor="confirmPassword" className="sr-only">
-                Confirm Password
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm password
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -329,10 +360,12 @@ function RegisterForm() {
                   {...register('confirmPassword')}
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  className={`appearance-none relative block w-full px-3 py-2 pl-10 pr-10 border ${
-                    errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                  placeholder="Confirm password"
+                  className={`block w-full pl-10 pr-10 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                    errors.confirmPassword 
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
+                  } placeholder-gray-500 text-gray-900 text-sm`}
+                  placeholder="Confirm your password"
                 />
                 <button
                   type="button"
@@ -340,51 +373,76 @@ function RegisterForm() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}
             </div>
-          </div>
 
-          {/* Terms and Conditions */}
-          <div className="flex items-center">
-            <input
-              {...register('termsAccepted')}
-              id="terms"
-              type="checkbox"
-              className="h-4 w-4 text-[#44D62C] focus:ring-[#44D62C] border-gray-300 rounded"
-            />
-            <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
-              I agree to the{' '}
-              <Link href="/terms" className="text-[#44D62C] hover:text-[#3AB827]">
-                Terms and Conditions
-              </Link>{' '}
-              and{' '}
-              <Link href="/privacy" className="text-[#44D62C] hover:text-[#3AB827]">
-                Privacy Policy
-              </Link>
-            </label>
-          </div>
-          {errors.termsAccepted && (
-            <p className="mt-1 text-sm text-red-600">{errors.termsAccepted.message}</p>
-          )}
+            {/* Terms and Conditions */}
+            <div className="flex items-start">
+              <div className="flex items-center h-5">
+                <input
+                  {...register('termsAccepted')}
+                  type="checkbox"
+                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="termsAccepted" className="text-gray-700">
+                  I agree to the{' '}
+                  <Link href="/terms" className="text-green-600 hover:text-green-500 font-medium">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy" className="text-green-600 hover:text-green-500 font-medium">
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+            </div>
+            {errors.termsAccepted && (
+              <p className="text-sm text-red-600">{errors.termsAccepted.message}</p>
+            )}
 
-          <div>
-            <button
-              type="submit"
+            {/* Create Account Button */}
+            <Button 
+              type="submit" 
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#44D62C] hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full"
             >
-              {isLoading ? 'Creating account...' : 'Create account'}
-            </button>
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Creating account...
+                </>
+              ) : (
+                <>
+                  Create account
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </form>
+
+          {/* Sign In Link */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link
+                href="/login"
+                className="font-medium text-green-600 hover:text-green-500"
+              >
+                Sign in
+              </Link>
+            </p>
           </div>
-        </form>
+        </Card>
       </div>
     </div>
   );
@@ -393,8 +451,8 @@ function RegisterForm() {
 export default function RegisterPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-green-50">
+        <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     }>
       <RegisterForm />
