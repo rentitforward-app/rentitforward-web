@@ -94,4 +94,21 @@ export function isEmpty(value: any): boolean {
   if (Array.isArray(value)) return value.length === 0
   if (typeof value === 'object') return Object.keys(value).length === 0
   return false
+}
+
+export function formatPrice(price: number, currency: string = 'AUD'): string {
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency,
+  }).format(price)
+}
+
+export function formatDateTime(date: string | Date): string {
+  return new Intl.DateTimeFormat('en-AU', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(date))
 } 

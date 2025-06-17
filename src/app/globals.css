@@ -82,15 +82,15 @@ body {
   }
   
   .btn {
-    @apply inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
   }
   
   .btn-primary {
-    @apply btn bg-primary text-white hover:bg-primary-600 focus:ring-primary;
+    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500;
   }
   
   .btn-secondary {
-    @apply btn bg-secondary text-white hover:bg-secondary-600 focus:ring-secondary;
+    @apply btn bg-secondary-500 text-white hover:bg-secondary-600 focus:ring-secondary-500;
   }
   
   .btn-outline {
@@ -98,7 +98,7 @@ body {
   }
   
   .input {
-    @apply block w-full rounded-full border border-gray-300 px-4 py-3 text-sm placeholder-gray-500 focus:border-primary focus:ring-primary focus:outline-none;
+    @apply block w-full rounded-full border border-gray-300 px-4 py-3 text-sm placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:outline-none;
   }
   
   .card {

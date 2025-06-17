@@ -1,0 +1,9 @@
+export default function HomePage() {
+  return (
+    <div className="min-h-screen p-8">
+      <h1 className="text-4xl font-bold text-green-500 mb-4">Rent It Forward</h1>
+      <p className="text-lg mb-4">Welcome to Rent It Forward - Share More, Buy Less</p>
+      <p className="text-gray-600">This is a simplified homepage to test the build.</p>
+    </div>
+  )
+}
