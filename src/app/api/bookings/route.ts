@@ -165,29 +165,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 });
     }
 
-    // Create Stripe payment intent
+    // Get owner's Stripe account for Connect payments
+    const { data: ownerProfile } = await supabase
+      .from('profiles')
+      .select('stripe_account_id, stripe_onboarding_complete')
+      .eq('id', listing.owner_id)
+      .single();
+
+    if (!ownerProfile?.stripe_onboarding_complete) {
+      return NextResponse.json({ 
+        error: 'Owner payment setup incomplete. Please contact the owner.' 
+      }, { status: 400 });
+    }
+
+    // Create Stripe payment intent with Connect
     try {
+      const totalAmountCents = Math.round((totalAmount + listing.deposit_amount) * 100);
+      const platformFeeCents = Math.round(serviceFee * 100); // Platform keeps service fee
+
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round((totalAmount + listing.deposit_amount) * 100), // Convert to cents
+        amount: totalAmountCents,
         currency: 'aud',
+        application_fee_amount: platformFeeCents,
+        transfer_data: {
+          destination: ownerProfile.stripe_account_id,
+        },
         metadata: {
           booking_id: booking.id,
           listing_id: listing.id,
           renter_id: user.id,
           owner_id: listing.owner_id,
+          total_amount: totalAmount.toString(),
+          service_fee: serviceFee.toString(),
+          deposit_amount: listing.deposit_amount.toString(),
         },
-        description: `Booking for ${listing.title}`,
+        description: `Rent It Forward: ${listing.title}`,
+        on_behalf_of: ownerProfile.stripe_account_id,
       });
 
       // Update booking with payment intent ID
       await supabase
         .from('bookings')
-        .update({ stripe_payment_intent_id: paymentIntent.id })
+        .update({ 
+          stripe_payment_intent_id: paymentIntent.id,
+          payment_status: 'pending'
+        } as any)
         .eq('id', booking.id);
 
       return NextResponse.json({
-        booking: { ...booking, stripe_payment_intent_id: paymentIntent.id },
+        booking: { 
+          ...booking, 
+          stripe_payment_intent_id: paymentIntent.id,
+          payment_status: 'pending'
+        },
         client_secret: paymentIntent.client_secret,
+        requires_connect: true,
+        stripe_account_id: ownerProfile.stripe_account_id,
       }, { status: 201 });
     } catch (stripeError) {
       console.error('Error creating payment intent:', stripeError);

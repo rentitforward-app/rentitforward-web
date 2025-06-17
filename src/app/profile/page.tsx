@@ -29,6 +29,7 @@ import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import StripeConnectSetup from '@/components/payments/StripeConnectSetup';
 
 interface UserProfile {
   id: string;
@@ -650,21 +651,13 @@ export default function ProfilePage() {
                   
                   <div className="space-y-6">
                     <div>
-                      <h3 className="font-medium text-gray-900 mb-4">Payment Methods</h3>
-                      <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                        <div className="flex items-center">
-                          <CreditCard className="w-5 h-5 text-gray-400 mr-3" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">Stripe Connect</p>
-                            <p className="text-sm text-gray-500">
-                              {profile.stripe_onboarding_complete ? 'Connected' : 'Not connected'}
-                            </p>
-                          </div>
-                        </div>
-                        <Button variant="outline">
-                          {profile.stripe_onboarding_complete ? 'Manage' : 'Setup'} Payments
-                        </Button>
-                      </div>
+                      <h3 className="font-medium text-gray-900 mb-4">Payment Setup</h3>
+                      <StripeConnectSetup 
+                        onSetupComplete={() => {
+                          loadProfile(); // Refresh profile data after setup
+                          toast.success('Payment setup completed!');
+                        }}
+                      />
                     </div>
 
                     <div>
