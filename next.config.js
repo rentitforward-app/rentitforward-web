@@ -31,9 +31,13 @@ const nextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', 'localhost:3001'],
+      allowedOrigins: ['localhost:3000', 'localhost:3001', '*.vercel.app'],
     },
   },
+  // Disable strict mode for deployment
+  reactStrictMode: false,
+  // Allow external packages
+  transpilePackages: ['@supabase/ssr', '@supabase/supabase-js'],
 };
 
 module.exports = nextConfig; 
