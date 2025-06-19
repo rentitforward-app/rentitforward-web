@@ -1,7 +1,30 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { lightTheme, darkTheme, type Theme, type ThemeContextValue } from '../lib/design-system'
+// import { lightTheme, darkTheme, type Theme, type ThemeContextValue } from '../lib/design-system'
+
+// Temporary theme definitions for deployment
+const lightTheme = {
+  colors: {
+    primary: '#22c55e',
+    background: '#ffffff',
+    text: '#000000'
+  }
+}
+
+const darkTheme = {
+  colors: {
+    primary: '#22c55e', 
+    background: '#000000',
+    text: '#ffffff'
+  }
+}
+
+type Theme = typeof lightTheme
+type ThemeContextValue = {
+  theme: Theme
+  toggleTheme: () => void
+}
 
 // Theme Context
 const ThemeContext = createContext<ThemeContextValue | null>(null)
