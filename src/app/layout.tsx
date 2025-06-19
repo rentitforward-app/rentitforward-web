@@ -33,6 +33,14 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  icons: {
+    icon: [
+      { url: '/images/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    shortcut: '/images/favicon-32x32.png',
+    apple: '/images/favicon-32x32.png',
+  },
   openGraph: {
     title: "Rent It Forward - Share More, Buy Less",
     description: "A modern rental marketplace for tools, gear, electronics, and other items.",
