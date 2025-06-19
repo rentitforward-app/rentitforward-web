@@ -1,5 +1,5 @@
+import { tailwindColors } from './src/shared/design-system/colors';
 import type { Config } from 'tailwindcss';
-import { tailwindColors } from '@rentitforward/shared';
 
 const config: Config = {
   content: [
@@ -11,12 +11,11 @@ const config: Config = {
     extend: {
       colors: {
         ...tailwindColors,
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
       },
       fontFamily: {
-        primary: ['Sora', 'system-ui', '-apple-system', 'sans-serif'],
-        secondary: ['Manrope', 'system-ui', '-apple-system', 'sans-serif'],
-        sora: ['Sora', 'system-ui', '-apple-system', 'sans-serif'],
-        manrope: ['Manrope', 'system-ui', '-apple-system', 'sans-serif'],
+        'sans': ['Sora', 'Inter', 'system-ui', 'sans-serif'],
       },
     },
   },

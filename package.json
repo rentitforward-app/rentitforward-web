@@ -5,13 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prebuild": "echo 'Preparing build...'",
     "start": "next start",
     "lint": "next lint",
     "setup-env": "node setup-env.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
-    "@rentitforward/shared": "file:../rentitforward-shared",
     "@stripe/react-stripe-js": "^3.7.0",
     "@stripe/stripe-js": "^3.0.7",
     "@supabase/ssr": "^0.1.0",
