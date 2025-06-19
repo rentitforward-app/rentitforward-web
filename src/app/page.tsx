@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Search, Star, ArrowRight, User, List, DollarSign } from 'lucide-react'
 import Image from 'next/image'
+import TopListings from '@/components/TopListings'
 
 const categories = [
   { 
@@ -38,45 +39,6 @@ const categories = [
     icon: '🔨', 
     slug: 'tools-equipment',
     items: ['pressure washers', 'generators', 'lawn equipment', 'construction tools']
-  },
-]
-
-const topItems = [
-  { 
-    id: 1, 
-    name: 'Canon EOS 5D Mark IV', 
-    rating: 4.8, 
-    reviews: 12, 
-    price: 45,
-    image: '/api/placeholder/300/300',
-    period: 'day'
-  },
-  { 
-    id: 2, 
-    name: 'DeWalt Power Drill', 
-    rating: 4.9, 
-    reviews: 28, 
-    price: 15,
-    image: '/api/placeholder/300/300',
-    period: 'day'
-  },
-  { 
-    id: 3, 
-    name: '4-Person Camping Tent', 
-    rating: 4.7, 
-    reviews: 19, 
-    price: 25,
-    image: '/api/placeholder/300/300',
-    period: 'day'
-  },
-  { 
-    id: 4, 
-    name: 'DJ Equipment Set', 
-    rating: 4.9, 
-    reviews: 15, 
-    price: 75,
-    image: '/api/placeholder/300/300',
-    period: 'day'
   },
 ]
 
@@ -196,36 +158,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center text-gray-900 mb-12 sm:mb-16">Top Rented Items</h2>
           
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-            {topItems.map((item) => (
-              <Link key={item.id} href={`/listing/${item.id}`} className="group">
-                <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300">
-                  <div className="aspect-square bg-gray-200 relative overflow-hidden">
-                    <img 
-                      src={item.image} 
-                      alt={item.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">
-                      {item.name}
-                    </h3>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm font-medium text-gray-900">{item.rating}</span>
-                      </div>
-                      <span className="text-sm text-gray-500">({item.reviews} reviews)</span>
-                    </div>
-                    <div className="text-2xl font-bold text-green-600">
-                      ${item.price}<span className="text-sm font-normal text-gray-500">/{item.period}</span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <TopListings limit={4} />
         </div>
       </section>
 

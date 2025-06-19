@@ -570,21 +570,23 @@ export default function ListingDetailPage() {
               )}
 
               {/* Delivery Methods */}
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-3">Delivery Options</h2>
-                <div className="flex flex-wrap gap-2">
-                  {listing.delivery_methods.map((method, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#44D62C]/10 text-[#44D62C]"
-                    >
-                      {method === 'pickup' && <Package className="h-4 w-4 mr-1" />}
-                      {method === 'delivery' && <Truck className="h-4 w-4 mr-1" />}
-                      {method.charAt(0).toUpperCase() + method.slice(1)}
-                    </span>
-                  ))}
+              {listing.delivery_methods && listing.delivery_methods.length > 0 && (
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-3">Delivery Options</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {listing.delivery_methods.map((method, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#44D62C]/10 text-[#44D62C]"
+                      >
+                        {method === 'pickup' && <Package className="h-4 w-4 mr-1" />}
+                        {method === 'delivery' && <Truck className="h-4 w-4 mr-1" />}
+                        {method.charAt(0).toUpperCase() + method.slice(1)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Rules */}
               {listing.rules && listing.rules.length > 0 && (
@@ -616,7 +618,7 @@ export default function ListingDetailPage() {
                       className="rounded-full"
                     />
                   ) : (
-                    <div className="w-15 h-15 bg-gray-300 rounded-full flex items-center justify-center">
+                    <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center">
                       <User className="h-8 w-8 text-gray-600" />
                     </div>
                   )}
@@ -680,7 +682,7 @@ export default function ListingDetailPage() {
                         </div>
                       </div>
                       {review.comment && (
-                        <p className="text-gray-700 ml-13">{review.comment}</p>
+                        <p className="text-gray-700 ml-12">{review.comment}</p>
                       )}
                     </div>
                   ))}
@@ -757,7 +759,7 @@ export default function ListingDetailPage() {
                         className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
                       >
                         <option value="">Select delivery method</option>
-                        {listing.delivery_methods.map((method) => (
+                        {(listing.delivery_methods || []).map((method) => (
                           <option key={method} value={method}>
                             {method.charAt(0).toUpperCase() + method.slice(1)}
                           </option>

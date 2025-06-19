@@ -40,16 +40,16 @@ interface Listing {
 }
 
 const categories = {
-  'tools-diy': { label: 'Tools & DIY', icon: '🔧' },
-  'electronics': { label: 'Electronics', icon: '📱' },
-  'cameras': { label: 'Cameras', icon: '📷' },
-  'sports-outdoors': { label: 'Sports & Outdoors', icon: '🏃' },
-  'event-party': { label: 'Event & Party', icon: '🎉' },
-  'instruments': { label: 'Instruments', icon: '🎸' },
-  'automotive': { label: 'Automotive', icon: '🚗' },
-  'home-garden': { label: 'Home & Garden', icon: '🏡' },
-  'appliances': { label: 'Appliances', icon: '🔌' },
-  'other': { label: 'Other', icon: '📦' }
+  'Tools & DIY': { label: 'Tools & DIY', icon: '🔧' },
+  'Electronics': { label: 'Electronics', icon: '📱' },
+  'Cameras': { label: 'Cameras', icon: '📷' },
+  'Sports & Outdoors': { label: 'Sports & Outdoors', icon: '🏃' },
+  'Event & Party': { label: 'Event & Party', icon: '🎉' },
+  'Instruments': { label: 'Instruments', icon: '🎸' },
+  'Automotive': { label: 'Automotive', icon: '🚗' },
+  'Home & Garden': { label: 'Home & Garden', icon: '🏡' },
+  'Appliances': { label: 'Appliances', icon: '🔌' },
+  'Other': { label: 'Other', icon: '📦' }
 };
 
 const australianStates = [
@@ -89,6 +89,13 @@ function BrowseContent() {
   const supabase = createClient();
 
   useEffect(() => {
+    console.log('🚀 BrowseContent component mounted, starting initial data fetch...');
+    console.log('📍 Search params:', { 
+      category: searchParams.get('category'),
+      search: searchParams.get('search'),
+      state: searchParams.get('state')
+    });
+    
     checkUser();
     fetchListings();
     
@@ -119,29 +126,79 @@ function BrowseContent() {
 
   const fetchListings = async () => {
     try {
+      console.log('🔍 Starting to fetch listings...');
+      console.log('📡 Supabase client initialized:', !!supabase);
+      
+      // Test basic connection first
+      const { data: testData, error: testError } = await supabase
+        .from('listings')
+        .select('count', { count: 'exact', head: true });
+      
+      console.log('📊 Database connection test:', { count: testData, error: testError });
+      
+      // Simplified query without joins for now - select only existing columns
       const { data, error } = await supabase
         .from('listings')
         .select(`
-          *,
-          profiles:owner_id (
-            full_name,
-            avatar_url
-          )
+          id,
+          title,
+          description,
+          category,
+          daily_rate,
+          weekly_rate,
+          monthly_rate,
+          deposit_amount,
+          images,
+          location,
+          state,
+          postcode,
+          is_available,
+          condition,
+          brand,
+          model,
+          year,
+          view_count,
+          favorite_count,
+          created_at,
+          owner_id
         `)
         .eq('is_available', true)
         .order('created_at', { ascending: false });
 
+      console.log('📋 Query result:', { 
+        dataLength: data?.length, 
+        error: error,
+        firstItem: data?.[0] 
+      });
+
       if (error) {
-        console.error('Error fetching listings:', error);
+        console.error('❌ Error fetching listings (detailed):', error);
+        console.error('🔍 Error details:', JSON.stringify(error, null, 2));
         toast.error('Failed to load listings');
         return;
       }
 
-      setListings(data || []);
+      console.log('✅ Fetched listings successfully:', data?.length || 0);
+      
+      // Add fake profile data for now until we fix the join
+      const listingsWithProfiles = data?.map(listing => ({
+        ...listing,
+        subcategory: null, // Add this since the interface expects it
+        profiles: {
+          full_name: 'Property Owner',
+          avatar_url: null
+        }
+      })) || [];
+      
+      console.log('🎯 Setting listings in state:', listingsWithProfiles.length);
+      setListings(listingsWithProfiles);
     } catch (error) {
-      console.error('Error fetching listings:', error);
+      console.error('💥 Error fetching listings (catch):', error);
+      console.error('🔍 Error type:', typeof error);
+      console.error('🔍 Error string:', String(error));
       toast.error('Failed to load listings');
     } finally {
+      console.log('🏁 Setting loading to false');
       setIsLoading(false);
     }
   };
@@ -284,7 +341,19 @@ function BrowseContent() {
     }).format(price);
   };
 
-  const hasActiveFilters = searchTerm || selectedCategory || selectedState || priceRange.min || priceRange.max;
+  const hasActiveFilters = selectedCategory || selectedState || searchTerm || priceRange.min || priceRange.max;
+
+  // Debug output for render
+  console.log('🎨 BrowseContent render:', {
+    isLoading,
+    listings: listings.length,
+    filteredListings: filteredListings.length,
+    hasActiveFilters,
+    searchTerm,
+    selectedCategory,
+    selectedState,
+    priceRange
+  });
 
   if (isLoading) {
     return (
