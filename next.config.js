@@ -6,6 +6,17 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    // Add custom module resolution
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+    };
+    
+    return config;
+  },
   images: {
     domains: ['localhost', 'supabase.co', 'images.unsplash.com', 'res.cloudinary.com'],
     remotePatterns: [

@@ -6,10 +6,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, ArrowLeft, Send, Check } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '../../../lib/supabase/client';
 import { z } from 'zod';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
