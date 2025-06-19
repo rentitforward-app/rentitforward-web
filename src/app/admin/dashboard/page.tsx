@@ -22,10 +22,10 @@ import {
   Heart,
   Flag
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '../../../lib/supabase/client';
 import { format, subDays } from 'date-fns';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card } from '../../../components/ui/Card';
+import { Button } from '../../../components/ui/Button';
 
 export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);

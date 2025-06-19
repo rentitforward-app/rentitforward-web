@@ -6,14 +6,26 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    forceSwcTransforms: true,
+  },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // Add custom module resolution
+    // Handle missing modules gracefully
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
       net: false,
       tls: false,
+      crypto: false,
     };
+    
+    // Optimize for production builds
+    if (!dev) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@': require('path').resolve(__dirname, './src'),
+      };
+    }
     
     return config;
   },
@@ -40,15 +52,30 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    serverActions: {
-      allowedOrigins: ['localhost:3000', 'localhost:3001', '*.vercel.app'],
-    },
+  env: {
+    CUSTOM_KEY: 'custom_value',
   },
-  // Disable strict mode for deployment
-  reactStrictMode: false,
-  // Allow external packages
-  transpilePackages: ['@supabase/ssr', '@supabase/supabase-js'],
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig; 

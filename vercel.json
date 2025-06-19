@@ -1,17 +1,19 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "installCommand": "npm install --force",
   "framework": "nextjs",
   "env": {
     "NODE_ENV": "production",
+    "SKIP_ENV_VALIDATION": "1",
     "NEXT_PUBLIC_SUPABASE_URL": "https://placeholder.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder",
     "NEXTAUTH_SECRET": "placeholder",
-    "NEXT_PUBLIC_APP_URL": "https://rentitforward.vercel.app"
+    "NEXT_PUBLIC_APP_URL": "https://rentitforward-web.vercel.app"
   },
   "build": {
     "env": {
-      "NODE_ENV": "production"
+      "NODE_ENV": "production",
+      "SKIP_ENV_VALIDATION": "1"
     }
   },
   "rewrites": [

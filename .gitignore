@@ -55,3 +55,6 @@ Thumbs.db
 .cursor
 
 .vercel
+
+# MCP
+mcp.json

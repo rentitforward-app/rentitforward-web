@@ -1,21 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Calendar, 
-  Search, 
-  Eye,
-  CheckCircle,
-  XCircle,
-  Clock,
-  DollarSign,
-  User,
-  Package,
-  Download
-} from 'lucide-react';
+import { Search, Filter, Eye, Download, Calendar, Clock, DollarSign, MapPin, User, Phone, Mail, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { createClient } from '../../../lib/supabase/client';
+import { Card } from '../../../components/ui/Card';
+import { Button } from '../../../components/ui/Button';
 import { format } from 'date-fns';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 
 interface Booking {
   id: string;
