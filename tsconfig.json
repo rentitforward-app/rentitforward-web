@@ -30,8 +30,10 @@
       "@/stores/*": ["./src/stores/*"],
       "@/styles/*": ["./src/styles/*"],
 
-      // Shared repo access
-      "@shared/*": ["../rentitforward-shared/src/*"]
+      // Shared repo access (with fallback to local copy)
+      "@shared/*": ["./src/shared/*", "../rentitforward-shared/src/*"],
+      "@rentitforward/shared": ["./src/shared", "../rentitforward-shared/src"],
+      "@rentitforward/shared/*": ["./src/shared/*", "../rentitforward-shared/src/*"]
     },
     "target": "ES2017"
   },
