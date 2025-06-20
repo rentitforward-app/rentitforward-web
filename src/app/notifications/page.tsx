@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Notification {
@@ -172,7 +173,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -321,6 +322,6 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 } 

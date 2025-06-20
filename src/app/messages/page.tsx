@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import Image from 'next/image';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -224,7 +225,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
@@ -257,6 +258,6 @@ export default function MessagesPage() {
           </div>
         </div>
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 } 

@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import ListingCard from '@/components/ui/ListingCard';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 interface Listing {
   id: string;
@@ -198,37 +199,19 @@ function BrowseContent() {
       console.log('✅ Fetched listings successfully:', data?.length || 0);
       
       // Add fake profile data for now until we fix the join
-      const listingsWithProfiles = data?.map(listing => ({
+      const enrichedListings = data?.map((listing: any) => ({
         ...listing,
-        subcategory: null, // Add this since the interface expects it
         profiles: {
-          full_name: 'Property Owner',
+          full_name: 'User Name',
           avatar_url: null
         }
       })) || [];
-      
-      console.log('🎯 Setting listings in state:', listingsWithProfiles.length);
-      setListings(listingsWithProfiles);
+
+      setListings(enrichedListings);
     } catch (error) {
-      console.error('💥 Error fetching listings (catch):', error);
-      console.error('🔍 Error type:', typeof error);
-      console.error('🔍 Error string:', String(error));
-      
-      // Send to Sentry for monitoring
-      if (typeof window !== 'undefined') {
-        const Sentry = require('@sentry/nextjs');
-        Sentry.captureException(error, {
-          extra: {
-            errorType: typeof error,
-            errorString: String(error),
-            context: 'fetchListings_catch'
-          }
-        });
-      }
-      
+      console.error('❌ Unexpected error in fetchListings:', error);
       toast.error('Failed to load listings');
     } finally {
-      console.log('🏁 Setting loading to false');
       setIsLoading(false);
     }
   };
@@ -244,15 +227,6 @@ function BrowseContent() {
 
       if (error) {
         console.error('Error fetching favorites:', error);
-        
-        // Send to Sentry for monitoring
-        if (typeof window !== 'undefined') {
-          const Sentry = require('@sentry/nextjs');
-          Sentry.captureException(new Error(`Failed to fetch favorites: ${error.message || 'Unknown error'}`), {
-            extra: { supabaseError: error, context: 'fetchFavorites' }
-          });
-        }
-        
         return;
       }
 
@@ -266,13 +240,13 @@ function BrowseContent() {
   const toggleFavorite = async (listingId: string) => {
     if (!user) {
       toast.error('Please log in to save favorites');
-      router.push('/login');
       return;
     }
 
     try {
-      if (favorites.has(listingId)) {
-        // Remove from favorites
+      const isFavorited = favorites.has(listingId);
+      
+      if (isFavorited) {
         const { error } = await supabase
           .from('favorites')
           .delete()
@@ -280,27 +254,20 @@ function BrowseContent() {
           .eq('listing_id', listingId);
 
         if (error) throw error;
-
+        
         setFavorites(prev => {
           const newFavorites = new Set(prev);
           newFavorites.delete(listingId);
           return newFavorites;
         });
-
-        toast.success('Removed from favorites');
       } else {
-        // Add to favorites
         const { error } = await supabase
           .from('favorites')
-          .insert({
-            user_id: user.id,
-            listing_id: listingId
-          });
+          .insert({ user_id: user.id, listing_id: listingId });
 
         if (error) throw error;
-
-        setFavorites(prev => new Set(prev).add(listingId));
-        toast.success('Added to favorites');
+        
+        setFavorites(prev => new Set([...prev, listingId]));
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -313,54 +280,53 @@ function BrowseContent() {
 
     // Apply search filter
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(listing =>
-        listing.title.toLowerCase().includes(term) ||
-        listing.description.toLowerCase().includes(term) ||
-        listing.category.toLowerCase().includes(term) ||
-        listing.address.toLowerCase().includes(term) ||
-        listing.city.toLowerCase().includes(term) ||
-        listing.brand?.toLowerCase().includes(term) ||
-        listing.model?.toLowerCase().includes(term)
+        listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        listing.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        listing.category.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Apply category filter
     if (selectedCategory) {
-      filtered = filtered.filter(listing => listing.category === selectedCategory);
+      filtered = filtered.filter(listing =>
+        listing.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
     }
 
     // Apply state filter
     if (selectedState) {
-      filtered = filtered.filter(listing => listing.state === selectedState);
+      filtered = filtered.filter(listing =>
+        listing.state === selectedState
+      );
     }
 
     // Apply price range filter
-    if (priceRange.min || priceRange.max) {
-      filtered = filtered.filter(listing => {
-        const price = listing.price_per_day;
-        const min = priceRange.min ? parseFloat(priceRange.min) : 0;
-        const max = priceRange.max ? parseFloat(priceRange.max) : Infinity;
-        return price >= min && price <= max;
-      });
+    if (priceRange.min) {
+      filtered = filtered.filter(listing =>
+        listing.price_per_day >= parseFloat(priceRange.min)
+      );
+    }
+    if (priceRange.max) {
+      filtered = filtered.filter(listing =>
+        listing.price_per_day <= parseFloat(priceRange.max)
+      );
     }
 
     // Apply sorting
-    switch (sortBy) {
-      case 'price_low':
-        filtered.sort((a, b) => a.price_per_day - b.price_per_day);
-        break;
-      case 'price_high':
-        filtered.sort((a, b) => b.price_per_day - a.price_per_day);
-        break;
-      case 'popular':
-        filtered.sort((a, b) => (b.favorite_count + b.view_count) - (a.favorite_count + a.view_count));
-        break;
-      case 'newest':
-      default:
-        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        break;
-    }
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'price_low':
+          return a.price_per_day - b.price_per_day;
+        case 'price_high':
+          return b.price_per_day - a.price_per_day;
+        case 'popular':
+          return (b.favorite_count || 0) - (a.favorite_count || 0);
+        case 'newest':
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
 
     setFilteredListings(filtered);
   };
@@ -371,311 +337,203 @@ function BrowseContent() {
     setSelectedState('');
     setPriceRange({ min: '', max: '' });
     setSortBy('newest');
-    router.push('/browse');
   };
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD'
-    }).format(price);
+    return `$${price}`;
   };
-
-  const hasActiveFilters = selectedCategory || selectedState || searchTerm || priceRange.min || priceRange.max;
-
-  // Debug output for render
-  console.log('🎨 BrowseContent render:', {
-    isLoading,
-    listings: listings.length,
-    filteredListings: filteredListings.length,
-    hasActiveFilters,
-    searchTerm,
-    selectedCategory,
-    selectedState,
-    priceRange
-  });
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-white rounded-lg shadow h-80"></div>
-              ))}
-            </div>
-          </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading listings...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            {/* Title and Results Count */}
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Browse Items</h1>
-              <p className="text-gray-600 mt-1">
-                {filteredListings.length} item{filteredListings.length !== 1 ? 's' : ''} available
-                {hasActiveFilters && ' (filtered)'}
-              </p>
-              {/* Test Sentry Error Button - Development Only */}
-              {process.env.NODE_ENV === 'development' && (
-                <button
-                  onClick={() => {
-                    const Sentry = require('@sentry/nextjs');
-                    Sentry.captureException(new Error('Test error from Browse page'), {
-                      extra: { context: 'test_button_browse' }
-                    });
-                  }}
-                  className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded"
-                >
-                  Test Sentry Error
-                </button>
-              )}
-            </div>
+    <>
+      {/* Filters Panel */}
+      <div className="bg-white border-b border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+          <button 
+            onClick={clearFilters}
+            className="text-green-500 hover:text-green-600 font-medium transition-colors"
+          >
+            Clear all
+          </button>
+        </div>
 
-            {/* Search Bar */}
-            <div className="flex-1 max-w-lg">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search items, categories, locations..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Search */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search items..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
             </div>
+          </div>
+
+          {/* Categories */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Categories</label>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(categories).slice(0, 6).map(([key, category]) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedCategory(selectedCategory === key ? '' : key)}
+                  className={`category-pill px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    selectedCategory === key
+                      ? 'bg-green-500 text-white selected'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {category.icon} {category.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Price Range */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Price Range (per day)</label>
+            <div className="flex space-x-2">
+              <input
+                type="number"
+                placeholder="Min"
+                value={priceRange.min}
+                onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={priceRange.max}
+                onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* State Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+            <select
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            >
+              <option value="">All States</option>
+              {australianStates.map(state => (
+                <option key={state.code} value={state.code}>
+                  {state.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Filters Sidebar */}
-          <div className="lg:w-80 shrink-0">
-            {/* Mobile Filter Toggle */}
-            <div className="lg:hidden mb-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className="w-full"
+      {/* Results Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-xl font-semibold text-gray-900">
+              {filteredListings.length} Items Available
+            </h1>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            {/* Sort dropdown */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            >
+              {sortOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            {/* View mode toggle */}
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 ${viewMode === 'grid' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
-                {hasActiveFilters && (
-                  <span className="ml-2 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    !
-                  </span>
-                )}
-              </Button>
+                <Grid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                <List className="w-4 h-4" />
+              </button>
             </div>
-
-            {/* Filters Panel */}
-            <div className={`${showFilters ? 'block' : 'hidden'} lg:block`}>
-              <Card className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      className="text-green-600 hover:text-green-700"
-                    >
-                      Clear all
-                    </Button>
-                  )}
-                </div>
-
-                <div className="space-y-6">
-                  {/* Category Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Category
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="category"
-                          value=""
-                          checked={selectedCategory === ''}
-                          onChange={(e) => setSelectedCategory(e.target.value)}
-                          className="text-green-600 focus:ring-green-500"
-                        />
-                        <span className="ml-2 text-sm">All Categories</span>
-                      </label>
-                      {Object.entries(categories).map(([key, category]) => (
-                        <label key={key} className="flex items-center">
-                          <input
-                            type="radio"
-                            name="category"
-                            value={key}
-                            checked={selectedCategory === key}
-                            onChange={(e) => setSelectedCategory(e.target.value)}
-                            className="text-green-600 focus:ring-green-500"
-                          />
-                          <span className="ml-2 text-sm">
-                            {category.icon} {category.label}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Location Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      State
-                    </label>
-                    <select
-                      value={selectedState}
-                      onChange={(e) => setSelectedState(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    >
-                      <option value="">All States</option>
-                      {australianStates.map((state) => (
-                        <option key={state.code} value={state.code}>
-                          {state.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Price Range Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Daily Rate
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <input
-                          type="number"
-                          placeholder="Min"
-                          value={priceRange.min}
-                          onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        />
-                      </div>
-                      <div>
-                        <input
-                          type="number"
-                          placeholder="Max"
-                          value={priceRange.max}
-                          onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1 min-w-0">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                {/* Sort Dropdown */}
-                <div className="relative">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  >
-                    {sortOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* View Mode Toggle */}
-              <div className="flex border border-gray-300 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 ${viewMode === 'grid' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Results */}
-            {filteredListings.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                  <Search className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No items found</h3>
-                <p className="text-gray-600 mb-6">
-                  Try adjusting your search criteria or browse different categories.
-                </p>
-                {hasActiveFilters && (
-                  <Button onClick={clearFilters} variant="outline">
-                    Clear all filters
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className={viewMode === 'grid' 
-                ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6' 
-                : 'space-y-4'
-              }>
-                                 {filteredListings.map((listing) => (
-                   <ListingCard
-                     key={listing.id}
-                     id={listing.id}
-                     title={listing.title}
-                     images={listing.images}
-                     price={listing.price_per_day}
-                     period="day"
-                     rating={4.5} // TODO: Calculate from reviews
-                     reviewCount={12} // TODO: Get from reviews
-                     category={categories[listing.category as keyof typeof categories]?.label || listing.category}
-                     owner={{
-                       name: listing.profiles.full_name,
-                       avatar: listing.profiles.avatar_url || undefined,
-                     }}
-                   />
-                 ))}
-              </div>
-            )}
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Results Grid */}
+      <div className="p-6">
+        {filteredListings.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg mb-4">No items found</p>
+            <p className="text-gray-400">Try adjusting your filters or search terms</p>
+          </div>
+        ) : (
+          <div className={`grid gap-6 ${
+            viewMode === 'grid' 
+              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+              : 'grid-cols-1'
+          }`}>
+            {filteredListings.map((listing) => (
+              <ListingCard
+                key={listing.id}
+                id={listing.id}
+                title={listing.title}
+                images={listing.images}
+                price={listing.price_per_day}
+                period="day"
+                category={listing.category}
+                owner={{
+                  name: listing.profiles?.full_name || 'Anonymous',
+                  avatar: listing.profiles?.avatar_url || undefined
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
 export default function BrowsePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    }>
-      <BrowseContent />
-    </Suspense>
+    <AuthenticatedLayout>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      }>
+        <BrowseContent />
+      </Suspense>
+    </AuthenticatedLayout>
   );
 } 
