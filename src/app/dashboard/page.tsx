@@ -47,13 +47,16 @@ interface Listing {
   id: string;
   title: string;
   images: string[];
-  daily_rate: number;
-  is_available: boolean;
+  price_per_day: number;
+  is_active: boolean;
   view_count: number;
   favorite_count: number;
   created_at: string;
   category: string;
   state: string;
+  address: string;
+  city: string;
+  postal_code: string;
 }
 
 interface Booking {
@@ -197,10 +200,40 @@ function DashboardContent() {
         .eq('owner_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching dashboard listings:', error);
+        
+        // Send to Sentry for monitoring
+        if (typeof window !== 'undefined') {
+          const Sentry = require('@sentry/nextjs');
+          Sentry.captureException(new Error(`Dashboard listings query failed: ${error.message || 'Unknown error'}`), {
+            extra: {
+              supabaseError: error,
+              userId: userId,
+              context: 'fetchListings_dashboard'
+            }
+          });
+        }
+        
+        throw error;
+      }
+      
       setListings(data || []);
     } catch (error) {
-      console.error('Error fetching listings:', error);
+      console.error('Error fetching dashboard listings (catch):', error);
+      
+      // Send to Sentry for monitoring
+      if (typeof window !== 'undefined') {
+        const Sentry = require('@sentry/nextjs');
+        Sentry.captureException(error, {
+          extra: {
+            userId: userId,
+            context: 'fetchListings_dashboard_catch'
+          }
+        });
+      }
+      
+      toast.error('Failed to load your listings');
     }
   };
 
@@ -210,16 +243,46 @@ function DashboardContent() {
         .from('bookings')
         .select(`
           *,
-          listings:listing_id (title, images),
-          profiles:renter_id (full_name, avatar_url)
+          listings!item_id (title, images),
+          profiles!renter_id (full_name, avatar_url)
         `)
         .eq('owner_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching dashboard bookings:', error);
+        
+        // Send to Sentry for monitoring
+        if (typeof window !== 'undefined') {
+          const Sentry = require('@sentry/nextjs');
+          Sentry.captureException(new Error(`Dashboard bookings query failed: ${error.message || 'Unknown error'}`), {
+            extra: {
+              supabaseError: error,
+              userId: userId,
+              context: 'fetchBookings_dashboard'
+            }
+          });
+        }
+        
+        throw error;
+      }
+      
       setBookings(data || []);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      console.error('Error fetching dashboard bookings (catch):', error);
+      
+      // Send to Sentry for monitoring
+      if (typeof window !== 'undefined') {
+        const Sentry = require('@sentry/nextjs');
+        Sentry.captureException(error, {
+          extra: {
+            userId: userId,
+            context: 'fetchBookings_dashboard_catch'
+          }
+        });
+      }
+      
+      toast.error('Failed to load bookings');
     }
   };
 
@@ -229,16 +292,46 @@ function DashboardContent() {
         .from('bookings')
         .select(`
           *,
-          listings:listing_id (title, images),
-          profiles:owner_id (full_name, avatar_url)
+          listings!item_id (title, images),
+          profiles!owner_id (full_name, avatar_url)
         `)
         .eq('renter_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching dashboard rentals:', error);
+        
+        // Send to Sentry for monitoring
+        if (typeof window !== 'undefined') {
+          const Sentry = require('@sentry/nextjs');
+          Sentry.captureException(new Error(`Dashboard rentals query failed: ${error.message || 'Unknown error'}`), {
+            extra: {
+              supabaseError: error,
+              userId: userId,
+              context: 'fetchRentals_dashboard'
+            }
+          });
+        }
+        
+        throw error;
+      }
+      
       setRentals(data || []);
     } catch (error) {
-      console.error('Error fetching rentals:', error);
+      console.error('Error fetching dashboard rentals (catch):', error);
+      
+      // Send to Sentry for monitoring
+      if (typeof window !== 'undefined') {
+        const Sentry = require('@sentry/nextjs');
+        Sentry.captureException(error, {
+          extra: {
+            userId: userId,
+            context: 'fetchRentals_dashboard_catch'
+          }
+        });
+      }
+      
+      toast.error('Failed to load your rentals');
     }
   };
 
@@ -302,6 +395,20 @@ function DashboardContent() {
             <p className="text-gray-600">Manage your rentals and track your progress</p>
           </div>
           <div className="flex items-center space-x-3">
+            {/* Test Sentry Error Button - Development Only */}
+            {process.env.NODE_ENV === 'development' && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const Sentry = require('@sentry/nextjs');
+                  Sentry.captureException(new Error('Test error from Dashboard page'));
+                  toast.error('Test error sent to Sentry!');
+                }}
+                className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+              >
+                Test Sentry Error
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => router.push('/messages')}

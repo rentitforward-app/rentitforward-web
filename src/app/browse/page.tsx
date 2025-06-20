@@ -17,15 +17,17 @@ interface Listing {
   description: string;
   category: string;
   subcategory: string | null;
-  daily_rate: number;
-  weekly_rate: number | null;
-  monthly_rate: number | null;
-  deposit_amount: number;
+  price_per_day: number;
+  price_weekly: number | null;
+  price_hourly: number | null;
+  deposit: number;
   images: string[];
-  location: string;
+  address: string;
+  city: string;
   state: string;
-  postcode: string;
-  is_available: boolean;
+  country: string;
+  postal_code: string;
+  is_active: boolean;
   condition: string;
   brand: string | null;
   model: string | null;
@@ -144,15 +146,17 @@ function BrowseContent() {
           title,
           description,
           category,
-          daily_rate,
-          weekly_rate,
-          monthly_rate,
-          deposit_amount,
+          price_per_day,
+          price_weekly,
+          price_hourly,
+          deposit,
           images,
-          location,
+          address,
+          city,
           state,
-          postcode,
-          is_available,
+          country,
+          postal_code,
+          is_active,
           condition,
           brand,
           model,
@@ -162,7 +166,7 @@ function BrowseContent() {
           created_at,
           owner_id
         `)
-        .eq('is_available', true)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       console.log('📋 Query result:', { 
@@ -174,6 +178,19 @@ function BrowseContent() {
       if (error) {
         console.error('❌ Error fetching listings (detailed):', error);
         console.error('🔍 Error details:', JSON.stringify(error, null, 2));
+        
+        // Send to Sentry for monitoring
+        if (typeof window !== 'undefined') {
+          const Sentry = require('@sentry/nextjs');
+          Sentry.captureException(new Error(`Supabase listings query failed: ${error.message || 'Unknown error'}`), {
+            extra: {
+              supabaseError: error,
+              errorDetails: JSON.stringify(error, null, 2),
+              context: 'fetchListings'
+            }
+          });
+        }
+        
         toast.error('Failed to load listings');
         return;
       }
@@ -196,6 +213,19 @@ function BrowseContent() {
       console.error('💥 Error fetching listings (catch):', error);
       console.error('🔍 Error type:', typeof error);
       console.error('🔍 Error string:', String(error));
+      
+      // Send to Sentry for monitoring
+      if (typeof window !== 'undefined') {
+        const Sentry = require('@sentry/nextjs');
+        Sentry.captureException(error, {
+          extra: {
+            errorType: typeof error,
+            errorString: String(error),
+            context: 'fetchListings_catch'
+          }
+        });
+      }
+      
       toast.error('Failed to load listings');
     } finally {
       console.log('🏁 Setting loading to false');
@@ -214,6 +244,15 @@ function BrowseContent() {
 
       if (error) {
         console.error('Error fetching favorites:', error);
+        
+        // Send to Sentry for monitoring
+        if (typeof window !== 'undefined') {
+          const Sentry = require('@sentry/nextjs');
+          Sentry.captureException(new Error(`Failed to fetch favorites: ${error.message || 'Unknown error'}`), {
+            extra: { supabaseError: error, context: 'fetchFavorites' }
+          });
+        }
+        
         return;
       }
 
@@ -279,7 +318,8 @@ function BrowseContent() {
         listing.title.toLowerCase().includes(term) ||
         listing.description.toLowerCase().includes(term) ||
         listing.category.toLowerCase().includes(term) ||
-        listing.location.toLowerCase().includes(term) ||
+        listing.address.toLowerCase().includes(term) ||
+        listing.city.toLowerCase().includes(term) ||
         listing.brand?.toLowerCase().includes(term) ||
         listing.model?.toLowerCase().includes(term)
       );
@@ -298,7 +338,7 @@ function BrowseContent() {
     // Apply price range filter
     if (priceRange.min || priceRange.max) {
       filtered = filtered.filter(listing => {
-        const price = listing.daily_rate;
+        const price = listing.price_per_day;
         const min = priceRange.min ? parseFloat(priceRange.min) : 0;
         const max = priceRange.max ? parseFloat(priceRange.max) : Infinity;
         return price >= min && price <= max;
@@ -308,10 +348,10 @@ function BrowseContent() {
     // Apply sorting
     switch (sortBy) {
       case 'price_low':
-        filtered.sort((a, b) => a.daily_rate - b.daily_rate);
+        filtered.sort((a, b) => a.price_per_day - b.price_per_day);
         break;
       case 'price_high':
-        filtered.sort((a, b) => b.daily_rate - a.daily_rate);
+        filtered.sort((a, b) => b.price_per_day - a.price_per_day);
         break;
       case 'popular':
         filtered.sort((a, b) => (b.favorite_count + b.view_count) - (a.favorite_count + a.view_count));
@@ -385,6 +425,20 @@ function BrowseContent() {
                 {filteredListings.length} item{filteredListings.length !== 1 ? 's' : ''} available
                 {hasActiveFilters && ' (filtered)'}
               </p>
+              {/* Test Sentry Error Button - Development Only */}
+              {process.env.NODE_ENV === 'development' && (
+                <button
+                  onClick={() => {
+                    const Sentry = require('@sentry/nextjs');
+                    Sentry.captureException(new Error('Test error from Browse page'), {
+                      extra: { context: 'test_button_browse' }
+                    });
+                  }}
+                  className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded"
+                >
+                  Test Sentry Error
+                </button>
+              )}
             </div>
 
             {/* Search Bar */}
@@ -594,7 +648,7 @@ function BrowseContent() {
                      id={listing.id}
                      title={listing.title}
                      images={listing.images}
-                     price={listing.daily_rate}
+                     price={listing.price_per_day}
                      period="day"
                      rating={4.5} // TODO: Calculate from reviews
                      reviewCount={12} // TODO: Get from reviews
