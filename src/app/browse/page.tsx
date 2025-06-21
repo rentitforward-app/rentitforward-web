@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, Filter, MapPin, Heart, Star, Calendar, Grid, List, X, ChevronDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -78,7 +78,7 @@ function BrowseContent() {
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedState, setSelectedState] = useState('');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('newest');
@@ -86,6 +86,8 @@ function BrowseContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -107,14 +109,28 @@ function BrowseContent() {
     const search = searchParams.get('search');
     const state = searchParams.get('state');
     
-    if (category) setSelectedCategory(category);
+    if (category) setSelectedCategories([category]);
     if (search) setSearchTerm(search);
     if (state) setSelectedState(state);
   }, [searchParams]);
 
+  // Handle clicking outside dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setShowCategoryDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   useEffect(() => {
     filterAndSortListings();
-  }, [listings, searchTerm, selectedCategory, selectedState, priceRange, sortBy]);
+  }, [listings, searchTerm, selectedCategories, selectedState, priceRange, sortBy]);
 
   useEffect(() => {
     if (user) {
@@ -288,9 +304,11 @@ function BrowseContent() {
     }
 
     // Apply category filter
-    if (selectedCategory) {
+    if (selectedCategories.length > 0) {
       filtered = filtered.filter(listing =>
-        listing.category.toLowerCase() === selectedCategory.toLowerCase()
+        selectedCategories.some(category => 
+          listing.category.toLowerCase() === category.toLowerCase()
+        )
       );
     }
 
@@ -307,6 +325,7 @@ function BrowseContent() {
         listing.price_per_day >= parseFloat(priceRange.min)
       );
     }
+
     if (priceRange.max) {
       filtered = filtered.filter(listing =>
         listing.price_per_day <= parseFloat(priceRange.max)
@@ -314,26 +333,28 @@ function BrowseContent() {
     }
 
     // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'price_low':
-          return a.price_per_day - b.price_per_day;
-        case 'price_high':
-          return b.price_per_day - a.price_per_day;
-        case 'popular':
-          return (b.favorite_count || 0) - (a.favorite_count || 0);
-        case 'newest':
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-    });
+    switch (sortBy) {
+      case 'price_low':
+        filtered.sort((a, b) => a.price_per_day - b.price_per_day);
+        break;
+      case 'price_high':
+        filtered.sort((a, b) => b.price_per_day - a.price_per_day);
+        break;
+      case 'popular':
+        filtered.sort((a, b) => (b.favorite_count || 0) - (a.favorite_count || 0));
+        break;
+      case 'newest':
+      default:
+        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+    }
 
     setFilteredListings(filtered);
   };
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedCategory('');
+    setSelectedCategories([]);
     setSelectedState('');
     setPriceRange({ min: '', max: '' });
     setSortBy('newest');
@@ -341,6 +362,20 @@ function BrowseContent() {
 
   const formatPrice = (price: number) => {
     return `$${price}`;
+  };
+
+  // Helper function to generate consistent mock data based on listing ID
+  const getMockListingData = (listingId: string) => {
+    // Use listing ID to generate consistent but varied mock data
+    const hash = listingId.split('-').reduce((acc, part) => {
+      return acc + part.charCodeAt(0);
+    }, 0);
+    
+    return {
+      rating: Math.max(3.0, Math.min(5.0, 3.0 + (hash % 100) / 50)), // Rating between 3.0-5.0
+      reviewCount: Math.max(1, (hash % 50) + 1), // Reviews between 1-50
+      distance: Math.max(0.5, Math.min(25.0, (hash % 250) / 10)) // Distance between 0.5-25.0 km
+    };
   };
 
   if (isLoading) {
@@ -385,23 +420,47 @@ function BrowseContent() {
           </div>
 
           {/* Categories */}
-          <div>
+          <div className="relative" ref={categoryDropdownRef}>
             <label className="block text-sm font-medium text-gray-700 mb-2">Categories</label>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(categories).slice(0, 6).map(([key, category]) => (
-                <button
-                  key={key}
-                  onClick={() => setSelectedCategory(selectedCategory === key ? '' : key)}
-                  className={`category-pill px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    selectedCategory === key
-                      ? 'bg-green-500 text-white selected'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {category.icon} {category.label}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+            >
+              <span className="text-gray-700">
+                {selectedCategories.length === 0 
+                  ? 'Select categories...' 
+                  : selectedCategories.length === 1 
+                    ? categories[selectedCategories[0] as keyof typeof categories]?.label 
+                    : `${selectedCategories.length} categories selected`
+                }
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showCategoryDropdown && (
+              <div className="category-dropdown absolute z-10 mt-1 w-full bg-white">
+                {Object.entries(categories).map(([key, category]) => (
+                  <label key={key} className="category-dropdown-item flex items-center px-3 py-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.includes(key)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedCategories(prev => [...prev, key]);
+                        } else {
+                          setSelectedCategories(prev => prev.filter(cat => cat !== key));
+                        }
+                      }}
+                      className="mr-3 h-4 w-4 text-green-500 border-gray-300 rounded focus:ring-green-500"
+                    />
+                    <span className="flex items-center text-sm text-gray-700">
+                      <span className="mr-2">{category.icon}</span>
+                      {category.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Price Range */}
@@ -499,21 +558,27 @@ function BrowseContent() {
               ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
               : 'grid-cols-1'
           }`}>
-            {filteredListings.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                id={listing.id}
-                title={listing.title}
-                images={listing.images}
-                price={listing.price_per_day}
-                period="day"
-                category={listing.category}
-                owner={{
-                  name: listing.profiles?.full_name || 'Anonymous',
-                  avatar: listing.profiles?.avatar_url || undefined
-                }}
-              />
-            ))}
+            {filteredListings.map((listing) => {
+              const mockData = getMockListingData(listing.id);
+              return (
+                <ListingCard
+                  key={listing.id}
+                  id={listing.id}
+                  title={listing.title}
+                  images={listing.images}
+                  price={listing.price_per_day}
+                  period="day"
+                  category={listing.category}
+                  rating={mockData.rating}
+                  reviewCount={mockData.reviewCount}
+                  distance={mockData.distance}
+                  owner={{
+                    name: listing.profiles?.full_name || 'Anonymous',
+                    avatar: listing.profiles?.avatar_url || undefined
+                  }}
+                />
+              );
+            })}
           </div>
         )}
       </div>
