@@ -76,6 +76,7 @@ const sortOptions = [
 function BrowseContent() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
+  const [paginatedListings, setPaginatedListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -87,7 +88,12 @@ function BrowseContent() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Pagination constants
+  const ITEMS_PER_PAGE = 24;
+  const totalPages = Math.ceil(filteredListings.length / ITEMS_PER_PAGE);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -137,6 +143,18 @@ function BrowseContent() {
       fetchFavorites();
     }
   }, [user]);
+
+  // Handle pagination
+  useEffect(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    setPaginatedListings(filteredListings.slice(startIndex, endIndex));
+  }, [filteredListings, currentPage, ITEMS_PER_PAGE]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategories, selectedState, priceRange, sortBy]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -378,6 +396,65 @@ function BrowseContent() {
     };
   };
 
+  // Pagination functions
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      // Scroll to top of results
+      const resultsSection = document.querySelector('[data-results-section]');
+      if (resultsSection) {
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      const startPage = Math.max(1, currentPage - 2);
+      const endPage = Math.min(totalPages, currentPage + 2);
+      
+      if (startPage > 1) {
+        pageNumbers.push(1);
+        if (startPage > 2) {
+          pageNumbers.push('...');
+        }
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+      
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          pageNumbers.push('...');
+        }
+        pageNumbers.push(totalPages);
+      }
+    }
+    
+    return pageNumbers;
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -504,12 +581,17 @@ function BrowseContent() {
       </div>
 
       {/* Results Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-6 py-4" data-results-section>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-semibold text-gray-900">
               {filteredListings.length} Items Available
             </h1>
+            {totalPages > 1 && (
+              <span className="text-sm text-gray-500">
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredListings.length)} of {filteredListings.length}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center space-x-4">
@@ -553,33 +635,84 @@ function BrowseContent() {
             <p className="text-gray-400">Try adjusting your filters or search terms</p>
           </div>
         ) : (
-          <div className={`grid gap-6 ${
-            viewMode === 'grid' 
-              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-              : 'grid-cols-1'
-          }`}>
-            {filteredListings.map((listing) => {
-              const mockData = getMockListingData(listing.id);
-              return (
-                <ListingCard
-                  key={listing.id}
-                  id={listing.id}
-                  title={listing.title}
-                  images={listing.images}
-                  price={listing.price_per_day}
-                  period="day"
-                  category={listing.category}
-                  rating={mockData.rating}
-                  reviewCount={mockData.reviewCount}
-                  distance={mockData.distance}
-                  owner={{
-                    name: listing.profiles?.full_name || 'Anonymous',
-                    avatar: listing.profiles?.avatar_url || undefined
-                  }}
-                />
-              );
-            })}
-          </div>
+          <>
+            <div className={`grid gap-6 ${
+              viewMode === 'grid' 
+                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+                : 'grid-cols-1'
+            }`}>
+              {paginatedListings.map((listing) => {
+                const mockData = getMockListingData(listing.id);
+                return (
+                  <ListingCard
+                    key={listing.id}
+                    id={listing.id}
+                    title={listing.title}
+                    images={listing.images}
+                    price={listing.price_per_day}
+                    period="day"
+                    category={listing.category}
+                    rating={mockData.rating}
+                    reviewCount={mockData.reviewCount}
+                    distance={mockData.distance}
+                    owner={{
+                      name: listing.profiles?.full_name || 'Anonymous',
+                      avatar: listing.profiles?.avatar_url || undefined
+                    }}
+                  />
+                );
+              })}
+            </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center mt-8 space-x-2">
+                {/* Previous button */}
+                <button
+                  onClick={goToPrevPage}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-2 rounded-lg border ${
+                    currentPage === 1
+                      ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Previous
+                </button>
+                
+                {/* Page numbers */}
+                {getPageNumbers().map((pageNum, index) => (
+                  <button
+                    key={index}
+                    onClick={() => typeof pageNum === 'number' ? goToPage(pageNum) : undefined}
+                    disabled={pageNum === '...'}
+                    className={`px-3 py-2 rounded-lg border ${
+                      pageNum === currentPage
+                        ? 'border-green-500 bg-green-500 text-white'
+                        : pageNum === '...'
+                        ? 'border-transparent text-gray-400 cursor-default'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+                
+                {/* Next button */}
+                <button
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-2 rounded-lg border ${
+                    currentPage === totalPages
+                      ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
