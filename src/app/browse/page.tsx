@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/Card';
 import ListingCard from '@/components/ui/ListingCard';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import MapView from '@/components/ui/MapView';
+import { useAuth } from '@/hooks/use-auth';
 
 interface Listing {
   id: string;
@@ -639,60 +640,62 @@ function BrowseContent() {
 
       {/* Results Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4" data-results-section>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-gray-900">
-              {filteredListings.length} Items Available
-            </h1>
-            {totalPages > 1 && (
-              <span className="text-sm text-gray-500">
-                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredListings.length)} of {filteredListings.length}
-              </span>
-            )}
-          </div>
+        <div className="max-w-screen-xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-xl font-semibold text-gray-900">
+                {filteredListings.length} Items Available
+              </h1>
+              {totalPages > 1 && (
+                <span className="text-sm text-gray-500">
+                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredListings.length)} of {filteredListings.length}
+                </span>
+              )}
+            </div>
 
-          <div className="flex items-center space-x-4">
-            {/* Near Me button */}
-            <button
-              onClick={handleNearMeClick}
-              disabled={sortBy === 'distance' && userLocation}
-              className={`px-3 py-2 border rounded-lg flex items-center space-x-2 transition-colors ${
-                sortBy === 'distance' && userLocation
-                  ? 'border-green-500 bg-green-50 text-green-700'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <MapPin className="w-4 h-4" />
-              <span>Near Me</span>
-            </button>
-
-            {/* Sort dropdown */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            >
-              {sortOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-
-            {/* View mode toggle */}
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <div className="flex items-center space-x-4">
+              {/* Near Me button */}
               <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                onClick={handleNearMeClick}
+                disabled={sortBy === 'distance' && userLocation}
+                className={`px-3 py-2 border rounded-lg flex items-center space-x-2 transition-colors ${
+                  sortBy === 'distance' && userLocation
+                    ? 'border-green-500 bg-green-50 text-green-700'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
               >
-                <List className="w-4 h-4" />
+                <MapPin className="w-4 h-4" />
+                <span>Near Me</span>
               </button>
-              <button
-                onClick={() => setViewMode('map')}
-                className={`p-2 ${viewMode === 'map' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+
+              {/* Sort dropdown */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
-                <Map className="w-4 h-4" />
-              </button>
+                {sortOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* View mode toggle */}
+              <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('map')}
+                  className={`p-2 ${viewMode === 'map' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <Map className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -700,6 +703,7 @@ function BrowseContent() {
 
       {/* Results Grid */}
       <div className="p-6">
+        <div className="max-w-screen-xl mx-auto">
         {filteredListings.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg mb-4">No items found</p>
@@ -802,14 +806,48 @@ function BrowseContent() {
             )}
           </>
         )}
+        </div>
       </div>
     </>
   );
 }
 
 export default function BrowsePage() {
+  const { isAuthenticated, loading } = useAuth();
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // For authenticated users, show full layout with left sidebar
+  if (isAuthenticated) {
+    return (
+      <AuthenticatedLayout>
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading...</p>
+            </div>
+          </div>
+        }>
+          <BrowseContent />
+        </Suspense>
+      </AuthenticatedLayout>
+    );
+  }
+
+  // For non-authenticated users, show simple layout without left sidebar
   return (
-    <AuthenticatedLayout>
+    <div className="min-h-screen bg-gray-50">
       <Suspense fallback={
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -820,6 +858,6 @@ export default function BrowsePage() {
       }>
         <BrowseContent />
       </Suspense>
-    </AuthenticatedLayout>
+    </div>
   );
 } 

@@ -358,23 +358,25 @@ function DashboardOverview() {
 function MarketingHomepage() {
   return (
     <div className="min-h-screen">
-      {/* Hero Section with Green Gradient */}
-      <section className="relative py-12 sm:py-16 lg:py-20 px-4 bg-gradient-to-br from-green-400 via-green-500 to-green-600 overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-10 left-10 w-16 h-16 sm:w-32 sm:h-32 bg-white rounded-full opacity-10"></div>
-          <div className="absolute top-32 right-20 w-12 h-12 sm:w-24 sm:h-24 bg-white rounded-full opacity-10"></div>
-          <div className="absolute bottom-20 left-1/4 w-20 h-20 sm:w-40 sm:h-40 bg-white rounded-full opacity-10"></div>
-          <div className="absolute bottom-10 right-10 w-14 h-14 sm:w-28 sm:h-28 bg-white rounded-full opacity-10"></div>
+      {/* Hero Section with Background Image */}
+      <section className="relative py-16 sm:py-20 lg:py-24 xl:py-28 px-4 overflow-hidden">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0">
+          <Image
+            src="/images/RIF_Onboarding_Signup.jpg"
+            alt="Rent It Forward Hero Background"
+            fill
+            className="object-cover"
+            style={{ objectPosition: 'center center' }}
+            priority
+          />
+          <div className="absolute inset-0 bg-black/40"></div>
         </div>
         
         <div className="max-w-6xl mx-auto text-center relative z-10">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-4 sm:mb-6 leading-tight px-4">
-            Be Smart, Share More
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-6 sm:mb-8 leading-tight px-4">
+            Share More, Buy Less
           </h1>
-          <p className="text-lg sm:text-xl lg:text-2xl text-white/90 mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
-            Discover what your community has to offer
-          </p>
           
           {/* Search Bar */}
           <div className="max-w-2xl mx-auto px-4">
@@ -382,9 +384,9 @@ function MarketingHomepage() {
               <input 
                 type="text" 
                 placeholder="What would you like to rent?"
-                className="w-full pl-4 sm:pl-6 pr-24 sm:pr-32 py-3 sm:py-4 text-base sm:text-lg rounded-full border-0 focus:outline-none focus:ring-0 text-gray-900 placeholder-gray-500"
+                className="w-full pl-4 sm:pl-6 pr-24 sm:pr-32 py-2 sm:py-3 text-base sm:text-lg rounded-full border-0 focus:outline-none focus:ring-0 text-gray-900 placeholder-gray-500"
               />
-              <button className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 bg-green-500 hover:bg-green-600 text-white px-4 sm:px-8 py-2 sm:py-3 rounded-full font-semibold transition-colors flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
+              <button className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 bg-green-500 hover:bg-green-600 text-white px-4 sm:px-8 py-1.5 sm:py-2.5 rounded-full font-semibold transition-colors flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
                 <Search className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="hidden sm:inline">Search</span>
               </button>
@@ -413,14 +415,9 @@ function MarketingHomepage() {
                 <div className="text-3xl sm:text-4xl lg:text-5xl mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300">
                   {category.icon}
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-green-600 transition-colors text-sm sm:text-base">
+                <h3 className="font-semibold text-gray-900 group-hover:text-green-600 transition-colors text-sm sm:text-base">
                   {category.name}
                 </h3>
-                <div className="text-xs sm:text-sm text-gray-500 space-y-1">
-                  {category.items.slice(0, 2).map((item, i) => (
-                    <div key={i}>{item}</div>
-                  ))}
-                </div>
               </Link>
             ))}
           </div>
