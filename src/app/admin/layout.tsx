@@ -18,11 +18,13 @@ import {
   Menu,
   X,
   Bell,
-  Search
+  Search,
+  ArrowLeft
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
+import { useAdmin } from '@/hooks/use-admin';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -82,44 +84,47 @@ const adminNavItems = [
     href: '/admin/settings',
     icon: Settings,
     description: 'System settings'
+  },
+  {
+    label: 'Payment Releases',
+    href: '/admin/payment-releases',
+    icon: BarChart3,
+    description: 'Manual payment releases'
   }
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasCheckedAccess, setHasCheckedAccess] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+  const { isAdmin, adminUser, loading } = useAdmin();
   
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
 
   useEffect(() => {
-    checkAdminAccess();
-  }, []);
-
-  const checkAdminAccess = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        router.push('/login');
-        return;
+    console.log('AdminLayout: loading:', loading, 'isAdmin:', isAdmin, 'hasCheckedAccess:', hasCheckedAccess);
+    // Wait for loading to complete, then check admin status
+    if (!loading && !hasCheckedAccess) {
+      setHasCheckedAccess(true);
+      if (!isAdmin) {
+        console.log('AdminLayout: User is not admin, will redirect...');
+        setShouldRedirect(true);
+      } else {
+        console.log('AdminLayout: User is admin, allowing access');
+        setShouldRedirect(false);
       }
-
-      setUser(user);
-
-      // For demo purposes, assume user is admin
-      // In production, you'd check actual admin status from database
-      setIsAdmin(true);
-    } catch (error) {
-      console.error('Error checking admin access:', error);
-      router.push('/dashboard');
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [isAdmin, loading, hasCheckedAccess]);
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      console.log('AdminLayout: Executing redirect...');
+      toast.error('Access denied. Admin privileges required.');
+      router.push('/dashboard');
+    }
+  }, [shouldRedirect, router]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -127,7 +132,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     toast.success('Logged out successfully');
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="w-8 h-8 border-3 border-red-500 border-t-transparent rounded-full animate-spin"></div>
@@ -135,7 +140,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !loading) {
     return null;
   }
 
@@ -181,9 +186,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-900">Administrator</p>
-                <p className="text-xs text-gray-500">{user?.email}</p>
+                <p className="text-xs text-gray-500">{adminUser?.email}</p>
               </div>
             </div>
+          </div>
+
+          {/* Back to User Dashboard */}
+          <div className="px-3 py-2 border-b border-gray-100">
+            <Link
+              href="/dashboard"
+              className="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Link>
           </div>
 
           {/* Navigation */}

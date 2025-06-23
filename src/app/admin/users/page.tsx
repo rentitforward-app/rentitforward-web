@@ -24,6 +24,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useAdmin } from '@/hooks/use-admin';
 import { format } from 'date-fns';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -31,25 +32,25 @@ import { Button } from '@/components/ui/Button';
 interface User {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
-  phone?: string;
+  full_name: string;
+  phone_number?: string;
   avatar_url?: string;
   verified: boolean;
-  trust_score: number;
-  status: 'active' | 'suspended' | 'pending_verification';
+  identity_verified: boolean;
+  rating: number;
+  total_reviews: number;
+  role: string;
   created_at: string;
-  last_login: string;
+  updated_at: string;
   listings_count: number;
-  bookings_count: number;
-  total_earned: number;
-  total_spent: number;
-  reviews_count: number;
-  average_rating: number;
+  bookings_as_renter_count: number;
+  bookings_as_owner_count: number;
+  total_earned?: number;
+  total_spent?: number;
 }
 
-type SortOption = 'created_at' | 'last_login' | 'trust_score' | 'total_earned';
-type FilterOption = 'all' | 'active' | 'suspended' | 'pending_verification' | 'verified' | 'unverified';
+type SortOption = 'created_at' | 'updated_at' | 'rating' | 'listings_count';
+type FilterOption = 'all' | 'verified' | 'unverified' | 'admin' | 'user';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
@@ -62,10 +63,13 @@ export default function AdminUsers() {
   const [showUserModal, setShowUserModal] = useState(false);
   
   const supabase = createClient();
+  const { isAdmin, loading: adminLoading } = useAdmin();
 
   useEffect(() => {
+    if (adminLoading) return;
+    if (!isAdmin) return;
     loadUsers();
-  }, []);
+  }, [isAdmin, adminLoading]);
 
   useEffect(() => {
     filterAndSortUsers();
@@ -73,81 +77,50 @@ export default function AdminUsers() {
 
   const loadUsers = async () => {
     try {
-      // Mock data - in production, this would come from your database
-      const mockUsers: User[] = [
-        {
-          id: '1',
-          email: 'sarah.johnson@email.com',
-          first_name: 'Sarah',
-          last_name: 'Johnson',
-          phone: '+61 412 345 678',
-          verified: true,
-          trust_score: 92,
-          status: 'active',
-          created_at: '2024-01-15T08:00:00Z',
-          last_login: '2024-11-20T14:30:00Z',
-          listings_count: 5,
-          bookings_count: 12,
-          total_earned: 2340,
-          total_spent: 890,
-          reviews_count: 8,
-          average_rating: 4.8
-        },
-        {
-          id: '2',
-          email: 'mike.chen@email.com',
-          first_name: 'Mike',
-          last_name: 'Chen',
-          phone: '+61 423 456 789',
-          verified: true,
-          trust_score: 85,
-          status: 'active',
-          created_at: '2024-02-03T10:15:00Z',
-          last_login: '2024-11-19T16:45:00Z',
-          listings_count: 3,
-          bookings_count: 7,
-          total_earned: 1560,
-          total_spent: 450,
-          reviews_count: 5,
-          average_rating: 4.6
-        },
-        {
-          id: '3',
-          email: 'emma.wilson@email.com',
-          first_name: 'Emma',
-          last_name: 'Wilson',
-          verified: false,
-          trust_score: 67,
-          status: 'pending_verification',
-          created_at: '2024-11-18T12:00:00Z',
-          last_login: '2024-11-20T09:15:00Z',
-          listings_count: 1,
-          bookings_count: 3,
-          total_earned: 120,
-          total_spent: 200,
-          reviews_count: 2,
-          average_rating: 4.0
-        },
-        {
-          id: '4',
-          email: 'david.brown@email.com',
-          first_name: 'David',
-          last_name: 'Brown',
-          verified: true,
-          trust_score: 45,
-          status: 'suspended',
-          created_at: '2024-03-10T14:30:00Z',
-          last_login: '2024-11-15T11:20:00Z',
-          listings_count: 0,
-          bookings_count: 2,
-          total_earned: 0,
-          total_spent: 80,
-          reviews_count: 1,
-          average_rating: 2.5
-        }
-      ];
+      // Fetch real user data from Supabase profiles table with aggregated statistics
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          email,
+          full_name,
+          phone_number,
+          avatar_url,
+          role,
+          verified,
+          identity_verified,
+          rating,
+          total_reviews,
+          created_at,
+          updated_at
+        `);
 
-      setUsers(mockUsers);
+      if (error) {
+        console.error('Error loading users:', error);
+        return;
+      }
+
+      // Get listings count for each user
+      const usersWithStats = await Promise.all(
+        data.map(async (user) => {
+          const [listingsResponse, renterBookingsResponse, ownerBookingsResponse] = await Promise.all([
+            supabase.from('listings').select('id').eq('owner_id', user.id),
+            supabase.from('bookings').select('id').eq('renter_id', user.id),
+            supabase.from('bookings').select('id').eq('owner_id', user.id),
+          ]);
+
+          return {
+            ...user,
+            listings_count: listingsResponse.data?.length || 0,
+            bookings_as_renter_count: renterBookingsResponse.data?.length || 0,
+            bookings_as_owner_count: ownerBookingsResponse.data?.length || 0,
+            total_earned: 0, // Would need to calculate from payments
+            total_spent: 0, // Would need to calculate from payments
+          };
+        })
+      );
+
+      setUsers(usersWithStats);
     } catch (error) {
       console.error('Error loading users:', error);
     } finally {
@@ -161,21 +134,14 @@ export default function AdminUsers() {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(user =>
-        user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Apply status filter
     if (filterBy !== 'all') {
-      if (filterBy === 'verified') {
-        filtered = filtered.filter(user => user.verified);
-      } else if (filterBy === 'unverified') {
-        filtered = filtered.filter(user => !user.verified);
-      } else {
-        filtered = filtered.filter(user => user.status === filterBy);
-      }
+      filtered = filtered.filter(user => user.role === filterBy);
     }
 
     // Apply sorting
@@ -183,12 +149,12 @@ export default function AdminUsers() {
       switch (sortBy) {
         case 'created_at':
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'last_login':
-          return new Date(b.last_login).getTime() - new Date(a.last_login).getTime();
-        case 'trust_score':
-          return b.trust_score - a.trust_score;
-        case 'total_earned':
-          return b.total_earned - a.total_earned;
+        case 'updated_at':
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        case 'rating':
+          return b.rating - a.rating;
+        case 'listings_count':
+          return b.listings_count - a.listings_count;
         default:
           return 0;
       }
@@ -199,12 +165,10 @@ export default function AdminUsers() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'active':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>;
-      case 'suspended':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Suspended</span>;
-      case 'pending_verification':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>;
+      case 'admin':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Admin</span>;
+      case 'user':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">User</span>;
       default:
         return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Unknown</span>;
     }
@@ -275,7 +239,7 @@ export default function AdminUsers() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Active Users</p>
-              <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.status === 'active').length}</p>
+              <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.role === 'user').length}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <CheckCircle className="w-6 h-6 text-green-600" />
@@ -299,7 +263,7 @@ export default function AdminUsers() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Pending Review</p>
-              <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.status === 'pending_verification').length}</p>
+              <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.role === 'user' && !u.verified).length}</p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
               <Clock className="w-6 h-6 text-yellow-600" />
@@ -331,11 +295,8 @@ export default function AdminUsers() {
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
             >
               <option value="all">All Users</option>
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-              <option value="pending_verification">Pending Verification</option>
-              <option value="verified">Verified</option>
-              <option value="unverified">Unverified</option>
+              <option value="admin">Admin</option>
+              <option value="user">User</option>
             </select>
 
             <select
@@ -344,9 +305,9 @@ export default function AdminUsers() {
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
             >
               <option value="created_at">Sort by: Newest</option>
-              <option value="last_login">Sort by: Last Login</option>
-              <option value="trust_score">Sort by: Trust Score</option>
-              <option value="total_earned">Sort by: Earnings</option>
+              <option value="updated_at">Sort by: Last Updated</option>
+              <option value="rating">Sort by: Rating</option>
+              <option value="listings_count">Sort by: Listings</option>
             </select>
           </div>
         </div>
@@ -394,25 +355,25 @@ export default function AdminUsers() {
                       <div className="ml-4">
                         <div className="flex items-center">
                           <div className="text-sm font-medium text-gray-900">
-                            {user.first_name} {user.last_name}
+                            {user.full_name}
                           </div>
                           {user.verified && (
                             <CheckCircle className="ml-2 h-4 w-4 text-green-500" />
                           )}
                         </div>
                         <div className="text-sm text-gray-500">{user.email}</div>
-                        {user.phone && (
-                          <div className="text-xs text-gray-400">{user.phone}</div>
+                        {user.phone_number && (
+                          <div className="text-xs text-gray-400">{user.phone_number}</div>
                         )}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(user.status)}
+                    {getStatusBadge(user.role)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTrustScoreColor(user.trust_score)}`}>
-                      {user.trust_score}%
+                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTrustScoreColor(user.rating)}`}>
+                      {user.rating}%
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -423,20 +384,20 @@ export default function AdminUsers() {
                       </div>
                       <div className="flex items-center">
                         <Calendar className="h-3 w-3 text-gray-400 mr-1" />
-                        {user.bookings_count}
+                        {user.bookings_as_renter_count + user.bookings_as_owner_count}
                       </div>
                       <div className="flex items-center">
                         <Star className="h-3 w-3 text-gray-400 mr-1" />
-                        {user.average_rating}
+                        {user.rating}/5
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="text-sm font-medium">{formatCurrency(user.total_earned)}</div>
-                    <div className="text-xs text-gray-500">Spent: {formatCurrency(user.total_spent)}</div>
+                    <div className="text-sm font-medium">{formatCurrency(user.total_earned || 0)}</div>
+                    <div className="text-xs text-gray-500">Spent: {formatCurrency(user.total_spent || 0)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {format(new Date(user.last_login), 'MMM d, yyyy')}
+                    {format(new Date(user.updated_at), 'MMM d, yyyy')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-2">
@@ -460,10 +421,10 @@ export default function AdminUsers() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleUserAction(user, user.status === 'suspended' ? 'activate' : 'suspend')}
-                        className={user.status === 'suspended' ? 'text-green-600 border-green-200 hover:bg-green-50' : 'text-red-600 border-red-200 hover:bg-red-50'}
+                        onClick={() => handleUserAction(user, user.role === 'admin' ? 'remove' : 'promote')}
+                        className={user.role === 'admin' ? 'text-red-600 border-red-200 hover:bg-red-50' : 'text-green-600 border-green-200 hover:bg-green-50'}
                       >
-                        {user.status === 'suspended' ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                        {user.role === 'admin' ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                       </Button>
                     </div>
                   </td>
@@ -505,11 +466,11 @@ export default function AdminUsers() {
                   </div>
                   <div>
                     <h4 className="text-xl font-semibold text-gray-900">
-                      {selectedUser.first_name} {selectedUser.last_name}
+                      {selectedUser.full_name}
                     </h4>
                     <p className="text-gray-600">{selectedUser.email}</p>
-                    {selectedUser.phone && (
-                      <p className="text-gray-500">{selectedUser.phone}</p>
+                    {selectedUser.phone_number && (
+                      <p className="text-gray-500">{selectedUser.phone_number}</p>
                     )}
                   </div>
                 </div>
@@ -520,7 +481,7 @@ export default function AdminUsers() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Status:</span>
-                        {getStatusBadge(selectedUser.status)}
+                        {getStatusBadge(selectedUser.role)}
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Verified:</span>
@@ -528,8 +489,8 @@ export default function AdminUsers() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Trust Score:</span>
-                        <span className={`font-medium ${getTrustScoreColor(selectedUser.trust_score)}`}>
-                          {selectedUser.trust_score}%
+                        <span className={`font-medium ${getTrustScoreColor(selectedUser.rating)}`}>
+                          {selectedUser.rating}%
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -548,15 +509,15 @@ export default function AdminUsers() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Bookings:</span>
-                        <span>{selectedUser.bookings_count}</span>
+                        <span>{selectedUser.bookings_as_renter_count + selectedUser.bookings_as_owner_count}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Reviews:</span>
-                        <span>{selectedUser.reviews_count}</span>
+                        <span>{selectedUser.total_reviews}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Average Rating:</span>
-                        <span>{selectedUser.average_rating}/5</span>
+                        <span>{selectedUser.rating}/5</span>
                       </div>
                     </div>
                   </div>
@@ -568,13 +529,13 @@ export default function AdminUsers() {
                     <div className="bg-green-50 p-4 rounded-lg">
                       <div className="text-sm text-green-600">Total Earned</div>
                       <div className="text-xl font-semibold text-green-700">
-                        {formatCurrency(selectedUser.total_earned)}
+                        {formatCurrency(selectedUser.total_earned || 0)}
                       </div>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <div className="text-sm text-blue-600">Total Spent</div>
                       <div className="text-xl font-semibold text-blue-700">
-                        {formatCurrency(selectedUser.total_spent)}
+                        {formatCurrency(selectedUser.total_spent || 0)}
                       </div>
                     </div>
                   </div>

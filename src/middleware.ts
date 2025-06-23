@@ -52,7 +52,8 @@ export async function middleware(request: NextRequest) {
     '/bookings',
     '/profile',
     '/messages',
-    '/onboarding'
+    '/onboarding',
+    '/admin'
   ]
 
   const isPublicRoute = publicRoutes.some(route => 

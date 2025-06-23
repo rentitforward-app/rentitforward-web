@@ -24,7 +24,7 @@ const navigationItems = [
   { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/browse', label: 'Browse', icon: Compass },
   { href: '/listings/create', label: 'Post Item', icon: Plus },
-  { href: '/bookings', label: 'My Rentals', icon: Package2 },
+  { href: '/bookings', label: 'My Bookings', icon: Package2 },
   { href: '/listings', label: 'My Listings', icon: Calendar },
   { href: '/messages', label: 'Messages', icon: MessageCircle },
   { href: '/notifications', label: 'Notifications', icon: Bell },

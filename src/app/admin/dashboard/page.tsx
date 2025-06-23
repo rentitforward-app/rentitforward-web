@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAdmin } from '@/hooks/use-admin';
 import { 
   Users, 
   Package, 
@@ -27,23 +28,120 @@ import { format, subDays } from 'date-fns';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 
+interface DashboardStats {
+  totalUsers: number;
+  usersThisWeek: number;
+  usersLastWeek: number;
+  totalListings: number;
+  pendingListings: number;
+  approvedListings: number;
+  activeListings: number;
+  totalBookings: number;
+  pendingBookings: number;
+  confirmedBookings: number;
+  completedBookings: number;
+  totalRevenue: number;
+  successfulPayments: number;
+}
+
 export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    usersThisWeek: 0,
+    usersLastWeek: 0,
+    totalListings: 0,
+    pendingListings: 0,
+    approvedListings: 0,
+    activeListings: 0,
+    totalBookings: 0,
+    pendingBookings: 0,
+    confirmedBookings: 0,
+    completedBookings: 0,
+    totalRevenue: 0,
+    successfulPayments: 0,
+  });
   const router = useRouter();
   const supabase = createClient();
+  const { isAdmin, loading: adminLoading } = useAdmin();
 
   useEffect(() => {
+    // Don't load data while admin status is being checked
+    if (adminLoading) return;
+    
+    if (!isAdmin) {
+      router.push('/login');
+      return;
+    }
+    
     loadDashboardData();
-  }, []);
+  }, [isAdmin, adminLoading, router]);
 
   const loadDashboardData = async () => {
     try {
-      // Mock data loading
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 1000);
+      // Get users statistics
+      const { data: usersData } = await supabase
+        .from('profiles')
+        .select('id, created_at');
+
+      const totalUsers = usersData?.length || 0;
+      const usersThisWeek = usersData?.filter(user => 
+        new Date(user.created_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      ).length || 0;
+      const usersLastWeek = usersData?.filter(user => {
+        const createdAt = new Date(user.created_at);
+        return createdAt >= new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) &&
+               createdAt < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      }).length || 0;
+
+      // Get listings statistics
+      const { data: listingsData } = await supabase
+        .from('listings')
+        .select('approval_status, is_active');
+
+      const totalListings = listingsData?.length || 0;
+      const pendingListings = listingsData?.filter(l => l.approval_status === 'pending').length || 0;
+      const approvedListings = listingsData?.filter(l => l.approval_status === 'approved').length || 0;
+      const activeListings = listingsData?.filter(l => l.is_active === true).length || 0;
+
+      // Get bookings statistics
+      const { data: bookingsData } = await supabase
+        .from('bookings')
+        .select('status');
+
+      const totalBookings = bookingsData?.length || 0;
+      const pendingBookings = bookingsData?.filter(b => b.status === 'pending').length || 0;
+      const confirmedBookings = bookingsData?.filter(b => b.status === 'confirmed').length || 0;
+      const completedBookings = bookingsData?.filter(b => b.status === 'completed').length || 0;
+
+      // Get payment statistics
+      const { data: paymentsData } = await supabase
+        .from('payments')
+        .select('amount, status');
+
+      const successfulPayments = paymentsData?.filter(p => p.status === 'succeeded').length || 0;
+      const totalRevenue = paymentsData?.filter(p => p.status === 'succeeded')
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0;
+
+      setStats({
+        totalUsers,
+        usersThisWeek,
+        usersLastWeek,
+        totalListings,
+        pendingListings,
+        approvedListings,
+        activeListings,
+        totalBookings,
+        pendingBookings,
+        confirmedBookings,
+        completedBookings,
+        totalRevenue,
+        successfulPayments,
+      });
+
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -55,6 +153,27 @@ export default function AdminDashboard() {
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  // Show loading while checking admin status
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // Redirect if not admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Access denied. Admin privileges required.</p>
+          <Button onClick={() => router.push('/login')}>Go to Login</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -78,15 +197,21 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">2,847</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalUsers.toLocaleString()}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Users className="w-6 h-6 text-blue-600" />
             </div>
           </div>
           <div className="mt-4 flex items-center">
-            <ArrowUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-sm text-green-600 font-medium">12.5%</span>
+            {stats.usersThisWeek >= stats.usersLastWeek ? (
+              <ArrowUp className="w-4 h-4 text-green-500 mr-1" />
+            ) : (
+              <ArrowDown className="w-4 h-4 text-red-500 mr-1" />
+            )}
+            <span className={`text-sm font-medium ${stats.usersThisWeek >= stats.usersLastWeek ? 'text-green-600' : 'text-red-600'}`}>
+              {stats.usersLastWeek > 0 ? Math.round(((stats.usersThisWeek - stats.usersLastWeek) / stats.usersLastWeek) * 100) : 0}%
+            </span>
             <span className="text-sm text-gray-500 ml-2">from last week</span>
           </div>
         </Card>
@@ -95,16 +220,16 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Listings</p>
-              <p className="text-2xl font-bold text-gray-900">1,523</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalListings.toLocaleString()}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <Package className="w-6 h-6 text-green-600" />
             </div>
           </div>
           <div className="mt-4 flex items-center">
-            <ArrowUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-sm text-green-600 font-medium">8.3%</span>
-            <span className="text-sm text-gray-500 ml-2">from last week</span>
+            <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+            <span className="text-sm text-green-600 font-medium">{stats.approvedListings}</span>
+            <span className="text-sm text-gray-500 ml-2">approved listings</span>
           </div>
         </Card>
 
@@ -112,16 +237,16 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Bookings</p>
-              <p className="text-2xl font-bold text-gray-900">4,891</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalBookings.toLocaleString()}</p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <Calendar className="w-6 h-6 text-purple-600" />
             </div>
           </div>
           <div className="mt-4 flex items-center">
-            <ArrowUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-sm text-green-600 font-medium">15.7%</span>
-            <span className="text-sm text-gray-500 ml-2">from last week</span>
+            <Clock className="w-4 h-4 text-blue-500 mr-1" />
+            <span className="text-sm text-blue-600 font-medium">{stats.pendingBookings}</span>
+            <span className="text-sm text-gray-500 ml-2">pending bookings</span>
           </div>
         </Card>
 
@@ -129,16 +254,16 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(127543)}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalRevenue / 100)}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-green-600" />
             </div>
           </div>
           <div className="mt-4 flex items-center">
-            <ArrowUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-sm text-green-600 font-medium">18.2%</span>
-            <span className="text-sm text-gray-500 ml-2">from last week</span>
+            <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+            <span className="text-sm text-green-600 font-medium">{stats.successfulPayments}</span>
+            <span className="text-sm text-gray-500 ml-2">successful payments</span>
           </div>
         </Card>
       </div>
@@ -162,7 +287,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <span className="text-xl font-bold text-yellow-600">23</span>
+                <span className="text-xl font-bold text-yellow-600">{stats.pendingListings}</span>
                 <Button size="sm" onClick={() => router.push('/admin/listings')}>
                   Review
                 </Button>
@@ -173,30 +298,30 @@ export default function AdminDashboard() {
               <div className="flex items-center">
                 <Users className="w-5 h-5 text-blue-600 mr-3" />
                 <div>
-                  <p className="font-medium text-gray-900">User Verifications</p>
-                  <p className="text-sm text-gray-500">Identity verification requests</p>
+                  <p className="font-medium text-gray-900">Active Bookings</p>
+                  <p className="text-sm text-gray-500">Confirmed bookings in progress</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <span className="text-xl font-bold text-blue-600">7</span>
-                <Button size="sm" onClick={() => router.push('/admin/users')}>
+                <span className="text-xl font-bold text-blue-600">{stats.confirmedBookings}</span>
+                <Button size="sm" onClick={() => router.push('/admin/bookings')}>
                   Review
                 </Button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
               <div className="flex items-center">
-                <Flag className="w-5 h-5 text-red-600 mr-3" />
+                <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
                 <div>
-                  <p className="font-medium text-gray-900">User Reports</p>
-                  <p className="text-sm text-gray-500">Content and behavior reports</p>
+                  <p className="font-medium text-gray-900">Completed Bookings</p>
+                  <p className="text-sm text-gray-500">Successfully completed rentals</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <span className="text-xl font-bold text-red-600">12</span>
-                <Button size="sm" onClick={() => router.push('/admin/reports')}>
-                  Review
+                <span className="text-xl font-bold text-green-600">{stats.completedBookings}</span>
+                <Button size="sm" onClick={() => router.push('/admin/bookings')}>
+                  View
                 </Button>
               </div>
             </div>

@@ -13,19 +13,12 @@ export default function Header() {
 
   // Show loading state while determining authentication
   if (loading) {
-    // Smart logo link: if we're already on a protected page, assume user is authenticated
-    const isOnProtectedPage = typeof window !== 'undefined' && 
-      (window.location.pathname.startsWith('/dashboard') || 
-       window.location.pathname.startsWith('/profile') || 
-       window.location.pathname.startsWith('/bookings') || 
-       window.location.pathname.startsWith('/listings'));
-    
     return (
       <header className="bg-white border-b border-gray-200">
         <div className="px-4 lg:px-6">
           <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link href={isOnProtectedPage ? "/dashboard" : "/"} className="flex items-center flex-shrink-0">
+            {/* Logo - Use consistent href during loading to prevent hydration mismatch */}
+            <Link href="/" className="flex items-center flex-shrink-0">
               <Image 
                 src="/images/RentitForward-Main-Logo.svg" 
                 alt="Rent It Forward" 
@@ -124,7 +117,7 @@ export default function Header() {
                         Dashboard
                       </Link>
                       <Link href="/bookings" className="block px-4 py-2 text-gray-700 hover:bg-gray-50" onClick={() => setIsMenuOpen(false)}>
-                        My Rentals
+                        My Bookings
                       </Link>
                       <Link href="/listings" className="block px-4 py-2 text-gray-700 hover:bg-gray-50" onClick={() => setIsMenuOpen(false)}>
                         My Listings

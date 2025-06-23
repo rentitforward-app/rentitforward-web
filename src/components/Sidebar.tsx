@@ -36,8 +36,8 @@ const sidebarItems = [
     icon: Plus,
   },
   {
-    label: 'My Rentals',
-    href: '/dashboard?tab=rentals',
+    label: 'My Bookings',
+    href: '/bookings',
     icon: Package,
   },
   {

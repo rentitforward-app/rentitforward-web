@@ -33,6 +33,27 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  icons: {
+    icon: [
+      {
+        url: '/images/RIF_favicon.png',
+        sizes: '32x32',
+        type: 'image/png',
+      },
+      {
+        url: '/images/RIF_favicon.png',
+        sizes: '16x16',
+        type: 'image/png',
+      },
+    ],
+    apple: [
+      {
+        url: '/images/RIF_favicon.png',
+        sizes: '180x180',
+        type: 'image/png',
+      },
+    ],
+  },
 
   openGraph: {
     title: "Rent It Forward - Share More, Buy Less",

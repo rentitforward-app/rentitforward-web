@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link'
-import { Search, Star, ArrowRight, User, List, DollarSign, Plus, Eye, Heart, Calendar, Package, TrendingUp, MessageCircle, Bell } from 'lucide-react'
+import { Search, Star, ArrowRight, User, List, DollarSign, Plus, Eye, Heart, Calendar, Package, TrendingUp, MessageCircle, Bell, Shield } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { useAdmin } from '@/hooks/use-admin'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AuthenticatedLayout from '@/components/AuthenticatedLayout'
@@ -49,6 +50,7 @@ const categories = [
 // Dashboard Overview Component for Logged-in Users
 export default function DashboardPage() {
   const { user } = useAuth()
+  const { isAdmin, loading: adminLoading } = useAdmin()
   const [stats, setStats] = useState({
     totalListings: 0,
     activeRentals: 0,
@@ -197,7 +199,7 @@ export default function DashboardPage() {
                 <Calendar className="w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active Rentals</p>
+                <p className="text-sm font-medium text-gray-600">Active Bookings</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.activeRentals}</p>
               </div>
             </div>
@@ -254,11 +256,26 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+            {isAdmin && !adminLoading && (
+              <Link 
+                href="/admin/dashboard" 
+                className="flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Admin Panel
+              </Link>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <Link href="/listings/create" className="btn-primary p-4 rounded-lg text-center hover:bg-green-600 transition-colors">
               <Plus className="w-6 h-6 mx-auto mb-2" />
               <span className="font-medium">Create Listing</span>
+            </Link>
+            <Link href="/listings" className="bg-indigo-500 text-white p-4 rounded-lg text-center hover:bg-indigo-600 transition-colors">
+              <List className="w-6 h-6 mx-auto mb-2" />
+              <span className="font-medium">My Listings</span>
             </Link>
             <Link href="/browse" className="bg-blue-500 text-white p-4 rounded-lg text-center hover:bg-blue-600 transition-colors">
               <Search className="w-6 h-6 mx-auto mb-2" />

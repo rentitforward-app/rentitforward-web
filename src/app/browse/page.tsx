@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Filter, MapPin, Heart, Star, Calendar, Grid, List, X, ChevronDown } from 'lucide-react';
+import { Search, Filter, MapPin, Heart, Star, Calendar, Grid, List, X, ChevronDown, Map } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import ListingCard from '@/components/ui/ListingCard';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import MapView from '@/components/ui/MapView';
 
 interface Listing {
   id: string;
@@ -71,6 +72,7 @@ const sortOptions = [
   { value: 'price_low', label: 'Price: Low to High' },
   { value: 'price_high', label: 'Price: High to Low' },
   { value: 'popular', label: 'Most Popular' },
+  { value: 'distance', label: 'Distance' },
 ];
 
 function BrowseContent() {
@@ -84,11 +86,13 @@ function BrowseContent() {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Pagination constants
@@ -199,53 +203,54 @@ function BrowseContent() {
           view_count,
           favorite_count,
           created_at,
-          owner_id
+          profiles!listings_owner_id_fkey (
+            full_name,
+            avatar_url
+          )
         `)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
-
-      console.log('📋 Query result:', { 
-        dataLength: data?.length, 
-        error: error,
-        firstItem: data?.[0] 
+      
+      console.log('✅ Raw Supabase response:', { 
+        data: data?.length ? `${data.length} items` : 'No data', 
+        error: error ? error.message : 'No error',
+        sampleData: data?.[0]
       });
 
       if (error) {
-        console.error('❌ Error fetching listings (detailed):', error);
-        console.error('🔍 Error details:', JSON.stringify(error, null, 2));
-        
-        // Send to Sentry for monitoring
-        if (typeof window !== 'undefined') {
-          const Sentry = require('@sentry/nextjs');
-          Sentry.captureException(new Error(`Supabase listings query failed: ${error.message || 'Unknown error'}`), {
-            extra: {
-              supabaseError: error,
-              errorDetails: JSON.stringify(error, null, 2),
-              context: 'fetchListings'
-            }
-          });
-        }
-        
-        toast.error('Failed to load listings');
+        console.error('❌ Supabase error:', error);
+        throw new Error(`Supabase listings query failed: ${error.message}`);
+      }
+
+      if (!data) {
+        console.warn('⚠️ No listings data returned');
+        setListings([]);
         return;
       }
 
-      console.log('✅ Fetched listings successfully:', data?.length || 0);
-      
-      // Add fake profile data for now until we fix the join
-      const enrichedListings = data?.map((listing: any) => ({
-        ...listing,
-        profiles: {
-          full_name: 'User Name',
-          avatar_url: null
-        }
-      })) || [];
-
-      setListings(enrichedListings);
+      console.log('🎯 Setting listings:', data.length);
+      setListings(data as Listing[]);
     } catch (error) {
-      console.error('❌ Unexpected error in fetchListings:', error);
-      toast.error('Failed to load listings');
+      console.error('💥 Error in fetchListings:', error);
+      
+      // Capture error in Sentry with more context
+      if (typeof window !== 'undefined' && window.Sentry) {
+        window.Sentry.captureException(error, {
+          contexts: {
+            fetchListings: {
+              supabaseClient: !!supabase,
+              timestamp: new Date().toISOString(),
+            }
+          }
+        });
+      }
+      
+      // Mock data fallback for development
+      console.log('🔄 Using mock data as fallback...');
+      const mockListings: Listing[] = [];
+      setListings(mockListings);
     } finally {
+      console.log('🏁 fetchListings completed');
       setIsLoading(false);
     }
   };
@@ -361,6 +366,18 @@ function BrowseContent() {
       case 'popular':
         filtered.sort((a, b) => (b.favorite_count || 0) - (a.favorite_count || 0));
         break;
+      case 'distance':
+        if (userLocation) {
+          filtered.sort((a, b) => {
+            const distanceA = getMockListingData(a.id).distance;
+            const distanceB = getMockListingData(b.id).distance;
+            return distanceA - distanceB;
+          });
+        } else {
+          // Fallback to newest if no location
+          filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        }
+        break;
       case 'newest':
       default:
         filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -455,6 +472,46 @@ function BrowseContent() {
     return pageNumbers;
   };
 
+  // Geolocation functions
+  const requestUserLocation = async () => {
+    if (!navigator.geolocation) {
+      console.log('Geolocation is not supported by this browser.');
+      return;
+    }
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000, // 5 minutes
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+      setUserLocation({ lat: latitude, lng: longitude });
+      setLocationPermission('granted');
+      
+      // Sort by distance when location is available
+      if (sortBy === 'distance') {
+        filterAndSortListings();
+      }
+    } catch (error) {
+      console.error('Error getting user location:', error);
+      setLocationPermission('denied');
+    }
+  };
+
+  const handleNearMeClick = () => {
+    if (locationPermission === 'granted' && userLocation) {
+      // Already have location, just sort by distance
+      setSortBy('distance');
+    } else {
+      // Request location permission
+      requestUserLocation();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -507,7 +564,7 @@ function BrowseContent() {
                 {selectedCategories.length === 0 
                   ? 'Select categories...' 
                   : selectedCategories.length === 1 
-                    ? categories[selectedCategories[0] as keyof typeof categories]?.label 
+                    ? (categories[selectedCategories[0] as keyof typeof categories]?.label || selectedCategories[0])
                     : `${selectedCategories.length} categories selected`
                 }
               </span>
@@ -595,6 +652,20 @@ function BrowseContent() {
           </div>
 
           <div className="flex items-center space-x-4">
+            {/* Near Me button */}
+            <button
+              onClick={handleNearMeClick}
+              disabled={sortBy === 'distance' && userLocation}
+              className={`px-3 py-2 border rounded-lg flex items-center space-x-2 transition-colors ${
+                sortBy === 'distance' && userLocation
+                  ? 'border-green-500 bg-green-50 text-green-700'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <MapPin className="w-4 h-4" />
+              <span>Near Me</span>
+            </button>
+
             {/* Sort dropdown */}
             <select
               value={sortBy}
@@ -611,16 +682,16 @@ function BrowseContent() {
             {/* View mode toggle */}
             <div className="flex border border-gray-300 rounded-lg overflow-hidden">
               <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 ${viewMode === 'grid' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
                 onClick={() => setViewMode('list')}
                 className={`p-2 ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >
                 <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('map')}
+                className={`p-2 ${viewMode === 'map' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                <Map className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -634,12 +705,29 @@ function BrowseContent() {
             <p className="text-gray-500 text-lg mb-4">No items found</p>
             <p className="text-gray-400">Try adjusting your filters or search terms</p>
           </div>
+        ) : viewMode === 'map' ? (
+          <div className="h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
+            <MapView
+              listings={filteredListings.map((listing) => {
+                const mockData = getMockListingData(listing.id);
+                return {
+                  ...listing,
+                  rating: mockData.rating,
+                  reviewCount: mockData.reviewCount,
+                  distance: mockData.distance,
+                };
+              })}
+              userLocation={userLocation}
+              onFavoriteToggle={toggleFavorite}
+              favorites={favorites}
+            />
+          </div>
         ) : (
           <>
             <div className={`grid gap-6 ${
               viewMode === 'grid' 
                 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-                : 'grid-cols-1'
+                : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
             }`}>
               {paginatedListings.map((listing) => {
                 const mockData = getMockListingData(listing.id);

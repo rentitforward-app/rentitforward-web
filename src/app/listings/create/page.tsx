@@ -318,20 +318,21 @@ export default function CreateListingPage() {
           description: data.description,
           category: data.category,
           subcategory: data.subcategory || null,
-          daily_rate: data.dailyRate,
-          weekly_rate: data.weeklyRate || null,
+          price_per_day: data.dailyRate,
+          price_weekly: data.weeklyRate || null,
           monthly_rate: data.monthlyRate || null,
-          deposit_amount: data.depositAmount,
+          deposit: data.depositAmount,
           images: imageUrls,
           location: data.location,
           state: data.state,
-          postcode: data.postcode,
+          postal_code: data.postcode,
           condition: data.condition,
           brand: data.brand || null,
           model: data.model || null,
           year: data.year || null,
           delivery_methods: data.deliveryMethods,
-          is_available: true,
+          is_active: false,
+          approval_status: 'pending',
         })
         .select()
         .single();
@@ -342,7 +343,7 @@ export default function CreateListingPage() {
         return;
       }
 
-      toast.success('Listing created successfully!');
+      toast.success('Listing created successfully! Your listing is awaiting admin approval.');
       router.push(`/listings/${listing.id}`);
     } catch (error) {
       console.error('Error creating listing:', error);

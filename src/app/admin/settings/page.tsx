@@ -15,19 +15,24 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { useAdmin } from '@/hooks/use-admin';
 
 export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState({
     siteName: 'Rent It Forward',
     siteDescription: 'Peer-to-peer rental marketplace',
-    commissionRate: 8.5,
+    commissionRate: 20.0, // Updated to match our business model
+    serviceFee: 15.0, // Service fee for renters
+    insuranceFee: 10.0, // Insurance fee percentage
     minTrustScore: 60,
     autoApproveListings: false,
     emailNotifications: true,
     smsNotifications: false,
     maintenanceMode: false
   });
+  
+  const { isAdmin, loading: adminLoading } = useAdmin();
 
   const tabs = [
     { id: 'general', label: 'General', icon: Settings },
@@ -45,6 +50,25 @@ export default function AdminSettings() {
     console.log('Saving settings:', settings);
     // Implement settings save logic
   };
+
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-600">You need admin permissions to access this page.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -146,22 +170,60 @@ export default function AdminSettings() {
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900">Payment Settings</h3>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Commission Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="20"
-                    value={settings.commissionRate}
-                    onChange={(e) => handleSettingChange('commissionRate', parseFloat(e.target.value))}
-                    className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Platform commission taken from each transaction
-                  </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Commission Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="30"
+                      value={settings.commissionRate}
+                      onChange={(e) => handleSettingChange('commissionRate', parseFloat(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Platform commission deducted from owner earnings
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Service Fee (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="25"
+                      value={settings.serviceFee}
+                      onChange={(e) => handleSettingChange('serviceFee', parseFloat(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Service fee added to renter's total
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Insurance Fee (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="20"
+                      value={settings.insuranceFee}
+                      onChange={(e) => handleSettingChange('insuranceFee', parseFloat(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Insurance fee for damage protection
+                    </p>
+                  </div>
                 </div>
 
                 <div className="bg-blue-50 p-4 rounded-lg">

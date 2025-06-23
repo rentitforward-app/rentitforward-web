@@ -6,16 +6,23 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
-  const sig = request.headers.get('stripe-signature')!;
+  const sig = request.headers.get('stripe-signature');
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+    // If webhook secret is configured, verify the signature
+    if (endpointSecret && sig) {
+      event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+    } else {
+      // Development mode: parse the event without signature verification
+      console.log('⚠️  Development mode: Webhook signature verification disabled');
+      event = JSON.parse(body);
+    }
   } catch (err: any) {
     console.log(`Webhook signature verification failed.`, err.message);
     return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 });
@@ -94,12 +101,13 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent, supab
       return;
     }
 
-    // Update booking status to confirmed
+    // Update booking status to confirmed (payment successful)
+    // NOTE: We do NOT auto-transfer to owners anymore - this will be manual admin release
     const { error: bookingError } = await supabase
       .from('bookings')
       .update({ 
         status: 'confirmed',
-        payment_status: 'paid'
+        payment_status: 'paid_awaiting_release'
       } as any)
       .eq('stripe_payment_intent_id', paymentIntent.id);
 
@@ -108,38 +116,11 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent, supab
       return;
     }
 
-    // If this is a Connect payment, create a transfer to the owner
-    if (paymentIntent.application_fee_amount && paymentIntent.metadata.owner_id) {
-      // Get owner's Stripe account
-      const { data: ownerProfile } = await supabase
-        .from('profiles')
-        .select('stripe_account_id')
-        .eq('id', paymentIntent.metadata.owner_id)
-        .single();
-
-      if (ownerProfile?.stripe_account_id) {
-        // Calculate transfer amount (total - app fee)
-        const transferAmount = paymentIntent.amount - (paymentIntent.application_fee_amount || 0);
-        
-        const transfer = await stripe.transfers.create({
-          amount: transferAmount,
-          currency: paymentIntent.currency,
-          destination: ownerProfile.stripe_account_id,
-          metadata: {
-            booking_id: bookingId,
-            payment_intent_id: paymentIntent.id,
-          },
-        });
-
-        // Update booking with transfer ID
-        await supabase
-          .from('bookings')
-          .update({ stripe_transfer_id: transfer.id } as any)
-          .eq('id', bookingId);
-      }
-    }
-
-    console.log(`Payment succeeded for booking ${bookingId}`);
+    // Store payment details for future admin release (no auto-transfer)
+    console.log(`Payment succeeded for booking ${bookingId} - awaiting admin release`);
+    
+    // Future: Send notification to admin about successful payment needing review
+    
   } catch (error) {
     console.error('Error handling payment success:', error);
   }
