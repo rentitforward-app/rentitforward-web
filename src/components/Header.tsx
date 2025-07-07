@@ -179,7 +179,7 @@ export default function Header() {
             <Link href="/login" className="text-gray-700 hover:text-green-600 font-medium transition-colors px-4 py-2">
               Login
             </Link>
-            <Link href="/register" className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-full font-medium transition-colors">
+                            <Link href="/signup" className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-full font-medium transition-colors">
               Sign Up
             </Link>
             <Link href="/listings/create" className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-full font-medium transition-colors">
@@ -240,7 +240,7 @@ export default function Header() {
                   Login
                 </Link>
                 <Link 
-                  href="/register" 
+                  href="/signup" 
                   className="block w-full text-center bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >

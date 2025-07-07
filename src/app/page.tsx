@@ -511,7 +511,7 @@ function MarketingHomepage() {
           
           <div className="text-center mt-8 sm:mt-12">
             <Link 
-              href="/register"
+              href="/signup"
               className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-full font-semibold text-base sm:text-lg transition-colors"
             >
               Get Started
@@ -567,7 +567,7 @@ function MarketingHomepage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
-              href="/register"
+              href="/signup"
               className="bg-white text-green-600 hover:bg-gray-100 px-6 sm:px-8 py-3 sm:py-4 rounded-full font-semibold text-base sm:text-lg transition-colors"
             >
               Sign Up Now

@@ -24,7 +24,7 @@ export default function AuthCodeErrorPage() {
         
         <div className="space-y-4">
           <Link
-            href="/register"
+                          href="/signup"
             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#44D62C] hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C]"
           >
             Create new account

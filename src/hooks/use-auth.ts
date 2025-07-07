@@ -3,12 +3,15 @@
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'react-hot-toast'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const supabase = createClient()
+  const router = useRouter()
 
   useEffect(() => {
     setMounted(true)
@@ -53,6 +56,10 @@ export function useAuth() {
       const { error } = await supabase.auth.signOut()
       if (error) {
         console.error('Error signing out:', error)
+      } else {
+        // Show success message and redirect to homepage after successful sign out
+        toast.success('Logged out successfully')
+        router.push('/')
       }
     } catch (error) {
       console.error('Error in signOut:', error)
