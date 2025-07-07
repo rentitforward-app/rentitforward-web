@@ -40,6 +40,8 @@ interface Listing {
   total_bookings: number;
   total_earnings: number;
   availability: boolean;
+  rating: number;
+  review_count: number;
 }
 
 interface ItemBooking {
@@ -101,7 +103,9 @@ export default function MyListingsPage() {
           view_count,
           booking_count,
           available_from,
-          available_to
+          available_to,
+          rating,
+          review_count
         `)
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
@@ -198,7 +202,9 @@ export default function MyListingsPage() {
           view_count: listing.view_count || 0,
           total_bookings: listing.booking_count || 0,
           total_earnings: totalEarnings,
-          availability
+          availability,
+          rating: Number(listing.rating) || 0,
+          review_count: listing.review_count || 0
         };
       });
 
@@ -269,7 +275,12 @@ export default function MyListingsPage() {
 
   const totalEarnings = listings.reduce((sum, listing) => sum + listing.total_earnings, 0);
   const totalBookings = listings.reduce((sum, listing) => sum + listing.total_bookings, 0);
-  const averageRating = 4.7;
+  
+  // Calculate average rating - only include listings that have ratings
+  const ratingsWithReviews = listings.filter(listing => listing.review_count > 0);
+  const averageRating = ratingsWithReviews.length > 0 
+    ? ratingsWithReviews.reduce((sum, listing) => sum + listing.rating, 0) / ratingsWithReviews.length
+    : 0;
 
   if (isLoading) {
     return (
@@ -348,7 +359,9 @@ export default function MyListingsPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Avg Rating</p>
-                <p className="text-xl font-bold">{averageRating}</p>
+                <p className="text-xl font-bold">
+                  {averageRating > 0 ? averageRating.toFixed(1) : 'N/A'}
+                </p>
               </div>
             </div>
           </Card>
