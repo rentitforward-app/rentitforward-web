@@ -40,6 +40,8 @@ interface Listing {
   total_bookings: number;
   total_earnings: number;
   availability: boolean;
+  rating: number;
+  review_count: number;
 }
 
 interface ItemBooking {
@@ -85,90 +87,148 @@ export default function MyListingsPage() {
 
       setUser(user);
 
-      // Mock data for listings
-      const mockListings: Listing[] = [
-        {
-          id: '1',
-          title: 'Professional DSLR Camera Kit',
-          description: 'Canon EOS R6 with 24-70mm lens, perfect for photography and videography.',
-          daily_rate: 50,
-          category: 'Photography',
-          images: ['/api/placeholder/300/300'],
-          status: 'active',
-          created_at: '2024-10-15T10:00:00Z',
-          view_count: 45,
-          total_bookings: 8,
-          total_earnings: 1200,
-          availability: true
-        },
-        {
-          id: '2',
-          title: 'Power Drill Set with Accessories',
-          description: 'Professional cordless drill with complete bit set and carrying case.',
-          daily_rate: 25,
-          category: 'Tools',
-          images: ['/api/placeholder/300/300'],
-          status: 'active',
-          created_at: '2024-10-20T14:30:00Z',
-          view_count: 23,
-          total_bookings: 5,
-          total_earnings: 375,
-          availability: true
-        },
-        {
-          id: '3',
-          title: 'Camping Tent (4-Person)',
-          description: 'Waterproof family tent, easy setup, perfect for weekend camping trips.',
-          daily_rate: 30,
-          category: 'Outdoor',
-          images: ['/api/placeholder/300/300'],
-          status: 'paused',
-          created_at: '2024-09-10T09:15:00Z',
-          view_count: 67,
-          total_bookings: 12,
-          total_earnings: 720,
-          availability: false
-        }
-      ];
+      // Fetch real listings for the current user
+      const { data: listingsData, error: listingsError } = await supabase
+        .from('listings')
+        .select(`
+          id,
+          title,
+          description,
+          price_per_day,
+          category,
+          images,
+          is_active,
+          approval_status,
+          created_at,
+          view_count,
+          booking_count,
+          available_from,
+          available_to,
+          rating,
+          review_count
+        `)
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false });
 
-      // Mock data for item bookings
-      const mockItemBookings: ItemBooking[] = [
-        {
-          id: '1',
-          start_date: '2024-12-05',
-          end_date: '2024-12-10',
-          total_amount: 250,
-          status: 'confirmed',
-          created_at: '2024-11-20T10:00:00Z',
-          listing_id: '1',
-          listing_title: 'Professional DSLR Camera Kit',
-          renter: {
-            id: 'renter1',
-            full_name: 'Sarah Johnson',
-            email: 'sarah@example.com',
-            phone: '+61 400 123 456'
-          }
-        },
-        {
-          id: '2',
-          start_date: '2024-11-25',
-          end_date: '2024-11-30',
-          total_amount: 150,
-          status: 'pending',
-          created_at: '2024-11-15T14:30:00Z',
-          listing_id: '2',
-          listing_title: 'Power Drill Set with Accessories',
-          renter: {
-            id: 'renter2',
-            full_name: 'Mike Chen',
-            email: 'mike@example.com',
-            phone: '+61 400 789 123'
-          }
-        }
-      ];
+      if (listingsError) {
+        console.error('Error fetching listings:', listingsError);
+        return;
+      }
 
-      setListings(mockListings);
-      setItemBookings(mockItemBookings);
+      // Fetch bookings for the user's listings to calculate earnings
+      const listingIds = listingsData?.map(listing => listing.id) || [];
+      
+      let bookingsData: Array<{item_id: string; total_amount: number; status: string}> = [];
+      let itemBookingsData: Array<any> = [];
+      
+      if (listingIds.length > 0) {
+        // Fetch bookings for calculating earnings and stats
+        const { data: bookingsRaw, error: bookingsError } = await supabase
+          .from('bookings')
+          .select('item_id, total_amount, status')
+          .in('item_id', listingIds);
+
+        if (bookingsError) {
+          console.error('Error fetching bookings:', bookingsError);
+        } else {
+          bookingsData = bookingsRaw || [];
+        }
+
+        // Fetch detailed bookings with renter info for the bookings tab
+        const { data: itemBookingsRaw, error: itemBookingsError } = await supabase
+          .from('bookings')
+          .select(`
+            id,
+            start_date,
+            end_date,
+            total_amount,
+            status,
+            created_at,
+            item_id,
+            listings!inner(
+              id,
+              title
+            ),
+            profiles!bookings_renter_id_fkey(
+              id,
+              full_name,
+              avatar_url,
+              email,
+              phone_number
+            )
+          `)
+          .in('item_id', listingIds)
+          .order('created_at', { ascending: false });
+
+        if (itemBookingsError) {
+          console.error('Error fetching item bookings:', itemBookingsError);
+        } else {
+          itemBookingsData = itemBookingsRaw || [];
+        }
+      }
+
+      // Transform listings data to match the interface
+      const transformedListings: Listing[] = (listingsData || []).map(listing => {
+        // Calculate stats for this listing
+        const listingBookings = bookingsData.filter(booking => booking.item_id === listing.id);
+        const completedBookings = listingBookings.filter(booking => booking.status === 'completed');
+        const totalEarnings = completedBookings.reduce((sum, booking) => sum + (booking.total_amount || 0), 0);
+
+        // Determine status based on is_active and approval_status
+        let status: 'active' | 'paused' | 'draft';
+        if (listing.approval_status === 'pending' || listing.approval_status === 'rejected') {
+          status = 'draft';
+        } else if (listing.is_active) {
+          status = 'active';
+        } else {
+          status = 'paused';
+        }
+
+        // Determine availability
+        const now = new Date();
+        const availableFrom = listing.available_from ? new Date(listing.available_from) : null;
+        const availableTo = listing.available_to ? new Date(listing.available_to) : null;
+        const availability = (!availableFrom || availableFrom <= now) && (!availableTo || availableTo >= now);
+
+        return {
+          id: listing.id,
+          title: listing.title,
+          description: listing.description,
+          daily_rate: Number(listing.price_per_day),
+          category: listing.category,
+          images: listing.images || [],
+          status,
+          created_at: listing.created_at,
+          view_count: listing.view_count || 0,
+          total_bookings: listing.booking_count || 0,
+          total_earnings: totalEarnings,
+          availability,
+          rating: Number(listing.rating) || 0,
+          review_count: listing.review_count || 0
+        };
+      });
+
+      // Transform bookings data to match the interface
+      const transformedBookings: ItemBooking[] = (itemBookingsData || []).map(booking => ({
+        id: booking.id,
+        start_date: booking.start_date,
+        end_date: booking.end_date,
+        total_amount: Number(booking.total_amount),
+        status: booking.status as any, // Cast to match our enum
+        created_at: booking.created_at,
+        listing_id: booking.item_id,
+        listing_title: booking.listings?.title || 'Unknown Item',
+        renter: {
+          id: booking.profiles?.id || '',
+          full_name: booking.profiles?.full_name || 'Unknown User',
+          avatar_url: booking.profiles?.avatar_url,
+          email: booking.profiles?.email || '',
+          phone: booking.profiles?.phone_number
+        }
+      }));
+
+      setListings(transformedListings);
+      setItemBookings(transformedBookings);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -215,7 +275,12 @@ export default function MyListingsPage() {
 
   const totalEarnings = listings.reduce((sum, listing) => sum + listing.total_earnings, 0);
   const totalBookings = listings.reduce((sum, listing) => sum + listing.total_bookings, 0);
-  const averageRating = 4.7;
+  
+  // Calculate average rating - only include listings that have ratings
+  const ratingsWithReviews = listings.filter(listing => listing.review_count > 0);
+  const averageRating = ratingsWithReviews.length > 0 
+    ? ratingsWithReviews.reduce((sum, listing) => sum + listing.rating, 0) / ratingsWithReviews.length
+    : 0;
 
   if (isLoading) {
     return (
@@ -294,7 +359,9 @@ export default function MyListingsPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Avg Rating</p>
-                <p className="text-xl font-bold">{averageRating}</p>
+                <p className="text-xl font-bold">
+                  {averageRating > 0 ? averageRating.toFixed(1) : 'N/A'}
+                </p>
               </div>
             </div>
           </Card>
@@ -331,9 +398,23 @@ export default function MyListingsPage() {
         {/* Tab Content */}
         {activeTab === 'items' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {listings.map((listing) => (
-                <Card key={listing.id} className="overflow-hidden">
+            {listings.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No items listed yet</h3>
+                <p className="text-gray-500 mb-6">Start earning by listing your first item!</p>
+                <Button
+                  onClick={() => router.push('/listings/create')}
+                  className="btn-primary"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  List Your First Item
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {listings.map((listing) => (
+                  <Card key={listing.id} className="overflow-hidden">
                   <div className="relative h-48">
                     <Image
                       src={listing.images[0]}
@@ -391,66 +472,75 @@ export default function MyListingsPage() {
                 </Card>
               ))}
             </div>
+            )}
           </div>
         )}
 
         {activeTab === 'bookings' && (
           <div className="space-y-4">
-            {itemBookings.map((booking) => (
-              <Card key={booking.id} className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{booking.listing_title}</h3>
-                    <p className="text-sm text-gray-600">
-                      {format(new Date(booking.start_date), 'MMM dd')} - {format(new Date(booking.end_date), 'MMM dd, yyyy')}
-                    </p>
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 ${getStatusColor(booking.status)}`}>
-                    {getStatusIcon(booking.status)}
-                    {booking.status}
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm font-medium">{booking.renter.full_name}</span>
+            {itemBookings.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings yet</h3>
+                <p className="text-gray-500 mb-6">Bookings for your items will appear here.</p>
+              </div>
+            ) : (
+              itemBookings.map((booking) => (
+                <Card key={booking.id} className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{booking.listing_title}</h3>
+                      <p className="text-sm text-gray-600">
+                        {format(new Date(booking.start_date), 'MMM dd')} - {format(new Date(booking.end_date), 'MMM dd, yyyy')}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm font-medium">{formatPrice(booking.total_amount)}</span>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 ${getStatusColor(booking.status)}`}>
+                      {getStatusIcon(booking.status)}
+                      {booking.status}
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={() => window.open(`mailto:${booking.renter.email}`)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <Mail className="w-3 h-3" />
-                    </Button>
-                    {booking.renter.phone && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-medium">{booking.renter.full_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-medium">{formatPrice(booking.total_amount)}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
                       <Button
-                        onClick={() => window.open(`tel:${booking.renter.phone}`)}
+                        onClick={() => window.open(`mailto:${booking.renter.email}`)}
                         variant="outline"
                         size="sm"
                       >
-                        <Phone className="w-3 h-3" />
+                        <Mail className="w-3 h-3" />
                       </Button>
-                    )}
-                    <Button
-                      onClick={() => router.push(`/messages?user=${booking.renter.id}`)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <MessageCircle className="w-3 h-3" />
-                    </Button>
+                      {booking.renter.phone && (
+                        <Button
+                          onClick={() => window.open(`tel:${booking.renter.phone}`)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Phone className="w-3 h-3" />
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => router.push(`/messages?user=${booking.renter.id}`)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))
+            )}
           </div>
         )}
 

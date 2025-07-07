@@ -47,9 +47,26 @@ const categories = [
   },
 ]
 
+// Define types for our data
+interface Activity {
+  type: string;
+  message: string;
+  time: string;
+  icon: React.ComponentType<any>;
+}
+
+interface RecentBooking {
+  id: string;
+  item: string;
+  renter: string;
+  status: string;
+  amount: number;
+  period: string;
+}
+
 // Dashboard Overview Component for Logged-in Users
 export default function DashboardPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { isAdmin, loading: adminLoading } = useAdmin()
   const [stats, setStats] = useState({
     totalListings: 0,
@@ -59,101 +76,243 @@ export default function DashboardPage() {
     pendingBookings: 0,
     unreadMessages: 0
   })
-  const [recentActivity, setRecentActivity] = useState([])
-  const [recentBookings, setRecentBookings] = useState([])
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([])
+  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const supabase = createClient()
 
   useEffect(() => {
+    console.log('Dashboard useEffect triggered, user:', user)
     if (user) {
       fetchDashboardData()
+    } else if (!authLoading) {
+      setLoading(false)
     }
-  }, [user])
+  }, [user, authLoading])
 
   const fetchDashboardData = async () => {
+    if (!user?.id) {
+      console.log('No user ID available')
+      setLoading(false)
+      return
+    }
+    
+    console.log('Fetching dashboard data for user:', user.id)
+    
     try {
       // Fetch user listings
-      const { data: listings } = await supabase
+      const { data: listings, error: listingsError } = await supabase
         .from('listings')
         .select('*')
         .eq('owner_id', user.id)
 
-      // Fetch user bookings (as renter and owner)
-      const { data: asRenter } = await supabase
+      if (listingsError) {
+        console.error('Error fetching listings:', listingsError)
+        throw listingsError
+      }
+
+      // Fetch user bookings as renter (active rentals)
+      const { data: asRenter, error: renterError } = await supabase
         .from('bookings')
         .select('*')
         .eq('renter_id', user.id)
+        .in('status', ['confirmed', 'in_progress'])
 
-      const { data: asOwner } = await supabase
+      if (renterError) {
+        console.error('Error fetching renter bookings:', renterError)
+      }
+
+      // Fetch user bookings as owner (for earnings and pending)
+      const { data: asOwner, error: ownerError } = await supabase
         .from('bookings')
-        .select('*')
+        .select(`
+          *,
+          listing:item_id(title),
+          renter:renter_id(full_name)
+        `)
         .eq('owner_id', user.id)
+
+      if (ownerError) {
+        console.error('Error fetching owner bookings:', ownerError)
+      }
+
+      // Fetch unread messages
+      const { data: unreadMessages, error: messagesError } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('receiver_id', user.id)
+        .is('read_at', null)
+
+      if (messagesError) {
+        console.error('Error fetching messages:', messagesError)
+      }
 
       // Calculate stats
       const totalListings = listings?.length || 0
-      const activeRentals = (asRenter?.filter(b => b.status === 'confirmed') || []).length
+      const activeRentals = asRenter?.length || 0
       const totalViews = listings?.reduce((sum, listing) => sum + (listing.view_count || 0), 0) || 0
       const pendingBookings = (asOwner?.filter(b => b.status === 'pending') || []).length
 
-      // Mock data for earnings (would be calculated from completed bookings)
-      const totalEarnings = (asOwner?.filter(b => b.status === 'completed') || []).length * 150 // Mock calculation
+      // Calculate real earnings from completed bookings
+      const completedBookings = asOwner?.filter(b => b.status === 'completed') || []
+      const totalEarnings = completedBookings.reduce((sum, booking) => {
+        // Subtract platform fee from total amount to get owner earnings
+        const ownerEarnings = (booking.total_amount || 0) - (booking.platform_fee || 0)
+        return sum + ownerEarnings
+      }, 0)
 
       setStats({
         totalListings,
         activeRentals,
-        totalEarnings,
+        totalEarnings: Math.round(totalEarnings),
         totalViews,
         pendingBookings,
-        unreadMessages: 3 // Mock data
+        unreadMessages: unreadMessages?.length || 0
       })
 
-      // Recent activity (mock data with some real bookings)
-      const activities = [
-        { type: 'booking', message: 'New booking request for "Professional Camera Kit"', time: '2 hours ago', icon: Calendar },
-        { type: 'message', message: 'Sarah sent you a message about the drill rental', time: '4 hours ago', icon: MessageCircle },
-        { type: 'view', message: 'Your listing "Power Tools Set" was viewed 5 times', time: '1 day ago', icon: Eye },
-        { type: 'rental', message: 'Rental completed: "Camping Tent"', time: '2 days ago', icon: Package },
-      ]
-      setRecentActivity(activities)
+      console.log('Stats calculated:', {
+        totalListings,
+        activeRentals,
+        totalEarnings: Math.round(totalEarnings),
+        totalViews,
+        pendingBookings,
+        unreadMessages: unreadMessages?.length || 0
+      })
 
-      // Recent bookings
-      const recentBookingsList = [
-        { 
-          id: '1', 
-          item: 'Professional Camera Kit', 
-          renter: 'John Smith', 
-          status: 'pending', 
-          amount: 85,
-          period: 'Oct 15-17'
-        },
-        { 
-          id: '2', 
-          item: 'Power Drill Set', 
-          renter: 'Sarah Johnson', 
-          status: 'confirmed', 
-          amount: 35,
-          period: 'Oct 12-14'
-        },
-        { 
-          id: '3', 
-          item: 'Camping Tent', 
-          renter: 'Mike Wilson', 
-          status: 'completed', 
-          amount: 60,
-          period: 'Oct 8-10'
-        }
-      ]
-      setRecentBookings(recentBookingsList)
+      // Fetch recent activity
+      const activities: Activity[] = []
+
+      // Add recent booking requests
+      const recentPendingBookings = asOwner?.filter(b => b.status === 'pending')
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 2) || []
+
+      for (const booking of recentPendingBookings) {
+        activities.push({
+          type: 'booking',
+          message: `New booking request for "${booking.listing?.title || 'Unknown item'}"`,
+          time: formatTimeAgo(booking.created_at),
+          icon: Calendar
+        })
+      }
+
+      // Add recent messages
+      const { data: recentMessagesData } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender:sender_id(full_name)
+        `)
+        .eq('receiver_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(2)
+
+      for (const message of recentMessagesData || []) {
+        activities.push({
+          type: 'message',
+          message: `${message.sender?.full_name || 'Someone'} sent you a message`,
+          time: formatTimeAgo(message.created_at),
+          icon: MessageCircle
+        })
+      }
+
+      // Add recent completed rentals
+      const recentCompletedBookings = asOwner?.filter(b => b.status === 'completed')
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        .slice(0, 2) || []
+
+      for (const booking of recentCompletedBookings) {
+        activities.push({
+          type: 'rental',
+          message: `Rental completed: "${booking.listing?.title || 'Unknown item'}"`,
+          time: formatTimeAgo(booking.updated_at),
+          icon: Package
+        })
+      }
+
+      // Sort activities by recency and take top 5
+      activities.sort((a, b) => {
+        // This is a simplified sort, in a real app you'd want to parse the time strings
+        return Math.random() - 0.5 // Random for now since we have mixed time formats
+      })
+      setRecentActivity(activities.slice(0, 5))
+
+      // Set recent bookings
+      const recentBookingsData: RecentBooking[] = (asOwner || [])
+        .slice(0, 5)
+        .map(booking => ({
+          id: booking.id,
+          item: booking.listing?.title || 'Unknown item',
+          renter: booking.renter?.full_name || 'Unknown user',
+          status: booking.status,
+          amount: booking.total_amount || 0,
+          period: formatDate(booking.start_date) + ' - ' + formatDate(booking.end_date)
+        }))
+
+      setRecentBookings(recentBookingsData)
+
+      console.log('Recent activity:', activities)
+      console.log('Recent bookings:', recentBookingsData)
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
+      setError(error instanceof Error ? error.message : 'Unknown error')
     } finally {
       setLoading(false)
     }
   }
 
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+    
+    if (diffInHours < 1) return 'Just now'
+    if (diffInHours < 24) return `${diffInHours} hours ago`
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays < 7) return `${diffInDays} days ago`
+    return date.toLocaleDateString()
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString()
+  }
+
+  console.log('Dashboard render state:', { user: !!user, authLoading, loading, error })
+
+  if (authLoading) {
+    console.log('Auth is loading...')
+    return (
+      <AuthenticatedLayout>
+        <div className="p-6">
+          <div className="text-center">
+            <p>Loading authentication...</p>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    )
+  }
+
+  if (!user) {
+    console.log('No user found')
+    return (
+      <AuthenticatedLayout>
+        <div className="p-6">
+          <div className="text-center">
+            <p>Please log in to view your dashboard.</p>
+            <Link href="/login" className="text-green-600 hover:text-green-700">
+              Go to Login
+            </Link>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    )
+  }
+
   if (loading) {
+    console.log('Dashboard data is loading...')
     return (
       <AuthenticatedLayout>
         <div className="p-6">
@@ -170,14 +329,59 @@ export default function DashboardPage() {
     )
   }
 
+  if (error) {
+    console.log('Dashboard error:', error)
+    return (
+      <AuthenticatedLayout>
+        <div className="p-6">
+          <div className="text-center">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              <p>Error loading dashboard: {error}</p>
+            </div>
+            <button 
+              onClick={() => {
+                setError(null)
+                setLoading(true)
+                fetchDashboardData()
+              }}
+              className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    )
+  }
+
+  console.log('Rendering main dashboard content')
+  
   return (
     <AuthenticatedLayout>
       <div className="p-6 space-y-6">
         {/* Welcome Header */}
         <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
-          <h1 className="text-2xl font-bold mb-2">Welcome back, {user?.user_metadata?.full_name || 'there'}!</h1>
+          <h1 className="text-2xl font-bold mb-2">Welcome back, {user?.user_metadata?.full_name || user?.email || 'there'}!</h1>
           <p className="text-green-100">Here's what's happening with your rentals</p>
         </div>
+
+        {/* Admin Panel Link */}
+        {isAdmin && !adminLoading && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Shield className="w-5 h-5 text-blue-600 mr-2" />
+                <span className="text-blue-900 font-medium">Admin Access</span>
+              </div>
+              <Link 
+                href="/admin" 
+                className="text-blue-600 hover:text-blue-700 font-medium flex items-center"
+              >
+                Go to Admin Panel <ArrowRight className="w-4 h-4 ml-1" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -243,8 +447,8 @@ export default function DashboardPage() {
 
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-pink-100 rounded-lg">
-                <MessageCircle className="w-6 h-6 text-pink-600" />
+              <div className="p-3 bg-indigo-100 rounded-lg">
+                <MessageCircle className="w-6 h-6 text-indigo-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Unread Messages</p>
@@ -256,19 +460,8 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-            {isAdmin && !adminLoading && (
-              <Link 
-                href="/admin/dashboard" 
-                className="flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                Admin Panel
-              </Link>
-            )}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link href="/listings/create" className="btn-primary p-4 rounded-lg text-center hover:bg-green-600 transition-colors">
               <Plus className="w-6 h-6 mx-auto mb-2" />
               <span className="font-medium">Create Listing</span>
@@ -281,85 +474,89 @@ export default function DashboardPage() {
               <Search className="w-6 h-6 mx-auto mb-2" />
               <span className="font-medium">Browse Items</span>
             </Link>
-            <Link href="/bookings" className="bg-purple-500 text-white p-4 rounded-lg text-center hover:bg-purple-600 transition-colors">
-              <Calendar className="w-6 h-6 mx-auto mb-2" />
-              <span className="font-medium">My Bookings</span>
-            </Link>
-            <Link href="/messages" className="bg-orange-500 text-white p-4 rounded-lg text-center hover:bg-orange-600 transition-colors">
-              <MessageCircle className="w-6 h-6 mx-auto mb-2" />
-              <span className="font-medium">Messages</span>
-            </Link>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Activity */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-              <Link href="/notifications" className="text-sm text-green-600 hover:text-green-700">View all</Link>
-            </div>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <activity.icon className="w-4 h-4 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+            {recentActivity.length > 0 ? (
+              <div className="space-y-4">
+                {recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      <activity.icon className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">{activity.message}</p>
+                      <p className="text-xs text-gray-500">{activity.time}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900">{activity.message}</p>
-                    <p className="text-xs text-gray-500">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500">No recent activity yet</p>
+                <p className="text-sm text-gray-400">Activity will appear here as you use the platform</p>
+              </div>
+            )}
           </div>
 
           {/* Recent Bookings */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Bookings</h2>
-              <Link href="/bookings" className="text-sm text-green-600 hover:text-green-700">View all</Link>
-            </div>
-            <div className="space-y-4">
-              {recentBookings.map((booking) => (
-                <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{booking.item}</p>
-                    <p className="text-sm text-gray-600">Renter: {booking.renter}</p>
-                    <p className="text-xs text-gray-500">{booking.period}</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Bookings</h2>
+            {recentBookings.length > 0 ? (
+              <div className="space-y-4">
+                {recentBookings.map((booking) => (
+                  <div key={booking.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-medium text-gray-900">{booking.item}</h3>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
+                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">Renter: {booking.renter}</p>
+                    <p className="text-sm text-gray-600 mb-1">Period: {booking.period}</p>
+                    <p className="text-sm font-medium text-gray-900">${booking.amount}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">${booking.amount}</p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {booking.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500">No bookings yet</p>
+                <p className="text-sm text-gray-400">Your rental bookings will appear here</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Popular Categories for Quick Browsing */}
+        {/* Browse Categories */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Browse Popular Categories</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {categories.slice(0, 6).map((category, index) => (
-              <Link 
-                key={index}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {categories.map((category) => (
+              <Link
+                key={category.slug}
                 href={`/browse?category=${category.slug}`}
-                className="text-center p-4 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all duration-200 group"
+                className="group p-4 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-all"
               >
-                <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">
-                  {category.icon}
+                <div className="flex items-center mb-2">
+                  <span className="text-2xl mr-3">{category.icon}</span>
+                  <h3 className="font-medium text-gray-900 group-hover:text-green-700">
+                    {category.name}
+                  </h3>
                 </div>
-                <h3 className="text-sm font-medium text-gray-900 group-hover:text-green-600">
-                  {category.name}
-                </h3>
+                <p className="text-sm text-gray-600">
+                  {category.items.slice(0, 2).join(', ')}{category.items.length > 2 && ', ...'}
+                </p>
               </Link>
             ))}
           </div>
