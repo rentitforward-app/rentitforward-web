@@ -47,6 +47,23 @@ const categories = [
   },
 ]
 
+// Define types for our data
+interface Activity {
+  type: string;
+  message: string;
+  time: string;
+  icon: React.ComponentType<any>;
+}
+
+interface RecentBooking {
+  id: string;
+  item: string;
+  renter: string;
+  status: string;
+  amount: number;
+  period: string;
+}
+
 // Dashboard Overview Component for Logged-in Users
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -59,8 +76,8 @@ export default function DashboardPage() {
     pendingBookings: 0,
     unreadMessages: 0
   })
-  const [recentActivity, setRecentActivity] = useState([])
-  const [recentBookings, setRecentBookings] = useState([])
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([])
+  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
@@ -72,6 +89,8 @@ export default function DashboardPage() {
   }, [user])
 
   const fetchDashboardData = async () => {
+    if (!user?.id) return
+    
     try {
       // Fetch user listings
       const { data: listings } = await supabase
@@ -79,71 +98,140 @@ export default function DashboardPage() {
         .select('*')
         .eq('owner_id', user.id)
 
-      // Fetch user bookings (as renter and owner)
+      // Fetch user bookings as renter (active rentals)
       const { data: asRenter } = await supabase
         .from('bookings')
         .select('*')
         .eq('renter_id', user.id)
+        .in('status', ['confirmed', 'in_progress'])
 
+      // Fetch user bookings as owner (for earnings and pending)
       const { data: asOwner } = await supabase
         .from('bookings')
         .select('*')
         .eq('owner_id', user.id)
 
+      // Fetch unread messages
+      const { data: unreadMessages } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('receiver_id', user.id)
+        .is('read_at', null)
+
       // Calculate stats
       const totalListings = listings?.length || 0
-      const activeRentals = (asRenter?.filter(b => b.status === 'confirmed') || []).length
+      const activeRentals = asRenter?.length || 0
       const totalViews = listings?.reduce((sum, listing) => sum + (listing.view_count || 0), 0) || 0
       const pendingBookings = (asOwner?.filter(b => b.status === 'pending') || []).length
 
-      // Mock data for earnings (would be calculated from completed bookings)
-      const totalEarnings = (asOwner?.filter(b => b.status === 'completed') || []).length * 150 // Mock calculation
+      // Calculate real earnings from completed bookings
+      const completedBookings = asOwner?.filter(b => b.status === 'completed') || []
+      const totalEarnings = completedBookings.reduce((sum, booking) => {
+        // Subtract platform fee from total amount to get owner earnings
+        const ownerEarnings = (booking.total_amount || 0) - (booking.platform_fee || 0)
+        return sum + ownerEarnings
+      }, 0)
 
       setStats({
         totalListings,
         activeRentals,
-        totalEarnings,
+        totalEarnings: Math.round(totalEarnings),
         totalViews,
         pendingBookings,
-        unreadMessages: 3 // Mock data
+        unreadMessages: unreadMessages?.length || 0
       })
 
-      // Recent activity (mock data with some real bookings)
-      const activities = [
-        { type: 'booking', message: 'New booking request for "Professional Camera Kit"', time: '2 hours ago', icon: Calendar },
-        { type: 'message', message: 'Sarah sent you a message about the drill rental', time: '4 hours ago', icon: MessageCircle },
-        { type: 'view', message: 'Your listing "Power Tools Set" was viewed 5 times', time: '1 day ago', icon: Eye },
-        { type: 'rental', message: 'Rental completed: "Camping Tent"', time: '2 days ago', icon: Package },
-      ]
-      setRecentActivity(activities)
+      // Fetch recent activity
+      const activities: Activity[] = []
 
-      // Recent bookings
-      const recentBookingsList = [
-        { 
-          id: '1', 
-          item: 'Professional Camera Kit', 
-          renter: 'John Smith', 
-          status: 'pending', 
-          amount: 85,
-          period: 'Oct 15-17'
-        },
-        { 
-          id: '2', 
-          item: 'Power Drill Set', 
-          renter: 'Sarah Johnson', 
-          status: 'confirmed', 
-          amount: 35,
-          period: 'Oct 12-14'
-        },
-        { 
-          id: '3', 
-          item: 'Camping Tent', 
-          renter: 'Mike Wilson', 
-          status: 'completed', 
-          amount: 60,
-          period: 'Oct 8-10'
-        }
-      ]
+      // Add recent booking requests
+      const recentPendingBookings = asOwner?.filter(b => b.status === 'pending')
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 2) || []
+
+      for (const booking of recentPendingBookings) {
+        const { data: listing } = await supabase
+          .from('listings')
+          .select('title')
+          .eq('id', booking.item_id)
+          .single()
+
+        activities.push({
+          type: 'booking',
+          message: `New booking request for "${listing?.title || 'Unknown item'}"`,
+          time: formatTimeAgo(booking.created_at),
+          icon: Calendar
+        })
+      }
+
+      // Add recent messages
+      const { data: recentMessagesData } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender:sender_id(full_name)
+        `)
+        .eq('receiver_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(2)
+
+      for (const message of recentMessagesData || []) {
+        activities.push({
+          type: 'message',
+          message: `${message.sender?.full_name || 'Someone'} sent you a message`,
+          time: formatTimeAgo(message.created_at),
+          icon: MessageCircle
+        })
+      }
+
+      // Add recent completed rentals
+      const recentCompletedBookings = asOwner?.filter(b => b.status === 'completed')
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        .slice(0, 2) || []
+
+      for (const booking of recentCompletedBookings) {
+        const { data: listing } = await supabase
+          .from('listings')
+          .select('title')
+          .eq('id', booking.item_id)
+          .single()
+
+        activities.push({
+          type: 'rental',
+          message: `Rental completed: "${listing?.title || 'Unknown item'}"`,
+          time: formatTimeAgo(booking.updated_at),
+          icon: Package
+        })
+      }
+
+      // Sort activities by time and take the most recent ones
+      activities.sort((a, b) => {
+        // Since we can't reliably sort by created_at/updated_at, keep them as they are
+        return 0
+      })
+      setRecentActivity(activities.slice(0, 4))
+
+      // Fetch recent bookings with listing and renter details
+      const { data: recentBookingsData } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          listing:item_id(title),
+          renter:renter_id(full_name)
+        `)
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(3)
+
+      const recentBookingsList: RecentBooking[] = recentBookingsData?.map(booking => ({
+        id: booking.id,
+        item: booking.listing?.title || 'Unknown item',
+        renter: booking.renter?.full_name || 'Unknown renter',
+        status: booking.status,
+        amount: Math.round(booking.total_amount || 0),
+        period: `${formatDate(booking.start_date)} - ${formatDate(booking.end_date)}`
+      })) || []
+
       setRecentBookings(recentBookingsList)
 
     } catch (error) {
@@ -151,6 +239,31 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Helper function to format time ago
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+    
+    if (diffInHours < 1) return 'Just now'
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`
+    
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays < 7) return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`
+    
+    const diffInWeeks = Math.floor(diffInDays / 7)
+    return `${diffInWeeks} week${diffInWeeks === 1 ? '' : 's'} ago`
+  }
+
+  // Helper function to format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric'
+    })
   }
 
   if (loading) {
@@ -300,17 +413,27 @@ export default function DashboardPage() {
               <Link href="/notifications" className="text-sm text-green-600 hover:text-green-700">View all</Link>
             </div>
             <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <activity.icon className="w-4 h-4 text-gray-600" />
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      <activity.icon className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">{activity.message}</p>
+                      <p className="text-xs text-gray-500">{activity.time}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900">{activity.message}</p>
-                    <p className="text-xs text-gray-500">{activity.time}</p>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <div className="p-3 bg-gray-100 rounded-lg w-fit mx-auto mb-3">
+                    <Bell className="w-6 h-6 text-gray-400" />
                   </div>
+                  <p className="text-gray-500 text-sm">No recent activity</p>
+                  <p className="text-gray-400 text-xs mt-1">Your latest bookings and messages will appear here</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -321,25 +444,36 @@ export default function DashboardPage() {
               <Link href="/bookings" className="text-sm text-green-600 hover:text-green-700">View all</Link>
             </div>
             <div className="space-y-4">
-              {recentBookings.map((booking) => (
-                <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{booking.item}</p>
-                    <p className="text-sm text-gray-600">Renter: {booking.renter}</p>
-                    <p className="text-xs text-gray-500">{booking.period}</p>
+              {recentBookings.length > 0 ? (
+                recentBookings.map((booking) => (
+                  <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">{booking.item}</p>
+                      <p className="text-sm text-gray-600">Renter: {booking.renter}</p>
+                      <p className="text-xs text-gray-500">{booking.period}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-900">${booking.amount}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                        booking.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">${booking.amount}</p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {booking.status}
-                    </span>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <div className="p-3 bg-gray-100 rounded-lg w-fit mx-auto mb-3">
+                    <Calendar className="w-6 h-6 text-gray-400" />
                   </div>
+                  <p className="text-gray-500 text-sm">No bookings yet</p>
+                  <p className="text-gray-400 text-xs mt-1">Your recent booking requests will appear here</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
