@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Rent It Forward</title>
+    <style>
+        /* Reset styles for email clients */
+        body, table, td, p, a, li, blockquote {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+        
+        /* Base styles using Rent It Forward design system */
+        body {
+            background-color: #F5F5F5;
+            margin: 0;
+            padding: 0;
+            width: 100% !important;
+            min-width: 100%;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: #343C3E;
+            line-height: 1.5;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #FFFFFF;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #44D62C 0%, #3BC626 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            color: #FFFFFF;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.01em;
+        }
+        
+        .tagline {
+            color: #E8F8EC;
+            font-size: 14px;
+            font-weight: 400;
+            margin: 8px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        /* Main content */
+        .content {
+            padding: 50px 30px;
+        }
+        
+        .welcome-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #343C3E;
+            margin: 0 0 20px 0;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        .welcome-subtitle {
+            font-size: 16px;
+            font-weight: 400;
+            color: #6B7280;
+            margin: 0 0 40px 0;
+            text-align: center;
+            line-height: 1.5;
+        }
+        
+        /* OTP Code Section */
+        .otp-section {
+            background-color: #E8F8EC;
+            border: 2px solid #B8E6C1;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .otp-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #6B7280;
+            margin: 0 0 15px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .otp-code {
+            font-size: 36px;
+            font-weight: 700;
+            color: #343C3E;
+            margin: 0;
+            letter-spacing: 0.15em;
+            background-color: #FFFFFF;
+            padding: 20px 30px;
+            border-radius: 8px;
+            border: 2px solid #44D62C;
+            display: inline-block;
+            min-width: 200px;
+        }
+        
+        .otp-instructions {
+            font-size: 14px;
+            color: #6B7280;
+            margin: 20px 0 0 0;
+            line-height: 1.4;
+        }
+        
+        /* Instructions */
+        .instructions {
+            background-color: #F5F5F5;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        
+        .instructions-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #343C3E;
+            margin: 0 0 15px 0;
+        }
+        
+        .instructions-list {
+            margin: 0;
+            padding-left: 20px;
+            color: #6B7280;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .instructions-list li {
+            margin-bottom: 8px;
+        }
+        
+        /* Security note */
+        .security-note {
+            background-color: #FFF8E1;
+            border-left: 4px solid #FFC107;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .security-note p {
+            margin: 0;
+            font-size: 14px;
+            color: #6B7280;
+            line-height: 1.5;
+        }
+        
+        .security-icon {
+            color: #FFC107;
+            font-weight: 600;
+        }
+        
+        /* Footer */
+        .footer {
+            background-color: #343C3E;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .footer-text {
+            color: #9CA3AF;
+            font-size: 14px;
+            margin: 0 0 15px 0;
+            line-height: 1.5;
+        }
+        
+        .footer-brand {
+            color: #44D62C;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        .footer-links {
+            margin-top: 20px;
+        }
+        
+        .footer-link {
+            color: #9CA3AF;
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 15px;
+        }
+        
+        .footer-link:hover {
+            color: #44D62C;
+        }
+        
+        /* Responsive design */
+        @media screen and (max-width: 600px) {
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .welcome-title {
+                font-size: 24px;
+            }
+            
+            .otp-code {
+                font-size: 28px;
+                padding: 15px 20px;
+                min-width: 150px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .footer {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="logo">Rent It Forward</h1>
+            <p class="tagline">Share. Rent. Thrive.</p>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <h2 class="welcome-title">Verify Your Email Address</h2>
+            <p class="welcome-subtitle">Welcome to Rent It Forward! Please use the verification code below to complete your account setup.</p>
+            
+            <!-- OTP Code Section -->
+            <div class="otp-section">
+                <p class="otp-label">Your Verification Code</p>
+                <div class="otp-code">{{ .Token }}</div>
+                <p class="otp-instructions">Enter this code in your browser to verify your email address</p>
+            </div>
+            
+            <!-- Instructions -->
+            <div class="instructions">
+                <h3 class="instructions-title">How to verify your account:</h3>
+                <ol class="instructions-list">
+                    <li>Return to the Rent It Forward verification page in your browser</li>
+                    <li>Enter the 6-digit code shown above</li>
+                    <li>Click "Verify Email" to complete your account setup</li>
+                    <li>Start exploring items available for rent in your area!</li>
+                </ol>
+            </div>
+            
+            <!-- Security Note -->
+            <div class="security-note">
+                <p><span class="security-icon">🔒</span> <strong>Security Notice:</strong> This verification code will expire in 60 minutes. If you didn't request this email, please ignore it or contact our support team.</p>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p class="footer-text">
+                This email was sent by <a href="#" class="footer-brand">Rent It Forward</a><br>
+                Your trusted peer-to-peer rental marketplace
+            </p>
+            <div class="footer-links">
+                <a href="#" class="footer-link">Privacy Policy</a>
+                <a href="#" class="footer-link">Terms of Service</a>
+                <a href="#" class="footer-link">Contact Support</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { User, Phone, MapPin, FileText, Upload, CheckCircle } from 'lucide-react';
+import { User, Phone, MapPin, FileText, Upload, CheckCircle, ArrowRight, ArrowLeft, Gift } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { z } from 'zod';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 
 const australianStates = [
   { code: 'NSW', name: 'New South Wales' },
@@ -21,37 +23,59 @@ const australianStates = [
   { code: 'NT', name: 'Northern Territory' }
 ];
 
-const profileCompletionSchema = z.object({
+// Step 1: Basic Info Schema
+const basicInfoSchema = z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters'),
-  phone_number: z.string()
-    .regex(/^(\+61|0)[2-9]\d{8}$/, 'Please enter a valid Australian phone number')
-    .optional()
-    .or(z.literal('')),
   bio: z.string().max(500, 'Bio must be under 500 characters').optional(),
+});
+
+// Step 2: Location Schema
+const locationSchema = z.object({
   address: z.string().min(2, 'Please enter your address'),
   city: z.string().min(2, 'Please enter your city/suburb'),
   state: z.string().min(1, 'Please select your state'),
   postal_code: z.string().regex(/^[0-9]{4}$/, 'Please enter a valid Australian postcode'),
+  phone_number: z.string()
+    .regex(/^(\+61|0)[2-9]\d{8}$/, 'Please enter a valid Australian phone number')
+    .optional()
+    .or(z.literal('')),
 });
 
-type ProfileCompletionForm = z.infer<typeof profileCompletionSchema>;
+// Step 3: Referral Schema
+const referralSchema = z.object({
+  referral_code: z.string().optional(),
+});
+
+// Combined schema for final submission
+const completeProfileSchema = basicInfoSchema.merge(locationSchema).merge(referralSchema);
+
+type BasicInfoForm = z.infer<typeof basicInfoSchema>;
+type LocationForm = z.infer<typeof locationSchema>;
+type ReferralForm = z.infer<typeof referralSchema>;
+type CompleteProfileForm = z.infer<typeof completeProfileSchema>;
 
 export default function OnboardingPage() {
+  const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>('');
-  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState<Partial<CompleteProfileForm>>({});
+  const [isValidatingReferral, setIsValidatingReferral] = useState(false);
   const router = useRouter();
   const { user, loading } = useAuth();
   const supabase = createClient();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    watch,
-  } = useForm<ProfileCompletionForm>({
-    resolver: zodResolver(profileCompletionSchema),
+  // Individual step forms
+  const basicInfoForm = useForm<BasicInfoForm>({
+    resolver: zodResolver(basicInfoSchema),
+  });
+
+  const locationForm = useForm<LocationForm>({
+    resolver: zodResolver(locationSchema),
+  });
+
+  const referralForm = useForm<ReferralForm>({
+    resolver: zodResolver(referralSchema),
   });
 
   // Check if user is authenticated and redirect if not
@@ -114,8 +138,66 @@ export default function OnboardingPage() {
     return data.publicUrl;
   };
 
-  const onSubmit = async (data: ProfileCompletionForm) => {
+  const validateReferralCode = async (code: string): Promise<boolean> => {
+    if (!code.trim()) return true; // Empty code is valid (optional)
+
+    setIsValidatingReferral(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('referral_code', code.toUpperCase())
+        .single();
+
+      if (error || !data) {
+        toast.error('Invalid referral code');
+        return false;
+      }
+
+      toast.success(`Referral code valid! Referred by ${data.full_name}`);
+      return true;
+    } catch (error) {
+      console.error('Referral validation error:', error);
+      toast.error('Could not validate referral code');
+      return false;
+    } finally {
+      setIsValidatingReferral(false);
+    }
+  };
+
+  const handleNextStep = async () => {
+    if (currentStep === 1) {
+      const isValid = await basicInfoForm.trigger();
+      if (isValid) {
+        const data = basicInfoForm.getValues();
+        setFormData(prev => ({ ...prev, ...data }));
+        setCurrentStep(2);
+      }
+    } else if (currentStep === 2) {
+      const isValid = await locationForm.trigger();
+      if (isValid) {
+        const data = locationForm.getValues();
+        setFormData(prev => ({ ...prev, ...data }));
+        setCurrentStep(3);
+      }
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!user) return;
+
+    // Validate referral code if provided
+    const referralData = referralForm.getValues();
+    if (referralData.referral_code && referralData.referral_code.trim()) {
+      const isValidReferral = await validateReferralCode(referralData.referral_code);
+      if (!isValidReferral) return;
+    }
 
     setIsLoading(true);
     try {
@@ -125,18 +207,31 @@ export default function OnboardingPage() {
         avatarUrl = await uploadAvatar();
       }
 
+      // Combine all form data
+      const completeData = {
+        ...formData,
+        ...referralData,
+      };
+
+      // Generate unique referral code for this user
+      const generateReferralCode = () => {
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+      };
+
       // Update profile
       const profileData = {
         id: user.id,
         email: user.email,
-        full_name: data.full_name,
-        phone_number: data.phone_number || null,
-        bio: data.bio || null,
-        address: data.address,
-        city: data.city,
-        state: data.state,
-        postal_code: data.postal_code,
+        full_name: completeData.full_name,
+        phone_number: completeData.phone_number || null,
+        bio: completeData.bio || null,
+        address: completeData.address,
+        city: completeData.city,
+        state: completeData.state,
+        postal_code: completeData.postal_code,
         avatar_url: avatarUrl,
+        referral_code: generateReferralCode(),
+        referred_by: completeData.referral_code ? completeData.referral_code.toUpperCase() : null,
         updated_at: new Date().toISOString(),
       };
 
@@ -148,7 +243,7 @@ export default function OnboardingPage() {
         console.error('Profile update error:', error);
         toast.error('Failed to update profile');
       } else {
-        setStep(3); // Success step
+        setCurrentStep(4); // Success step
         toast.success('Profile completed successfully!');
         
         // Redirect to dashboard after success
@@ -176,21 +271,27 @@ export default function OnboardingPage() {
     return null;
   }
 
-  if (step === 3) {
+  // Success step
+  if (currentStep === 4) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="flex justify-center">
+          <Card className="p-8 text-center">
+            <div className="flex justify-center mb-6">
               <CheckCircle className="h-16 w-16 text-green-500" />
             </div>
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-4">
               Welcome to Rent It Forward!
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="text-sm text-gray-600 mb-6">
               Your profile has been set up successfully. You'll be redirected to your dashboard shortly.
             </p>
-          </div>
+            <div className="animate-pulse">
+              <div className="h-2 bg-green-200 rounded-full">
+                <div className="h-2 bg-green-500 rounded-full w-full"></div>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     );
@@ -199,253 +300,299 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white shadow rounded-lg p-6">
+        <Card className="p-8 shadow-lg">
+          {/* Progress Bar */}
           <div className="mb-8">
-            <div className="flex justify-center">
-              <div className="text-3xl font-bold text-[#44D62C]">
-                Rent It Forward
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
+              <span className="text-sm text-gray-500">Step {currentStep} of 3</span>
             </div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Complete your profile
-            </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
-              Help us get to know you better so you can start renting and sharing!
-            </p>
-          </div>
-
-          {/* Progress bar */}
-          <div className="mb-8">
-            <div className="flex items-center">
-              <div className="flex-1 bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-[#44D62C] h-2 rounded-full transition-all duration-300"
-                  style={{ width: step === 1 ? '50%' : '100%' }}
-                ></div>
-              </div>
-              <span className="ml-2 text-sm font-medium text-gray-500">
-                Step {step} of 2
-              </span>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(currentStep / 3) * 100}%` }}
+              ></div>
             </div>
           </div>
 
-          {step === 1 && (
-            <form onSubmit={() => setStep(2)} className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Basic Information
-              </h3>
-
-              {/* Avatar Upload */}
-              <div className="flex items-center space-x-6">
-                <div className="shrink-0">
-                  {avatarPreview ? (
-                    <img className="h-16 w-16 object-cover rounded-full" src={avatarPreview} alt="Avatar preview" />
-                  ) : (
-                    <div className="h-16 w-16 bg-gray-300 rounded-full flex items-center justify-center">
-                      <User className="h-8 w-8 text-gray-500" />
-                    </div>
-                  )}
-                </div>
-                <label className="cursor-pointer">
-                  <span className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Photo
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    className="hidden"
-                  />
-                </label>
+          {/* Step 1: Basic Information */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <User className="mx-auto h-12 w-12 text-green-500 mb-4" />
+                <h2 className="text-xl font-semibold text-gray-900">Tell us about yourself</h2>
+                <p className="text-gray-600">Let's start with some basic information</p>
               </div>
 
-              {/* Full Name */}
-              <div>
-                <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
-                  Full Name *
-                </label>
-                <div className="relative mt-1">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+              <form className="space-y-6">
+                {/* Avatar Upload */}
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="relative">
+                    {avatarPreview ? (
+                      <img
+                        src={avatarPreview}
+                        alt="Avatar preview"
+                        className="w-24 h-24 rounded-full object-cover border-4 border-green-100"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-100">
+                        <User className="w-8 h-8 text-gray-400" />
+                      </div>
+                    )}
+                    <label
+                      htmlFor="avatar"
+                      className="absolute bottom-0 right-0 bg-green-500 text-white p-2 rounded-full cursor-pointer hover:bg-green-600 transition-colors"
+                    >
+                      <Upload className="w-4 h-4" />
+                    </label>
+                    <input
+                      id="avatar"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
                   </div>
+                  <p className="text-sm text-gray-500">Optional: Upload a profile picture</p>
+                </div>
+
+                {/* Full Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name *
+                  </label>
                   <input
-                    {...register('full_name')}
+                    {...basicInfoForm.register('full_name')}
                     type="text"
-                    className={`appearance-none block w-full px-3 py-2 pl-10 border ${
-                      errors.full_name ? 'border-red-300' : 'border-gray-300'
-                    } rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm`}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="Enter your full name"
                   />
+                  {basicInfoForm.formState.errors.full_name && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {basicInfoForm.formState.errors.full_name.message}
+                    </p>
+                  )}
                 </div>
-                {errors.full_name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.full_name.message}</p>
-                )}
-              </div>
 
-              {/* Phone Number */}
-              <div>
-                <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">
-                  Phone Number (Optional)
-                </label>
-                <div className="relative mt-1">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    {...register('phone_number')}
-                    type="text"
-                    className={`appearance-none block w-full px-3 py-2 pl-10 border ${
-                      errors.phone_number ? 'border-red-300' : 'border-gray-300'
-                    } rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm`}
-                    placeholder="+61 400 000 000"
-                  />
-                </div>
-                {errors.phone_number && (
-                  <p className="mt-1 text-sm text-red-600">{errors.phone_number.message}</p>
-                )}
-              </div>
-
-              {/* Bio */}
-              <div>
-                <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-                  Bio (Optional)
-                </label>
-                <div className="relative mt-1">
-                  <div className="absolute top-3 left-3 pointer-events-none">
-                    <FileText className="h-5 w-5 text-gray-400" />
-                  </div>
+                {/* Bio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Bio (Optional)
+                  </label>
                   <textarea
-                    {...register('bio')}
+                    {...basicInfoForm.register('bio')}
                     rows={3}
-                    className={`appearance-none block w-full px-3 py-2 pl-10 border ${
-                      errors.bio ? 'border-red-300' : 'border-gray-300'
-                    } rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm`}
-                    placeholder="Tell us a bit about yourself..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    placeholder="Tell others a bit about yourself..."
                   />
+                  {basicInfoForm.formState.errors.bio && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {basicInfoForm.formState.errors.bio.message}
+                    </p>
+                  )}
                 </div>
-                {errors.bio && (
-                  <p className="mt-1 text-sm text-red-600">{errors.bio.message}</p>
-                )}
-              </div>
+              </form>
 
-              <button
-                type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#44D62C] hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C]"
-              >
-                Continue
-              </button>
-            </form>
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleNextStep}
+                  className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Next Step
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           )}
 
-          {step === 2 && (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Location Information
-              </h3>
+          {/* Step 2: Location */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <MapPin className="mx-auto h-12 w-12 text-green-500 mb-4" />
+                <h2 className="text-xl font-semibold text-gray-900">Where are you located?</h2>
+                <p className="text-gray-600">This helps us connect you with nearby items</p>
+              </div>
 
-              {/* Address */}
-              <div>
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                  Address *
-                </label>
-                <div className="relative mt-1">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin className="h-5 w-5 text-gray-400" />
+              <form className="space-y-6">
+                {/* Address */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Street Address *
+                  </label>
+                  <input
+                    {...locationForm.register('address')}
+                    type="text"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    placeholder="123 Main Street"
+                  />
+                  {locationForm.formState.errors.address && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {locationForm.formState.errors.address.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* City and State */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      City/Suburb *
+                    </label>
+                    <input
+                      {...locationForm.register('city')}
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="Sydney"
+                    />
+                    {locationForm.formState.errors.city && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {locationForm.formState.errors.city.message}
+                      </p>
+                    )}
                   </div>
-                  <input
-                    {...register('address')}
-                    type="text"
-                    className={`appearance-none block w-full px-3 py-2 pl-10 border ${
-                      errors.address ? 'border-red-300' : 'border-gray-300'
-                    } rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm`}
-                    placeholder="Enter your street address"
-                  />
-                </div>
-                {errors.address && (
-                  <p className="mt-1 text-sm text-red-600">{errors.address.message}</p>
-                )}
-              </div>
 
-              {/* City and State Row */}
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="city" className="block text-sm font-medium text-gray-700">
-                    City/Suburb *
-                  </label>
-                  <input
-                    {...register('city')}
-                    type="text"
-                    className={`mt-1 appearance-none block w-full px-3 py-2 border ${
-                      errors.city ? 'border-red-300' : 'border-gray-300'
-                    } rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm`}
-                    placeholder="Melbourne"
-                  />
-                  {errors.city && (
-                    <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      State *
+                    </label>
+                    <select
+                      {...locationForm.register('state')}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    >
+                      <option value="">Select state</option>
+                      {australianStates.map((state) => (
+                        <option key={state.code} value={state.code}>
+                          {state.name}
+                        </option>
+                      ))}
+                    </select>
+                    {locationForm.formState.errors.state && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {locationForm.formState.errors.state.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                <div>
-                  <label htmlFor="state" className="block text-sm font-medium text-gray-700">
-                    State *
-                  </label>
-                  <select
-                    {...register('state')}
-                    className={`mt-1 block w-full px-3 py-2 border ${
-                      errors.state ? 'border-red-300' : 'border-gray-300'
-                    } rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm`}
-                  >
-                    <option value="">Select state</option>
-                    {australianStates.map((state) => (
-                      <option key={state.code} value={state.code}>
-                        {state.name}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.state && (
-                    <p className="mt-1 text-sm text-red-600">{errors.state.message}</p>
-                  )}
+                {/* Postcode and Phone */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Postcode *
+                    </label>
+                    <input
+                      {...locationForm.register('postal_code')}
+                      type="text"
+                      maxLength={4}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="2000"
+                    />
+                    {locationForm.formState.errors.postal_code && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {locationForm.formState.errors.postal_code.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number (Optional)
+                    </label>
+                    <input
+                      {...locationForm.register('phone_number')}
+                      type="tel"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="+61 4xx xxx xxx"
+                    />
+                    {locationForm.formState.errors.phone_number && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {locationForm.formState.errors.phone_number.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </form>
 
-              {/* Postcode */}
-              <div>
-                <label htmlFor="postal_code" className="block text-sm font-medium text-gray-700">
-                  Postcode *
-                </label>
-                <input
-                  {...register('postal_code')}
-                  type="text"
-                  className={`mt-1 appearance-none block w-full px-3 py-2 border ${
-                    errors.postal_code ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm`}
-                  placeholder="3000"
-                />
-                {errors.postal_code && (
-                  <p className="mt-1 text-sm text-red-600">{errors.postal_code.message}</p>
-                )}
-              </div>
-
-              <div className="flex space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="flex-1 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C]"
+              <div className="flex justify-between">
+                <Button
+                  onClick={handlePrevStep}
+                  variant="outline"
+                  className="flex items-center px-6 py-3"
                 >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#44D62C] hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C] disabled:opacity-50 disabled:cursor-not-allowed"
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  onClick={handleNextStep}
+                  className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
                 >
-                  {isLoading ? 'Completing...' : 'Complete Profile'}
-                </button>
+                  Next Step
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </div>
-            </form>
+            </div>
           )}
-        </div>
+
+          {/* Step 3: Referral */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <Gift className="mx-auto h-12 w-12 text-green-500 mb-4" />
+                <h2 className="text-xl font-semibold text-gray-900">Got a referral code?</h2>
+                <p className="text-gray-600">Enter it here to get bonus rewards (optional)</p>
+              </div>
+
+              <form className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Referral Code (Optional)
+                  </label>
+                  <input
+                    {...referralForm.register('referral_code')}
+                    type="text"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 uppercase"
+                    placeholder="ABC123"
+                    onChange={(e) => {
+                      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    }}
+                  />
+                  <p className="mt-2 text-sm text-gray-500">
+                    Enter the referral code from a friend to get bonus points!
+                  </p>
+                </div>
+              </form>
+
+              <div className="flex justify-between">
+                <Button
+                  onClick={handlePrevStep}
+                  variant="outline"
+                  className="flex items-center px-6 py-3"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isLoading || isValidatingReferral}
+                  className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-top-transparent mr-2" />
+                      Setting up...
+                    </>
+                  ) : (
+                    <>
+                      Complete Setup
+                      <CheckCircle className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );

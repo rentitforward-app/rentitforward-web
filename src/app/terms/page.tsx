@@ -167,7 +167,7 @@ export default function TermsPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
-                <Link href="/register">
+                <Link href="/signup">
                   Create Account
                 </Link>
               </Button>

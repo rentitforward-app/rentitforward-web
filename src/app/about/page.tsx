@@ -120,7 +120,7 @@ export default function AboutPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
-                <Link href="/register">
+                <Link href="/signup">
                   Join Our Community
                 </Link>
               </Button>
