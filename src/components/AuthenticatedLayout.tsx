@@ -11,7 +11,6 @@ import {
   Package2, 
   Calendar, 
   MessageCircle, 
-  Bell, 
   User,
   Menu,
   X,
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'react-hot-toast';
+import NotificationBadge from './NotificationBadge';
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode;
@@ -193,9 +193,8 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
               
               {/* Mobile User Profile */}
               <div className="flex items-center space-x-3">
-                <Link href="/notifications" className="relative p-2 text-gray-500 hover:text-gray-700">
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                <Link href="/notifications" className="p-2 text-gray-500 hover:text-gray-700">
+                  <NotificationBadge />
                 </Link>
                 <Link href="/profile" className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
@@ -231,9 +230,8 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
                   Post Item
                 </Link>
                 
-                <Link href="/notifications" className="relative p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100">
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                <Link href="/notifications" className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100">
+                  <NotificationBadge />
                 </Link>
                 
                 <Link href="/profile" className="w-9 h-9 bg-green-500 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors">
