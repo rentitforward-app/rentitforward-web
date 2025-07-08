@@ -100,7 +100,46 @@ export default function MessagesPage() {
     try {
       setIsLoading(true);
       
-      // First get conversations where user is a participant
+      // Debug: Check if user exists
+      console.log('Fetching conversations for user:', user?.id);
+      
+      if (!user?.id) {
+        console.error('No user ID found');
+        setConversations([]);
+        return;
+      }
+
+      // First, let's check if the conversations table exists by trying a simple select
+      const { data: testData, error: testError } = await supabase
+        .from('conversations')
+        .select('id')
+        .limit(1);
+
+      if (testError) {
+        console.error('Table access error:', testError);
+        console.error('Error details:', {
+          message: testError.message,
+          code: testError.code,
+          details: testError.details,
+          hint: testError.hint
+        });
+        
+        // Show a more specific error message
+        if (testError.code === 'PGRST116') {
+          toast.error('Conversations table not found - please contact support');
+        } else if (testError.code === '42501') {
+          toast.error('Access denied to conversations - please check permissions');
+        } else {
+          toast.error(`Database error: ${testError.message || 'Unknown error'}`);
+        }
+        
+        setConversations([]);
+        return;
+      }
+
+      console.log('Table accessible, test data:', testData);
+      
+      // Now try the actual query
       const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
         .select(`
@@ -118,11 +157,21 @@ export default function MessagesPage() {
 
       if (conversationsError) {
         console.error('Error fetching conversations:', conversationsError);
-        toast.error('Failed to load conversations');
+        console.error('Detailed error:', {
+          message: conversationsError.message,
+          code: conversationsError.code,
+          details: conversationsError.details,
+          hint: conversationsError.hint
+        });
+        toast.error(`Failed to load conversations: ${conversationsError.message}`);
+        setConversations([]);
         return;
       }
 
+      console.log('Conversations data:', conversationsData);
+
       if (!conversationsData || conversationsData.length === 0) {
+        console.log('No conversations found for user');
         setConversations([]);
         return;
       }
@@ -130,53 +179,88 @@ export default function MessagesPage() {
       // Get additional data for each conversation
       const enrichedConversations = await Promise.all(
         conversationsData.map(async (conv) => {
-          // Get the other participant (not the current user)
-          const otherUserId = conv.participants.find((id: string) => id !== user.id);
-          
-          // Get listing data
-          const { data: listingData } = await supabase
-            .from('listings')
-            .select('id, title, images, daily_rate')
-            .eq('id', conv.listing_id)
-            .single();
+          try {
+            // Get the other participant (not the current user)
+            const otherUserId = conv.participants.find((id: string) => id !== user.id);
+            
+            // Get listing data
+            const { data: listingData, error: listingError } = await supabase
+              .from('listings')
+              .select('id, title, images, daily_rate')
+              .eq('id', conv.listing_id)
+              .single();
 
-          // Get other user data
-          const { data: otherUserData } = await supabase
-            .from('profiles')
-            .select('id, full_name, avatar_url')
-            .eq('id', otherUserId)
-            .single();
-
-          // Get unread count for this conversation
-          const { count: unreadCount } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('conversation_id', conv.id)
-            .eq('is_read', false)
-            .neq('sender_id', user.id);
-
-          return {
-            ...conv,
-            unread_count: unreadCount || 0,
-            other_user: otherUserData || {
-              id: otherUserId,
-              full_name: 'Unknown User',
-              avatar_url: null
-            },
-            listing: listingData || {
-              id: conv.listing_id,
-              title: 'Unknown Listing',
-              images: [],
-              daily_rate: 0
+            if (listingError) {
+              console.warn('Error fetching listing:', listingError);
             }
-          };
+
+            // Get other user data
+            const { data: otherUserData, error: userError } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url')
+              .eq('id', otherUserId)
+              .single();
+
+            if (userError) {
+              console.warn('Error fetching user profile:', userError);
+            }
+
+            // Get unread count for this conversation
+            const { count: unreadCount, error: countError } = await supabase
+              .from('messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('conversation_id', conv.id)
+              .eq('is_read', false)
+              .neq('sender_id', user.id);
+
+            if (countError) {
+              console.warn('Error fetching unread count:', countError);
+            }
+
+            return {
+              ...conv,
+              unread_count: unreadCount || 0,
+              other_user: otherUserData || {
+                id: otherUserId || 'unknown',
+                full_name: 'Unknown User',
+                avatar_url: null
+              },
+              listing: listingData || {
+                id: conv.listing_id,
+                title: 'Unknown Listing',
+                images: [],
+                daily_rate: 0
+              }
+            };
+          } catch (convError) {
+            console.error('Error enriching conversation:', convError);
+            return {
+              ...conv,
+              unread_count: 0,
+              other_user: {
+                id: 'unknown',
+                full_name: 'Unknown User',
+                avatar_url: null
+              },
+              listing: {
+                id: conv.listing_id,
+                title: 'Unknown Listing',
+                images: [],
+                daily_rate: 0
+              }
+            };
+          }
         })
       );
 
+      console.log('Enriched conversations:', enrichedConversations);
       setConversations(enrichedConversations);
     } catch (error) {
-      console.error('Error fetching conversations:', error);
-      toast.error('Failed to load conversations');
+      console.error('Unexpected error in fetchConversations:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      toast.error('An unexpected error occurred while loading conversations');
+      setConversations([]);
     } finally {
       setIsLoading(false);
     }
