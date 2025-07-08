@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { User, Phone, MapPin, FileText, Upload, CheckCircle, ArrowRight, ArrowLeft, Gift } from 'lucide-react';
+import { User, Phone, MapPin, FileText, Upload, CheckCircle, ArrowRight, ArrowLeft, Gift, Shield, Camera } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { VerificationDashboard } from '@/components/VerificationDashboard';
 
 const australianStates = [
   { code: 'NSW', name: 'New South Wales' },
@@ -179,6 +180,13 @@ export default function OnboardingPage() {
         const data = locationForm.getValues();
         setFormData(prev => ({ ...prev, ...data }));
         setCurrentStep(3);
+      }
+    } else if (currentStep === 3) {
+      const isValid = await referralForm.trigger();
+      if (isValid) {
+        const data = referralForm.getValues();
+        setFormData(prev => ({ ...prev, ...data }));
+        setCurrentStep(4); // Move to verification step
       }
     }
   };
@@ -573,8 +581,57 @@ export default function OnboardingPage() {
                   Previous
                 </Button>
                 <Button
+                  onClick={handleNextStep}
+                  className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Next Step
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: ID Verification */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <Shield className="mx-auto h-12 w-12 text-green-500 mb-4" />
+                <h2 className="text-xl font-semibold text-gray-900">Verify your identity</h2>
+                <p className="text-gray-600">
+                  Complete ID verification to start sharing items or access premium features
+                </p>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                <div className="flex items-start gap-3">
+                  <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-blue-900 mb-1">Why verify your identity?</p>
+                    <ul className="space-y-1 text-blue-800">
+                      <li>• Build trust with other users</li>
+                      <li>• Access premium features and higher rental limits</li>
+                      <li>• Secure payment processing</li>
+                      <li>• Enhanced account protection</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Verification Dashboard Component */}
+              <VerificationDashboard className="max-w-4xl mx-auto" />
+
+              <div className="flex justify-between pt-6">
+                <Button
+                  onClick={handlePrevStep}
+                  variant="outline"
+                  className="flex items-center px-6 py-3"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
                   onClick={handleSubmit}
-                  disabled={isLoading || isValidatingReferral}
+                  disabled={isLoading}
                   className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
                   {isLoading ? (

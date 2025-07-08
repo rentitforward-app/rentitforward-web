@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import StripeConnectSetup from '@/components/payments/StripeConnectSetup';
+import { VerificationDashboard } from '@/components/VerificationDashboard';
 
 interface UserProfile {
   id: string;
@@ -97,6 +98,15 @@ export default function ProfilePage() {
 
   useEffect(() => {
     loadProfile();
+    
+    // Check for Stripe return parameters and switch to verification tab
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('stripe_return') === 'true' || urlParams.get('stripe_refresh') === 'true') {
+      setActiveTab('verification');
+      // Clean up URL parameters
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
   }, []);
 
   const loadProfile = async () => {
@@ -240,6 +250,7 @@ export default function ProfilePage() {
               <nav className="space-y-2">
                 {[
                   { key: 'profile', label: 'Profile', icon: User },
+                  { key: 'verification', label: 'Payments & Verification', icon: CreditCard },
                   { key: 'trust', label: 'Trust & Safety', icon: Shield },
                   { key: 'notifications', label: 'Notifications', icon: Bell },
                   { key: 'security', label: 'Security', icon: Lock },
@@ -457,6 +468,13 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </Card>
+              </div>
+            )}
+
+            {/* Payments & Verification Tab */}
+            {activeTab === 'verification' && (
+              <div className="space-y-6">
+                <VerificationDashboard />
               </div>
             )}
 

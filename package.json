@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
+    "@rentitforward/shared": "file:../rentitforward-shared",
     "@sentry/nextjs": "^9.30.0",
     "@stripe/react-stripe-js": "^3.7.0",
     "@stripe/stripe-js": "^3.0.7",
