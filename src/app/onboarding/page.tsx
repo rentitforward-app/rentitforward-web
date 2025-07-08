@@ -251,7 +251,7 @@ export default function OnboardingPage() {
         console.error('Profile update error:', error);
         toast.error('Failed to update profile');
       } else {
-        setCurrentStep(4); // Success step
+        setCurrentStep(5); // Success step
         toast.success('Profile completed successfully!');
         
         // Redirect to dashboard after success
@@ -280,7 +280,7 @@ export default function OnboardingPage() {
   }
 
   // Success step
-  if (currentStep === 4) {
+  if (currentStep === 5) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
@@ -313,12 +313,12 @@ export default function OnboardingPage() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
-              <span className="text-sm text-gray-500">Step {currentStep} of 3</span>
+              <span className="text-sm text-gray-500">Step {currentStep} of 4</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(currentStep / 3) * 100}%` }}
+                style={{ width: `${(currentStep / 4) * 100}%` }}
               ></div>
             </div>
           </div>
