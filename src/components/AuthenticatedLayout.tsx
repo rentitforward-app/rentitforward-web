@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -18,7 +18,6 @@ import {
   Settings,
   HelpCircle,
   LogOut,
-  ChevronRight,
   Search
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -32,32 +31,13 @@ interface NavigationItem {
   href: string;
   label: string;
   icon: any;
-  subItems?: { href: string; label: string }[];
 }
 
 const navigationItems: NavigationItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/browse', label: 'Browse Items', icon: Compass },
-  { 
-    href: '/bookings', 
-    label: 'My Bookings', 
-    icon: Package2,
-    subItems: [
-      { href: '/bookings/active', label: 'Active Bookings' },
-      { href: '/bookings/pending', label: 'Pending Requests' },
-      { href: '/bookings/history', label: 'Booking History' }
-    ]
-  },
-  { 
-    href: '/listings', 
-    label: 'My Listings', 
-    icon: Calendar,
-    subItems: [
-      { href: '/listings/active', label: 'Active Listings' },
-      { href: '/listings/draft', label: 'Draft Listings' },
-      { href: '/listings/archived', label: 'Archived' }
-    ]
-  },
+  { href: '/bookings', label: 'My Bookings', icon: Package2 },
+  { href: '/listings', label: 'My Listings', icon: Calendar },
   { href: '/messages', label: 'Messages', icon: MessageCircle },
 ];
 
@@ -68,28 +48,10 @@ const bottomNavigationItems = [
 
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
-
-  // Auto-expand current section
-  useEffect(() => {
-    navigationItems.forEach(item => {
-      if (item.subItems && (pathname.startsWith(item.href) || item.subItems.some(sub => pathname === sub.href))) {
-        setExpandedItems(prev => prev.includes(item.href) ? prev : [...prev, item.href]);
-      }
-    });
-  }, [pathname]);
-
-  const toggleExpanded = (href: string) => {
-    setExpandedItems(prev => 
-      prev.includes(href) 
-        ? prev.filter(item => item !== href)
-        : [...prev, href]
-    );
-  };
 
   const handleLogout = async () => {
     try {
@@ -101,9 +63,8 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     }
   };
 
-  const isActive = (href: string, subItems?: { href: string; label: string }[]) => {
+  const isActive = (href: string) => {
     if (pathname === href) return true;
-    if (subItems && subItems.some(sub => pathname === sub.href)) return true;
     if (href !== '/dashboard' && pathname.startsWith(href)) return true;
     return false;
   };
@@ -130,56 +91,22 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
         <nav className="p-4 space-y-1">
           {navigationItems.map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.href, item.subItems);
-            const expanded = expandedItems.includes(item.href);
+            const active = isActive(item.href);
             
             return (
-              <div key={item.href}>
-                <Link
-                  href={item.subItems ? '#' : item.href}
-                  onClick={(e) => {
-                    if (item.subItems) {
-                      e.preventDefault();
-                      toggleExpanded(item.href);
-                    } else {
-                      setIsMobileMenuOpen(false);
-                    }
-                  }}
-                  className={`flex items-center justify-between px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-                    active
-                      ? 'text-white bg-gray-700'
-                      : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <Icon className="w-5 h-5 mr-3" />
-                    {item.label}
-                  </div>
-                  {item.subItems && (
-                    <ChevronRight className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`} />
-                  )}
-                </Link>
-                
-                {/* Sub-items */}
-                {item.subItems && expanded && (
-                  <div className="ml-8 mt-1 space-y-1">
-                    {item.subItems.map((subItem) => (
-                      <Link
-                        key={subItem.href}
-                        href={subItem.href}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`block px-4 py-2 rounded-lg text-sm transition-colors ${
-                          pathname === subItem.href
-                            ? 'text-white bg-gray-600'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                        }`}
-                      >
-                        {subItem.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  active
+                    ? 'text-white bg-gray-700'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                <Icon className="w-5 h-5 mr-3" />
+                {item.label}
+              </Link>
             );
           })}
         </nav>
