@@ -39,8 +39,8 @@ interface Conversation {
   created_at: string;
   updated_at: string;
   listing_id: string;
-  renter_id: string;
-  owner_id: string;
+  booking_id: string | null;
+  participants: string[];
   last_message: string;
   last_message_at: string;
   unread_count: number;
@@ -99,32 +99,81 @@ export default function MessagesPage() {
   const fetchConversations = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      
+      // First get conversations where user is a participant
+      const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
         .select(`
-          *,
-          other_user:profiles!conversations_renter_id_fkey (
-            id,
-            full_name,
-            avatar_url
-          ),
-          listing:listings (
-            id,
-            title,
-            images,
-            daily_rate
-          )
+          id,
+          listing_id,
+          booking_id,
+          participants,
+          last_message,
+          last_message_at,
+          created_at,
+          updated_at
         `)
-        .or(`renter_id.eq.${user.id},owner_id.eq.${user.id}`)
+        .contains('participants', [user.id])
         .order('updated_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching conversations:', error);
+      if (conversationsError) {
+        console.error('Error fetching conversations:', conversationsError);
         toast.error('Failed to load conversations');
         return;
       }
 
-      setConversations(data || []);
+      if (!conversationsData || conversationsData.length === 0) {
+        setConversations([]);
+        return;
+      }
+
+      // Get additional data for each conversation
+      const enrichedConversations = await Promise.all(
+        conversationsData.map(async (conv) => {
+          // Get the other participant (not the current user)
+          const otherUserId = conv.participants.find((id: string) => id !== user.id);
+          
+          // Get listing data
+          const { data: listingData } = await supabase
+            .from('listings')
+            .select('id, title, images, daily_rate')
+            .eq('id', conv.listing_id)
+            .single();
+
+          // Get other user data
+          const { data: otherUserData } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .eq('id', otherUserId)
+            .single();
+
+          // Get unread count for this conversation
+          const { count: unreadCount } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', conv.id)
+            .eq('is_read', false)
+            .neq('sender_id', user.id);
+
+          return {
+            ...conv,
+            unread_count: unreadCount || 0,
+            other_user: otherUserData || {
+              id: otherUserId,
+              full_name: 'Unknown User',
+              avatar_url: null
+            },
+            listing: listingData || {
+              id: conv.listing_id,
+              title: 'Unknown Listing',
+              images: [],
+              daily_rate: 0
+            }
+          };
+        })
+      );
+
+      setConversations(enrichedConversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
       toast.error('Failed to load conversations');
