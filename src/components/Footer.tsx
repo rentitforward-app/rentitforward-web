@@ -1,8 +1,23 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
 import { Facebook, Twitter, Instagram } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function Footer() {
+  const { isAuthenticated, loading } = useAuth()
+
+  // Don't show footer while loading
+  if (loading) {
+    return null;
+  }
+
+  // Don't show footer for authenticated users (dashboard has its own layout)
+  if (isAuthenticated) {
+    return null;
+  }
+
   return (
     <footer className="bg-gray-900 text-white py-16">
       <div className="max-w-6xl mx-auto px-4">
