@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { toast } from 'react-hot-toast';
 import { 
   MapPin, 
   Star, 
@@ -21,11 +22,13 @@ import {
   User,
   Clock,
   DollarSign,
-  Info
+  Info,
+  Eye,
+  Send
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { toast } from 'react-hot-toast';
 import { format, addDays, differenceInDays, parseISO } from 'date-fns';
+import MessageModal from '@/components/MessageModal';
 
 interface Listing {
   id: string;
@@ -33,21 +36,20 @@ interface Listing {
   description: string;
   category: string;
   subcategory: string | null;
-  daily_rate: number;
-  weekly_rate: number | null;
-  monthly_rate: number | null;
-  deposit_amount: number;
+  price_per_day: number;
+  price_weekly: number | null;
+  price_hourly: number | null;
+  deposit: number;
   images: string[];
   location: string;
   state: string;
-  postcode: string;
+  postal_code: string;
   condition: string;
   brand: string | null;
   model: string | null;
   year: number | null;
   features: string[];
   rules: string[];
-  delivery_methods: string[];
   view_count: number;
   favorite_count: number;
   created_at: string;
@@ -66,6 +68,23 @@ interface Review {
   comment: string;
   created_at: string;
   reviewer_id: string;
+  profiles: {
+    full_name: string;
+    avatar_url: string | null;
+  };
+}
+
+interface RelatedListing {
+  id: string;
+  title: string;
+  price_per_day: number;
+  daily_rate?: number; // For compatibility with transformed data
+  images: string[];
+  location: string;
+  state: string;
+  condition: string;
+  brand: string | null;
+  model: string | null;
   profiles: {
     full_name: string;
     avatar_url: string | null;
@@ -92,13 +111,16 @@ type BookingForm = z.infer<typeof bookingSchema>;
 export default function ListingDetailPage() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [relatedListings, setRelatedListings] = useState<RelatedListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [bookedDates, setBookedDates] = useState<string[]>([]);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
 
   const params = useParams();
   const router = useRouter();
@@ -121,9 +143,14 @@ export default function ListingDetailPage() {
   useEffect(() => {
     checkUser();
     fetchListing();
-    fetchReviews();
-    fetchBookedDates();
   }, [listingId]);
+
+  useEffect(() => {
+    if (listing) {
+      fetchReviews();
+      fetchBookedDates();
+    }
+  }, [listing]);
 
   useEffect(() => {
     if (user && listing) {
@@ -137,6 +164,13 @@ export default function ListingDetailPage() {
       incrementViewCount();
     }
   }, [listing, user]);
+
+  useEffect(() => {
+    // Fetch related listings after main listing is loaded
+    if (listing) {
+      fetchRelatedListings();
+    }
+  }, [listing]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -177,6 +211,11 @@ export default function ListingDetailPage() {
   };
 
   const fetchReviews = async () => {
+    if (!listing?.profiles?.id) {
+      console.log('No listing or profiles data available for reviews');
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('reviews')
@@ -187,7 +226,7 @@ export default function ListingDetailPage() {
             avatar_url
           )
         `)
-        .eq('reviewee_id', listing?.profiles.id)
+        .eq('reviewee_id', listing.profiles.id)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -202,7 +241,28 @@ export default function ListingDetailPage() {
     }
   };
 
+  const fetchRelatedListings = async () => {
+    if (!listingId) return;
+    
+    try {
+      const response = await fetch(`/api/listings/${listingId}/related?limit=6`);
+      if (response.ok) {
+        const data = await response.json();
+        setRelatedListings(data.listings || []);
+      } else {
+        console.error('Failed to fetch related listings:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching related listings:', error);
+    }
+  };
+
   const fetchBookedDates = async () => {
+    if (!listingId) {
+      console.log('No listing ID available for booked dates');
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -295,6 +355,18 @@ export default function ListingDetailPage() {
     }
   };
 
+  const openMessageModal = () => {
+    if (!user) {
+      toast.error('Please log in to send a message');
+      router.push('/login');
+      return;
+    }
+
+    if (!listing) return;
+
+    setIsMessageModalOpen(true);
+  };
+
   const calculateBookingCost = () => {
     if (!watchStartDate || !watchEndDate || !listing) {
       return { subtotal: 0, serviceFee: 0, total: 0, totalDays: 0 };
@@ -308,22 +380,18 @@ export default function ListingDetailPage() {
       return { subtotal: 0, serviceFee: 0, total: 0, totalDays: 0 };
     }
 
-    let dailyRate = listing.daily_rate;
+    let dailyRate = listing.price_per_day || 0;
     
-    // Apply weekly/monthly rates if available and applicable
-    if (totalDays >= 28 && listing.monthly_rate) {
-      const months = Math.floor(totalDays / 28);
-      const remainingDays = totalDays % 28;
-      dailyRate = ((months * listing.monthly_rate) + (remainingDays * listing.daily_rate)) / totalDays;
-    } else if (totalDays >= 7 && listing.weekly_rate) {
+    // Apply weekly rates if available and applicable
+    if (totalDays >= 7 && listing.price_weekly) {
       const weeks = Math.floor(totalDays / 7);
       const remainingDays = totalDays % 7;
-      dailyRate = ((weeks * listing.weekly_rate) + (remainingDays * listing.daily_rate)) / totalDays;
+      dailyRate = ((weeks * listing.price_weekly) + (remainingDays * listing.price_per_day)) / totalDays;
     }
 
     const subtotal = dailyRate * totalDays;
     const serviceFee = subtotal * 0.1; // 10% service fee
-    const total = subtotal + serviceFee + listing.deposit_amount;
+    const total = subtotal + serviceFee + (listing.deposit || 0);
 
     return { subtotal, serviceFee, total, totalDays };
   };
@@ -350,11 +418,11 @@ export default function ListingDetailPage() {
           start_date: data.startDate,
           end_date: data.endDate,
           total_days: costs.totalDays,
-          daily_rate: listing.daily_rate,
+          daily_rate: listing.price_per_day,
           subtotal: costs.subtotal,
           service_fee: costs.serviceFee,
           total_amount: costs.total,
-          deposit_amount: listing.deposit_amount,
+          deposit_amount: listing.deposit,
           delivery_method: data.deliveryMethod,
           delivery_address: data.deliveryAddress || null,
           special_instructions: data.specialInstructions || null,
@@ -377,12 +445,43 @@ export default function ListingDetailPage() {
     }
   };
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | null | undefined) => {
+    // Handle string prices that come from database as strings
+    const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
+    
+    if (numericPrice === null || numericPrice === undefined || isNaN(numericPrice) || numericPrice === 0) {
+      return 'Contact for price';
+    }
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
       currency: 'AUD',
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(numericPrice);
+  };
+
+  const getDisplayImage = (images: string[], index: number = 0) => {
+    // Always return placeholder if no images or empty array
+    if (!images || images.length === 0) {
+      return '/images/placeholder-item.svg';
+    }
+    
+    const image = images[index];
+    
+    // Check if image exists and hasn't failed to load
+    if (!image || image.trim() === '' || imageLoadErrors.has(image)) {
+      return '/images/placeholder-item.svg';
+    }
+    
+    return image;
+  };
+
+  const handleImageError = (imageSrc: string) => {
+    setImageLoadErrors(prev => new Set(prev).add(imageSrc));
+  };
+
+  const getDeliveryMethods = () => {
+    // Provide default delivery methods since the field might not exist
+    return ['pickup', 'delivery'];
   };
 
   const nextImage = () => {
@@ -426,6 +525,7 @@ export default function ListingDetailPage() {
   }
 
   const costs = calculateBookingCost();
+  const displayImages = listing.images && listing.images.length > 0 ? listing.images : ['/images/placeholder-item.svg'];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -447,13 +547,15 @@ export default function ListingDetailPage() {
             <div className="relative bg-white rounded-lg shadow-md overflow-hidden mb-6">
               <div className="aspect-w-16 aspect-h-9 relative h-96">
                 <Image
-                  src={listing.images[currentImageIndex] || '/placeholder-item.jpg'}
+                  src={getDisplayImage(displayImages, currentImageIndex)}
                   alt={listing.title}
                   fill
                   className="object-cover"
+                  priority
+                  onError={() => handleImageError(displayImages[currentImageIndex])}
                 />
                 
-                {listing.images.length > 1 && (
+                {displayImages.length > 1 && (
                   <>
                     <button
                       onClick={prevImage}
@@ -471,9 +573,9 @@ export default function ListingDetailPage() {
                 )}
 
                 {/* Image Indicators */}
-                {listing.images.length > 1 && (
+                {displayImages.length > 1 && (
                   <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                    {listing.images.map((_, index) => (
+                    {displayImages.map((_, index) => (
                       <button
                         key={index}
                         onClick={() => setCurrentImageIndex(index)}
@@ -487,10 +589,10 @@ export default function ListingDetailPage() {
               </div>
 
               {/* Thumbnail Strip */}
-              {listing.images.length > 1 && (
+              {displayImages.length > 1 && (
                 <div className="p-4 bg-gray-50">
                   <div className="flex space-x-2 overflow-x-auto">
-                    {listing.images.map((image, index) => (
+                    {displayImages.map((image, index) => (
                       <button
                         key={index}
                         onClick={() => setCurrentImageIndex(index)}
@@ -499,11 +601,12 @@ export default function ListingDetailPage() {
                         }`}
                       >
                         <Image
-                          src={image}
+                          src={getDisplayImage(displayImages, index)}
                           alt={`${listing.title} ${index + 1}`}
                           width={80}
                           height={80}
                           className="object-cover w-full h-full"
+                          onError={() => handleImageError(displayImages[index])}
                         />
                       </button>
                     ))}
@@ -519,13 +622,23 @@ export default function ListingDetailPage() {
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">{listing.title}</h1>
                   <div className="flex items-center text-gray-600 mb-2">
                     <MapPin className="h-5 w-5 mr-2" />
-                    {listing.location}, {listing.state} {listing.postcode}
+                    {listing.location}, {listing.state} {listing.postal_code}
                   </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
                     <span className="capitalize">{listing.condition}</span>
                     {listing.brand && <span>{listing.brand}</span>}
                     {listing.model && <span>{listing.model}</span>}
                     {listing.year && <span>{listing.year}</span>}
+                  </div>
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <Eye className="h-4 w-4 mr-1" />
+                      {listing.view_count || 0} views
+                    </div>
+                    <div className="flex items-center">
+                      <Heart className="h-4 w-4 mr-1" />
+                      {listing.favorite_count || 0} favorites
+                    </div>
                   </div>
                 </div>
                 
@@ -570,23 +683,21 @@ export default function ListingDetailPage() {
               )}
 
               {/* Delivery Methods */}
-              {listing.delivery_methods && listing.delivery_methods.length > 0 && (
-                <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-3">Delivery Options</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {listing.delivery_methods.map((method, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#44D62C]/10 text-[#44D62C]"
-                      >
-                        {method === 'pickup' && <Package className="h-4 w-4 mr-1" />}
-                        {method === 'delivery' && <Truck className="h-4 w-4 mr-1" />}
-                        {method.charAt(0).toUpperCase() + method.slice(1)}
-                      </span>
-                    ))}
-                  </div>
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">Delivery Options</h2>
+                <div className="flex flex-wrap gap-2">
+                  {getDeliveryMethods().map((method, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#44D62C]/10 text-[#44D62C]"
+                    >
+                      {method === 'pickup' && <Package className="h-4 w-4 mr-1" />}
+                      {method === 'delivery' && <Truck className="h-4 w-4 mr-1" />}
+                      {method.charAt(0).toUpperCase() + method.slice(1)}
+                    </span>
+                  ))}
                 </div>
-              )}
+              </div>
 
               {/* Rules */}
               {listing.rules && listing.rules.length > 0 && (
@@ -631,8 +742,12 @@ export default function ListingDetailPage() {
                   </p>
                 </div>
                 <div className="flex space-x-2">
-                  <button className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <MessageCircle className="h-4 w-4 mr-2 inline" />
+                  <button 
+                    onClick={openMessageModal}
+                    disabled={user?.id === listing.profiles.id}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
                     Message
                   </button>
                 </div>
@@ -641,7 +756,7 @@ export default function ListingDetailPage() {
 
             {/* Reviews */}
             {reviews.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Reviews</h2>
                 <div className="space-y-4">
                   {reviews.map((review) => (
@@ -689,6 +804,48 @@ export default function ListingDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Related Listings */}
+            {relatedListings.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Related listings you might like</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {relatedListings.map((relatedListing) => (
+                    <Link 
+                      key={relatedListing.id}
+                      href={`/listings/${relatedListing.id}`}
+                      className="group"
+                    >
+                      <div className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                        <div className="aspect-w-4 aspect-h-3 relative h-32">
+                          <Image
+                            src={getDisplayImage(relatedListing.images)}
+                            alt={relatedListing.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform"
+                            onError={() => handleImageError(getDisplayImage(relatedListing.images))}
+                          />
+                        </div>
+                        <div className="p-3">
+                          <h3 className="font-medium text-gray-900 truncate">{relatedListing.title}</h3>
+                          <p className="text-sm text-gray-600 truncate">
+                            {relatedListing.location}, {relatedListing.state}
+                          </p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-[#44D62C] font-semibold">
+                              {formatPrice(relatedListing.price_per_day)}/day
+                            </span>
+                            <span className="text-xs text-gray-500 capitalize">
+                              {relatedListing.condition}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Booking Sidebar */}
@@ -698,145 +855,165 @@ export default function ListingDetailPage() {
                 <div className="mb-6">
                   <div className="flex items-baseline space-x-2">
                     <span className="text-3xl font-bold text-[#44D62C]">
-                      {formatPrice(listing.daily_rate)}
+                      {listing.price_per_day && listing.price_per_day > 0 
+                        ? formatPrice(listing.price_per_day)
+                        : 'Contact for price'
+                      }
                     </span>
-                    <span className="text-gray-600">per day</span>
+                    {listing.price_per_day && listing.price_per_day > 0 && (
+                      <span className="text-gray-600">per day</span>
+                    )}
                   </div>
-                  {listing.weekly_rate && (
+                  {listing.price_weekly && listing.price_weekly > 0 && (
                     <p className="text-sm text-gray-600 mt-1">
-                      {formatPrice(listing.weekly_rate)} per week
+                      {formatPrice(listing.price_weekly)} per week
                     </p>
                   )}
-                  {listing.monthly_rate && (
+                  {listing.price_hourly && listing.price_hourly > 0 && (
                     <p className="text-sm text-gray-600">
-                      {formatPrice(listing.monthly_rate)} per month
+                      {formatPrice(listing.price_hourly)} per hour
                     </p>
                   )}
                 </div>
 
                 {user?.id !== listing.profiles.id ? (
-                  <form onSubmit={handleSubmit(onSubmitBooking)} className="space-y-4">
-                    {/* Date Selection */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Start Date
-                        </label>
-                        <input
-                          {...register('startDate')}
-                          type="date"
-                          min={format(new Date(), 'yyyy-MM-dd')}
-                          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                        />
-                        {errors.startDate && (
-                          <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          End Date
-                        </label>
-                        <input
-                          {...register('endDate')}
-                          type="date"
-                          min={watchStartDate || format(addDays(new Date(), 1), 'yyyy-MM-dd')}
-                          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                        />
-                        {errors.endDate && (
-                          <p className="mt-1 text-sm text-red-600">{errors.endDate.message}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Delivery Method */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Delivery Method
-                      </label>
-                      <select
-                        {...register('deliveryMethod')}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                      >
-                        <option value="">Select delivery method</option>
-                        {(listing.delivery_methods || []).map((method) => (
-                          <option key={method} value={method}>
-                            {method.charAt(0).toUpperCase() + method.slice(1)}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.deliveryMethod && (
-                        <p className="mt-1 text-sm text-red-600">{errors.deliveryMethod.message}</p>
-                      )}
-                    </div>
-
-                    {/* Delivery Address (if delivery selected) */}
-                    {watchDeliveryMethod === 'delivery' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Delivery Address
-                        </label>
-                        <textarea
-                          {...register('deliveryAddress')}
-                          rows={3}
-                          placeholder="Enter your delivery address..."
-                          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                        />
-                      </div>
-                    )}
-
-                    {/* Special Instructions */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Special Instructions (Optional)
-                      </label>
-                      <textarea
-                        {...register('specialInstructions')}
-                        rows={3}
-                        placeholder="Any special requests or instructions..."
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                      />
-                    </div>
-
-                    {/* Booking Summary */}
-                    {costs.totalDays > 0 && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Booking Summary</h4>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>
-                              {formatPrice(listing.daily_rate)} × {costs.totalDays} {costs.totalDays === 1 ? 'day' : 'days'}
-                            </span>
-                            <span>{formatPrice(costs.subtotal)}</span>
+                  <>
+                    {listing.price_per_day && listing.price_per_day > 0 ? (
+                      <form onSubmit={handleSubmit(onSubmitBooking)} className="space-y-4">
+                        {/* Date Selection */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Start Date
+                            </label>
+                            <input
+                              {...register('startDate')}
+                              type="date"
+                              min={format(new Date(), 'yyyy-MM-dd')}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
+                            />
+                            {errors.startDate && (
+                              <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>
+                            )}
                           </div>
-                          <div className="flex justify-between">
-                            <span>Service fee</span>
-                            <span>{formatPrice(costs.serviceFee)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Security deposit</span>
-                            <span>{formatPrice(listing.deposit_amount)}</span>
-                          </div>
-                          <div className="border-t pt-2 flex justify-between font-semibold">
-                            <span>Total</span>
-                            <span>{formatPrice(costs.total)}</span>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              End Date
+                            </label>
+                            <input
+                              {...register('endDate')}
+                              type="date"
+                              min={watchStartDate || format(addDays(new Date(), 1), 'yyyy-MM-dd')}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
+                            />
+                            {errors.endDate && (
+                              <p className="mt-1 text-sm text-red-600">{errors.endDate.message}</p>
+                            )}
                           </div>
                         </div>
+
+                        {/* Delivery Method */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Delivery Method
+                          </label>
+                          <select
+                            {...register('deliveryMethod')}
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
+                          >
+                            <option value="">Select delivery method</option>
+                            {getDeliveryMethods().map((method) => (
+                              <option key={method} value={method}>
+                                {method.charAt(0).toUpperCase() + method.slice(1)}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.deliveryMethod && (
+                            <p className="mt-1 text-sm text-red-600">{errors.deliveryMethod.message}</p>
+                          )}
+                        </div>
+
+                        {/* Delivery Address (if delivery selected) */}
+                        {watchDeliveryMethod === 'delivery' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Delivery Address
+                            </label>
+                            <textarea
+                              {...register('deliveryAddress')}
+                              rows={3}
+                              placeholder="Enter your delivery address..."
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
+                            />
+                          </div>
+                        )}
+
+                        {/* Special Instructions */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Special Instructions (Optional)
+                          </label>
+                          <textarea
+                            {...register('specialInstructions')}
+                            rows={3}
+                            placeholder="Any special requests or instructions..."
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
+                          />
+                        </div>
+
+                        {/* Booking Summary */}
+                        {costs.totalDays > 0 && (
+                          <div className="bg-gray-50 p-4 rounded-lg">
+                            <h4 className="font-medium text-gray-900 mb-2">Booking Summary</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span>
+                                  {formatPrice(listing.price_per_day)} × {costs.totalDays} {costs.totalDays === 1 ? 'day' : 'days'}
+                                </span>
+                                <span>{formatPrice(costs.subtotal)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Service fee</span>
+                                <span>{formatPrice(costs.serviceFee)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Security deposit</span>
+                                <span>{formatPrice(listing.deposit)}</span>
+                              </div>
+                              <div className="border-t pt-2 flex justify-between font-semibold">
+                                <span>Total</span>
+                                <span>{formatPrice(costs.total)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={isBooking || costs.totalDays === 0}
+                          className="w-full bg-[#44D62C] text-white py-3 px-4 rounded-md font-semibold hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isBooking ? 'Processing...' : 'Request to Book'}
+                        </button>
+
+                        <p className="text-xs text-gray-600 text-center">
+                          You won't be charged yet. This sends a booking request to the owner.
+                        </p>
+                      </form>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-gray-600 mb-4">Contact the owner for pricing and availability</p>
+                        <button 
+                          onClick={openMessageModal}
+                          className="w-full bg-[#44D62C] text-white py-3 px-4 rounded-md font-semibold hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C] flex items-center justify-center"
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Contact Owner
+                        </button>
                       </div>
                     )}
-
-                    <button
-                      type="submit"
-                      disabled={isBooking || costs.totalDays === 0}
-                      className="w-full bg-[#44D62C] text-white py-3 px-4 rounded-md font-semibold hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isBooking ? 'Processing...' : 'Request to Book'}
-                    </button>
-
-                    <p className="text-xs text-gray-600 text-center">
-                      You won't be charged yet. This sends a booking request to the owner.
-                    </p>
-                  </form>
+                  </>
                 ) : (
                   <div className="text-center py-8">
                     <p className="text-gray-600 mb-4">This is your listing</p>
@@ -861,6 +1038,18 @@ export default function ListingDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Message Modal */}
+      {listing && (
+        <MessageModal
+          isOpen={isMessageModalOpen}
+          onClose={() => setIsMessageModalOpen(false)}
+          listing={listing}
+          onSuccess={() => {
+            toast.success('Message sent! Check your messages for replies.');
+          }}
+        />
+      )}
     </div>
   );
 } 

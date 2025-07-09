@@ -26,6 +26,7 @@ interface Message {
   content: string;
   created_at: string;
   sender_id: string;
+  receiver_id: string;
   conversation_id: string;
   is_read: boolean;
   sender: {
@@ -53,7 +54,7 @@ interface Conversation {
     id: string;
     title: string;
     images: string[];
-    daily_rate: number;
+    price_per_day: number;
   };
 }
 
@@ -183,10 +184,10 @@ export default function MessagesPage() {
             // Get the other participant (not the current user)
             const otherUserId = conv.participants.find((id: string) => id !== user.id);
             
-            // Get listing data
+            // Get listing data - using correct field names
             const { data: listingData, error: listingError } = await supabase
               .from('listings')
-              .select('id, title, images, daily_rate')
+              .select('id, title, images, price_per_day')
               .eq('id', conv.listing_id)
               .single();
 
@@ -229,7 +230,7 @@ export default function MessagesPage() {
                 id: conv.listing_id,
                 title: 'Unknown Listing',
                 images: [],
-                daily_rate: 0
+                price_per_day: 0
               }
             };
           } catch (convError) {
@@ -246,7 +247,7 @@ export default function MessagesPage() {
                 id: conv.listing_id,
                 title: 'Unknown Listing',
                 images: [],
-                daily_rate: 0
+                price_per_day: 0
               }
             };
           }
@@ -307,38 +308,95 @@ export default function MessagesPage() {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation || isSending) return;
 
+    const messageContent = newMessage.trim();
+    setNewMessage(''); // Clear input immediately for better UX
     setIsSending(true);
+
+    // Optimistic update - add message to UI immediately
+    const tempMessage: Message = {
+      id: `temp-${Date.now()}`,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+      sender_id: user.id,
+      receiver_id: selectedConversation.participants.find((id: string) => id !== user.id) || '',
+      conversation_id: selectedConversation.id,
+      is_read: false,
+      sender: {
+        full_name: user.user_metadata?.full_name || user.email || 'You',
+        avatar_url: user.user_metadata?.avatar_url || null
+      }
+    };
+
+    // Add message to UI immediately
+    setMessages(prev => [...prev, tempMessage]);
+
+    // Update conversation list immediately (optimistic)
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === selectedConversation.id
+          ? {
+              ...conv,
+              last_message: messageContent,
+              last_message_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          : conv
+      ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    );
+
     try {
-      const { error } = await supabase
+      // Get the other user ID for receiver_id
+      const otherUserId = selectedConversation.participants.find((id: string) => id !== user.id);
+      
+      const { data, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: selectedConversation.id,
           sender_id: user.id,
-          content: newMessage.trim(),
-        });
+          receiver_id: otherUserId,
+          content: messageContent,
+          message_type: 'text',
+          is_read: false
+        })
+        .select('id')
+        .single();
 
       if (error) {
         console.error('Error sending message:', error);
         toast.error('Failed to send message');
+        
+        // Revert optimistic update on error
+        setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
+        setNewMessage(messageContent); // Restore the message content
         return;
       }
 
-      // Update conversation
+      // Update the temporary message with the real ID
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === tempMessage.id 
+            ? { ...msg, id: data.id }
+            : msg
+        )
+      );
+
+      // Update conversation in background (no loading state)
       await supabase
         .from('conversations')
         .update({
-          last_message: newMessage.trim(),
+          last_message: messageContent,
           last_message_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', selectedConversation.id);
 
-      setNewMessage('');
-      fetchMessages(selectedConversation.id);
-      fetchConversations();
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
+      
+      // Revert optimistic update on error
+      setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
+      setNewMessage(messageContent); // Restore the message content
     } finally {
       setIsSending(false);
     }
@@ -370,23 +428,186 @@ export default function MessagesPage() {
           {/* Conversations List */}
           <div className="lg:col-span-1">
             <Card className="h-full flex flex-col">
-              <div className="p-8 text-center">
-                <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No conversations yet</h3>
-                <p className="text-gray-500 mb-4">Start browsing listings to connect with other users</p>
-                <Button onClick={() => router.push('/browse')}>Browse Listings</Button>
-              </div>
+              {conversations.length === 0 ? (
+                <div className="p-8 text-center">
+                  <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No conversations yet</h3>
+                  <p className="text-gray-500 mb-4">Start browsing listings to connect with other users</p>
+                  <Button onClick={() => router.push('/browse')}>Browse Listings</Button>
+                </div>
+              ) : (
+                <>
+                  {/* Search */}
+                  <div className="p-4 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="Search conversations..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#44D62C] focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Conversations */}
+                  <div className="flex-1 overflow-y-auto">
+                    {filteredConversations.map((conversation) => (
+                      <div
+                        key={conversation.id}
+                        onClick={() => setSelectedConversation(conversation)}
+                        className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
+                          selectedConversation?.id === conversation.id ? 'bg-[#44D62C]/10 border-r-4 border-r-[#44D62C]' : ''
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0">
+                            {conversation.other_user.avatar_url ? (
+                              <Image
+                                src={conversation.other_user.avatar_url}
+                                alt={conversation.other_user.full_name}
+                                width={48}
+                                height={48}
+                                className="rounded-full"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                                <User className="w-6 h-6 text-gray-600" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {conversation.other_user.full_name}
+                              </p>
+                              {conversation.unread_count > 0 && (
+                                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-[#44D62C] rounded-full">
+                                  {conversation.unread_count}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 truncate">{conversation.listing.title}</p>
+                            <p className="text-xs text-gray-500 truncate">{conversation.last_message}</p>
+                            <p className="text-xs text-gray-400">
+                              {formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: true })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </Card>
           </div>
 
           {/* Chat Area */}
           <div className="lg:col-span-2">
-            <Card className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Select a conversation</h3>
-                <p className="text-gray-500">Choose a conversation from the left to start messaging</p>
-              </div>
+            <Card className="h-full flex flex-col">
+              {selectedConversation ? (
+                <>
+                  {/* Chat Header */}
+                  <div className="p-4 border-b">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          {selectedConversation.other_user.avatar_url ? (
+                            <Image
+                              src={selectedConversation.other_user.avatar_url}
+                              alt={selectedConversation.other_user.full_name}
+                              width={40}
+                              height={40}
+                              className="rounded-full"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                              <User className="w-5 h-5 text-gray-600" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900">
+                            {selectedConversation.other_user.full_name}
+                          </h3>
+                          <p className="text-sm text-gray-600">{selectedConversation.listing.title}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/listings/${selectedConversation.listing_id}`)}
+                      >
+                        View Listing
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                            message.sender_id === user.id
+                              ? 'bg-[#44D62C] text-white'
+                              : 'bg-gray-100 text-gray-900'
+                          }`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xs opacity-75">
+                              {format(new Date(message.created_at), 'HH:mm')}
+                            </span>
+                            {message.sender_id === user.id && (
+                              <div className="ml-2">
+                                {message.is_read ? (
+                                  <CheckCheck className="w-3 h-3 opacity-75" />
+                                ) : (
+                                  <Check className="w-3 h-3 opacity-75" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Message Input */}
+                  <div className="p-4 border-t">
+                    <form onSubmit={sendMessage} className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#44D62C] focus:border-transparent"
+                        disabled={isSending}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={isSending || !newMessage.trim()}
+                        size="sm"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </form>
+                  </div>
+                </>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Select a conversation</h3>
+                    <p className="text-gray-500">Choose a conversation from the left to start messaging</p>
+                  </div>
+                </div>
+              )}
             </Card>
           </div>
         </div>
