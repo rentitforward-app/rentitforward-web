@@ -29,6 +29,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { format, addDays, differenceInDays, parseISO } from 'date-fns';
 import MessageModal from '@/components/MessageModal';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 interface Listing {
   id: string;
@@ -267,8 +268,8 @@ export default function ListingDetailPage() {
       const { data, error } = await supabase
         .from('bookings')
         .select('start_date, end_date')
-        .eq('listing_id', listingId)
-        .in('status', ['confirmed', 'active']);
+        .eq('item_id', listingId)
+        .in('status', ['confirmed', 'in_progress']);
 
       if (error) {
         console.error('Error fetching booked dates:', error);
@@ -412,20 +413,19 @@ export default function ListingDetailPage() {
       const { error } = await supabase
         .from('bookings')
         .insert({
-          listing_id: listingId,
+          item_id: listingId,
           renter_id: user.id,
           owner_id: listing.profiles.id,
           start_date: data.startDate,
           end_date: data.endDate,
-          total_days: costs.totalDays,
-          daily_rate: listing.price_per_day,
+          price_per_day: listing.price_per_day,
           subtotal: costs.subtotal,
           service_fee: costs.serviceFee,
           total_amount: costs.total,
           deposit_amount: listing.deposit,
-          delivery_method: data.deliveryMethod,
-          delivery_address: data.deliveryAddress || null,
-          special_instructions: data.specialInstructions || null,
+          pickup_location: data.deliveryMethod === 'delivery' ? data.deliveryAddress : null,
+          pickup_instructions: data.deliveryMethod === 'pickup' ? 'Pickup arrangement' : 'Delivery arrangement',
+          renter_message: data.specialInstructions || null,
           status: 'pending'
         });
 
@@ -502,25 +502,29 @@ export default function ListingDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
-      </div>
+      <AuthenticatedLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (!listing) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Listing not found</h1>
-          <Link
-            href="/browse"
-            className="text-[#44D62C] hover:text-[#3AB827] font-medium"
-          >
-            Browse other listings
-          </Link>
+      <AuthenticatedLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Listing not found</h1>
+            <Link
+              href="/browse"
+              className="text-[#44D62C] hover:text-[#3AB827] font-medium"
+            >
+              Browse other listings
+            </Link>
+          </div>
         </div>
-      </div>
+      </AuthenticatedLayout>
     );
   }
 
@@ -528,7 +532,7 @@ export default function ListingDetailPage() {
   const displayImages = listing.images && listing.images.length > 0 ? listing.images : ['/images/placeholder-item.svg'];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <div className="mb-6">
@@ -1050,6 +1054,6 @@ export default function ListingDetailPage() {
           }}
         />
       )}
-    </div>
+    </AuthenticatedLayout>
   );
 } 
