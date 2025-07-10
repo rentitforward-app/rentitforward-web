@@ -15,7 +15,6 @@ import {
   Shield,
   CreditCard,
   FileText,
-  User,
   Camera,
   RefreshCw,
   AlertTriangle
@@ -25,7 +24,6 @@ import { toast } from 'react-hot-toast';
 interface VerificationStatus {
   connected: boolean;
   onboarding_complete: boolean;
-  has_customer_account: boolean;
   verification: {
     overall_status: 'unverified' | 'pending' | 'verified' | 'rejected';
     identity_verification: {
@@ -98,30 +96,6 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
-
-  // Create customer account
-  const createCustomerAccount = async () => {
-    setActionLoading('create_customer');
-    try {
-      const response = await fetch('/api/payments/stripe/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_customer' }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        toast.success('Customer account created successfully!');
-        fetchStatus();
-      } else {
-        toast.error(data.error || 'Failed to create customer account');
-      }
-    } catch (error) {
-      toast.error('Failed to create customer account');
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   // Create Connect account
   const createConnectAccount = async () => {
@@ -284,13 +258,12 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
     if (!status) return 0;
     
     let progress = 0;
-    if (status.has_customer_account) progress += 20;
-    if (status.connected) progress += 20;
-    if (status.capabilities.details_submitted) progress += 20;
-    if (status.verification.identity_verification.status === 'verified') progress += 20;
-    if (status.verification.document_verification.front_uploaded) progress += 20;
+    if (status.connected) progress += 25;
+    if (status.capabilities?.details_submitted) progress += 25;
+    if (status.capabilities?.charges_enabled) progress += 25;
+    if (status.verification?.overall_status === 'verified') progress += 25;
     
-    return progress;
+    return Math.min(progress, 100);
   };
 
   if (loading) {
@@ -323,55 +296,19 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
             </div>
             <Progress value={getVerificationProgress()} className="h-2" />
             
-            {status?.verification.overall_status && (
+            {status?.verification?.overall_status && (
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Overall Status</span>
                 {getStatusBadge(status.verification.overall_status)}
               </div>
             )}
 
-            {status?.requirements.disabled_reason && (
+            {status?.requirements?.disabled_reason && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-red-800 text-sm font-medium">Account Disabled</p>
                 <p className="text-red-600 text-sm">{status.requirements.disabled_reason}</p>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Customer Account Setup */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <User className="w-5 h-5 mr-2" />
-            Customer Account
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Payment Customer Account</p>
-                <p className="text-sm text-gray-600">Required for making payments as a renter</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                {status?.has_customer_account ? (
-                  <Badge variant="success"><CheckCircle className="w-3 h-3 mr-1" />Ready</Badge>
-                ) : (
-                  <Button 
-                    onClick={createCustomerAccount}
-                    disabled={actionLoading === 'create_customer'}
-                    size="sm"
-                  >
-                    {actionLoading === 'create_customer' ? (
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    ) : null}
-                    Set Up
-                  </Button>
-                )}
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -414,14 +351,14 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium">Charges:</span>
-                    <span className={`ml-2 ${status.capabilities.charges_enabled ? 'text-green-600' : 'text-red-600'}`}>
-                      {status.capabilities.charges_enabled ? 'Enabled' : 'Disabled'}
+                    <span className={`ml-2 ${status.capabilities?.charges_enabled ? 'text-green-600' : 'text-red-600'}`}>
+                      {status.capabilities?.charges_enabled ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
                   <div>
                     <span className="font-medium">Payouts:</span>
-                    <span className={`ml-2 ${status.capabilities.payouts_enabled ? 'text-green-600' : 'text-red-600'}`}>
-                      {status.capabilities.payouts_enabled ? 'Enabled' : 'Disabled'}
+                    <span className={`ml-2 ${status.capabilities?.payouts_enabled ? 'text-green-600' : 'text-red-600'}`}>
+                      {status.capabilities?.payouts_enabled ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
                 </div>
@@ -478,7 +415,7 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
                     <p className="font-medium">Identity Document</p>
                     <p className="text-sm text-gray-600">Driver's license, passport, or government ID</p>
                   </div>
-                  {getStatusBadge(status.verification.document_verification.status)}
+                  {getStatusBadge(status.verification?.document_verification?.status || 'unverified')}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -555,9 +492,9 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
 
       {/* Requirements */}
       {status?.requirements && (
-        status.requirements.currently_due.length > 0 || 
-        status.requirements.past_due.length > 0 ||
-        status.requirements.pending_verification.length > 0
+        (status.requirements.currently_due?.length || 0) > 0 || 
+        (status.requirements.past_due?.length || 0) > 0 ||
+        (status.requirements.pending_verification?.length || 0) > 0
       ) && (
         <Card>
           <CardHeader>
@@ -568,33 +505,33 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {status.requirements.past_due.length > 0 && (
+              {(status.requirements?.past_due?.length || 0) > 0 && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                   <p className="font-medium text-red-800 mb-2">Past Due Requirements</p>
                   <ul className="text-sm text-red-600 space-y-1">
-                    {status.requirements.past_due.map((req, index) => (
+                    {status.requirements.past_due?.map((req, index) => (
                       <li key={index}>• {req.replace(/_/g, ' ')}</li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {status.requirements.currently_due.length > 0 && (
+              {(status.requirements?.currently_due?.length || 0) > 0 && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                   <p className="font-medium text-yellow-800 mb-2">Currently Due</p>
                   <ul className="text-sm text-yellow-600 space-y-1">
-                    {status.requirements.currently_due.map((req, index) => (
+                    {status.requirements.currently_due?.map((req, index) => (
                       <li key={index}>• {req.replace(/_/g, ' ')}</li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {status.requirements.pending_verification.length > 0 && (
+              {(status.requirements?.pending_verification?.length || 0) > 0 && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                   <p className="font-medium text-blue-800 mb-2">Pending Verification</p>
                   <ul className="text-sm text-blue-600 space-y-1">
-                    {status.requirements.pending_verification.map((req, index) => (
+                    {status.requirements.pending_verification?.map((req, index) => (
                       <li key={index}>• {req.replace(/_/g, ' ')}</li>
                     ))}
                   </ul>

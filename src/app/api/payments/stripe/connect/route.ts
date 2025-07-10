@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     // Get user profile with Stripe info
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_account_id, stripe_onboarded, full_name')
+      .select('stripe_account_id, stripe_customer_id, stripe_onboarded, full_name')
       .eq('id', user.id)
       .single();
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ 
         connected: false, 
         onboarding_complete: false,
-        has_customer_account: false,
+        has_customer_account: !!profile.stripe_customer_id,
       });
     }
 
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       connected: true,
       onboarding_complete: isComplete,
       account_id: profile.stripe_account_id,
-      has_customer_account: false,
+      has_customer_account: !!profile.stripe_customer_id,
       verification: {
         overall_status: isComplete ? 'verified' : 'pending',
         identity_verification: {
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_account_id, full_name')
+      .select('stripe_account_id, stripe_customer_id, full_name')
       .eq('id', user.id)
       .single();
 
@@ -146,6 +146,80 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Create Stripe customer account
+    if (action === 'create_customer') {
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      
+      // Create customer
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: profile.full_name || '',
+        metadata: {
+          user_id: user.id,
+        },
+      });
+
+      // Save customer ID to user profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          stripe_customer_id: customer.id
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating profile with Stripe customer:', updateError);
+        return NextResponse.json({ error: 'Failed to save customer information' }, { status: 500 });
+      }
+
+      return NextResponse.json({ 
+        success: true,
+        customer_id: customer.id,
+        message: 'Stripe customer account created successfully'
+      });
+    }
+
+    // Create new Stripe Express account
+    if (action === 'create_account') {
+      // Check if user already has an account
+      if (profile.stripe_account_id) {
+        return NextResponse.json({ error: 'User already has a Stripe account' }, { status: 400 });
+      }
+
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      
+      // Create Express account
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country: 'AU', // Australia
+        email: user.email,
+        metadata: {
+          user_id: user.id,
+          user_name: profile.full_name || '',
+        },
+      });
+
+      // Save account ID to user profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          stripe_account_id: account.id,
+          stripe_onboarded: false 
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating profile with Stripe account:', updateError);
+        return NextResponse.json({ error: 'Failed to save account information' }, { status: 500 });
+      }
+
+      return NextResponse.json({ 
+        success: true,
+        account_id: account.id,
+        message: 'Stripe Express account created successfully'
+      });
+    }
+
     // Create login link for account management  
     if (action === 'create_login_link') {
       const accountId = profile.stripe_account_id;
@@ -161,6 +235,73 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         login_url: loginLink.url 
       });
+    }
+
+    // Upload verification documents
+    if (action === 'upload_verification_document') {
+      const accountId = profile.stripe_account_id;
+      
+      if (!accountId) {
+        return NextResponse.json({ error: 'No Stripe account found' }, { status: 400 });
+      }
+
+      const { document_type, front_image, back_image } = await request.json();
+      
+      if (!document_type || !front_image) {
+        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      }
+
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+      try {
+        // Create file upload for front image
+        const frontFile = await stripe.files.create({
+          purpose: 'identity_document',
+          file: {
+            data: Buffer.from(front_image, 'base64'),
+            name: 'identity_front.jpg',
+            type: 'image/jpeg',
+          },
+        });
+
+        let backFile = null;
+        if (back_image) {
+          backFile = await stripe.files.create({
+            purpose: 'identity_document',
+            file: {
+              data: Buffer.from(back_image, 'base64'),
+              name: 'identity_back.jpg',
+              type: 'image/jpeg',
+            },
+          });
+        }
+
+        // Update account with verification documents
+        const updateData: any = {};
+        
+        if (document_type === 'identity_document') {
+          updateData.individual = {
+            verification: {
+              document: {
+                front: frontFile.id,
+                ...(backFile && { back: backFile.id }),
+              },
+            },
+          };
+        }
+
+        await stripe.accounts.update(accountId, updateData);
+
+        return NextResponse.json({ 
+          success: true,
+          message: 'Documents uploaded successfully'
+        });
+      } catch (stripeError: any) {
+        console.error('Stripe file upload error:', stripeError);
+        return NextResponse.json({ 
+          error: stripeError.message || 'Failed to upload documents'
+        }, { status: 400 });
+      }
     }
 
     // Other actions temporarily disabled

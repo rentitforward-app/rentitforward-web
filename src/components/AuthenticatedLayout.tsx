@@ -11,7 +11,6 @@ import {
   Package2, 
   Calendar, 
   MessageCircle, 
-  User,
   Menu,
   X,
   Settings,
@@ -22,6 +21,7 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'react-hot-toast';
 import NotificationBadge from './NotificationBadge';
+import ProfileAvatar from './ProfileAvatar';
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode;
@@ -196,9 +196,7 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
                 <Link href="/notifications" className="p-2 text-gray-500 hover:text-gray-700">
                   <NotificationBadge />
                 </Link>
-                <Link href="/profile" className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </Link>
+                <ProfileAvatar size="sm" />
               </div>
             </div>
           </div>
@@ -234,9 +232,7 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
                   <NotificationBadge />
                 </Link>
                 
-                <Link href="/profile" className="w-9 h-9 bg-green-500 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors">
-                  <User className="w-5 h-5 text-white" />
-                </Link>
+                <ProfileAvatar />
               </div>
             </div>
           </div>

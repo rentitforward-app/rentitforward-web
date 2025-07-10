@@ -10,19 +10,10 @@ import {
   Mail, 
   Edit, 
   Camera, 
-  Shield, 
-  CreditCard, 
-  Bell, 
-  Lock, 
-  Settings, 
   Star,
   CheckCircle,
   XCircle,
-  Award,
-  Eye,
-  EyeOff,
-  LogOut,
-  Trash2
+  Award
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
@@ -30,83 +21,43 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import StripeConnectSetup from '@/components/payments/StripeConnectSetup';
-import { VerificationDashboard } from '@/components/VerificationDashboard';
 
 interface UserProfile {
   id: string;
   full_name: string;
   email: string;
-  phone?: string;
+  phone_number?: string;
   bio?: string;
   avatar_url?: string;
-  location?: string;
+  address?: string;
+  city?: string;
   state?: string;
-  date_of_birth?: string;
-  is_verified: boolean;
-  stripe_onboarding_complete: boolean;
+  verified: boolean;
+  stripe_onboarded: boolean;
   created_at: string;
   trust_score?: number;
   completion_rate?: number;
 }
 
-interface NotificationSettings {
-  email_bookings: boolean;
-  email_messages: boolean;
-  email_marketing: boolean;
-  sms_bookings: boolean;
-  sms_reminders: boolean;
-  push_notifications: boolean;
-}
-
-interface SecuritySettings {
-  two_factor_enabled: boolean;
-  login_alerts: boolean;
-  session_timeout: number;
-}
-
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState('profile');
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [notifications, setNotifications] = useState<NotificationSettings>({
-    email_bookings: true,
-    email_messages: true,
-    email_marketing: false,
-    sms_bookings: true,
-    sms_reminders: true,
-    push_notifications: true
-  });
-  const [security, setSecurity] = useState<SecuritySettings>({
-    two_factor_enabled: false,
-    login_alerts: true,
-    session_timeout: 30
-  });
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     full_name: '',
-    phone: '',
+    phone_number: '',
     bio: '',
-    location: '',
-    state: '',
-    date_of_birth: ''
+    address: '',
+    city: '',
+    state: ''
   });
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     loadProfile();
-    
-    // Check for Stripe return parameters and switch to verification tab
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('stripe_return') === 'true' || urlParams.get('stripe_refresh') === 'true') {
-      setActiveTab('verification');
-      // Clean up URL parameters
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-    }
   }, []);
 
   const loadProfile = async () => {
@@ -135,12 +86,12 @@ export default function ProfilePage() {
 
       setProfile(enhancedProfile);
       setEditForm({
-        full_name: profile.full_name || '',
-        phone: profile.phone || '',
-        bio: profile.bio || '',
-        location: profile.location || '',
-        state: profile.state || '',
-        date_of_birth: profile.date_of_birth || ''
+        full_name: profile.full_name ?? '',
+        phone_number: profile.phone_number ?? '',
+        bio: profile.bio ?? '',
+        address: profile.address ?? '',
+        city: profile.city ?? '',
+        state: profile.state ?? ''
       });
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -157,39 +108,78 @@ export default function ProfilePage() {
         .update(editForm)
         .eq('id', profile?.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        toast.error(error.message || 'Failed to update profile');
+        return;
+      }
 
       setProfile(prev => prev ? { ...prev, ...editForm } : null);
       setIsEditing(false);
       toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
+      toast.error(errorMessage);
     }
   };
 
-  const handleNotificationUpdate = async (key: keyof NotificationSettings, value: boolean) => {
-    setNotifications(prev => ({ ...prev, [key]: value }));
-    // Would save to database in real app
-    toast.success('Notification preferences updated');
-  };
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !profile) return;
 
-  const handleSecurityUpdate = async (key: keyof SecuritySettings, value: boolean | number) => {
-    setSecurity(prev => ({ ...prev, [key]: value }));
-    // Would save to database in real app
-    toast.success('Security settings updated');
-  };
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-    toast.success('Logged out successfully');
-  };
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
 
-  const handleDeleteAccount = async () => {
-    // Would handle account deletion in real app
-    toast.error('Account deletion not implemented yet');
-    setShowDeleteConfirm(false);
+    setIsUploadingImage(true);
+
+    try {
+      // Generate unique filename with user ID folder (required by RLS policy)
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${profile.id}/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', profile.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
+      toast.success('Profile picture updated successfully');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      const errorMessage = error instanceof Error ? error.message : 
+                          typeof error === 'object' && error !== null ? JSON.stringify(error) : 
+                          'Failed to upload image';
+      toast.error(errorMessage);
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const getTrustScoreColor = (score: number) => {
@@ -225,525 +215,298 @@ export default function ProfilePage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile & Settings</h1>
-            <p className="text-gray-600">Manage your account and preferences</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button variant="outline" onClick={() => router.push('/dashboard')}>
-              Back to Dashboard
-            </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
+            <p className="text-gray-600">Your public profile and reputation</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar Navigation */}
-          <div className="lg:col-span-1">
-            <Card className="p-4">
-              <nav className="space-y-2">
-                {[
-                  { key: 'profile', label: 'Profile', icon: User },
-                  { key: 'verification', label: 'Payments & Verification', icon: CreditCard },
-                  { key: 'trust', label: 'Trust & Safety', icon: Shield },
-                  { key: 'notifications', label: 'Notifications', icon: Bell },
-                  { key: 'security', label: 'Security', icon: Lock },
-                  { key: 'account', label: 'Account', icon: Settings }
-                ].map((tab) => {
-                  const IconComponent = tab.icon;
-                  return (
-                    <button
-                      key={tab.key}
-                      onClick={() => setActiveTab(tab.key)}
-                      className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        activeTab === tab.key
-                          ? 'bg-green-100 text-green-700'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      <IconComponent className="h-4 w-4 mr-3" />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </nav>
-            </Card>
-          </div>
+        <div className="space-y-6">
+          {/* Main Profile Card */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Profile Information</h2>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditing(!isEditing)}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                {isEditing ? 'Cancel' : 'Edit Profile'}
+              </Button>
+            </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {/* Profile Tab */}
-            {activeTab === 'profile' && (
-              <div className="space-y-6">
-                {/* Basic Info Card */}
-                <Card className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900">Basic Information</h2>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsEditing(!isEditing)}
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      {isEditing ? 'Cancel' : 'Edit'}
-                    </Button>
+            <div className="flex items-start space-x-6 mb-6">
+              <div className="relative">
+                {profile.avatar_url ? (
+                  <Image
+                    src={profile.avatar_url}
+                    alt={profile.full_name}
+                    width={120}
+                    height={120}
+                    className="rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-30 h-30 rounded-full bg-gray-200 flex items-center justify-center">
+                    <User className="w-12 h-12 text-gray-500" />
                   </div>
-
-                  <div className="flex items-start space-x-6 mb-6">
-                    <div className="relative">
-                      {profile.avatar_url ? (
-                        <Image
-                          src={profile.avatar_url}
-                          alt={profile.full_name}
-                          width={120}
-                          height={120}
-                          className="rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-30 h-30 rounded-full bg-gray-200 flex items-center justify-center">
-                          <User className="w-12 h-12 text-gray-500" />
-                        </div>
-                      )}
-                      <button className="absolute bottom-2 right-2 p-2 bg-white rounded-full shadow-lg border">
-                        <Camera className="w-4 h-4 text-gray-600" />
-                      </button>
-                    </div>
-
-                    <div className="flex-1">
-                      {isEditing ? (
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Full Name
-                            </label>
-                            <input
-                              type="text"
-                              value={editForm.full_name}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Phone
-                            </label>
-                            <input
-                              type="tel"
-                              value={editForm.phone}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Bio
-                            </label>
-                            <textarea
-                              value={editForm.bio}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
-                              rows={3}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                              placeholder="Tell others about yourself..."
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Location
-                              </label>
-                              <input
-                                type="text"
-                                value={editForm.location}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, location: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                State
-                              </label>
-                              <select
-                                value={editForm.state}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, state: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                              >
-                                <option value="">Select state</option>
-                                <option value="NSW">NSW</option>
-                                <option value="VIC">VIC</option>
-                                <option value="QLD">QLD</option>
-                                <option value="SA">SA</option>
-                                <option value="WA">WA</option>
-                                <option value="TAS">TAS</option>
-                                <option value="NT">NT</option>
-                                <option value="ACT">ACT</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div className="flex space-x-3">
-                            <Button onClick={handleProfileUpdate}>
-                              Save Changes
-                            </Button>
-                            <Button variant="outline" onClick={() => setIsEditing(false)}>
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div>
-                            <h3 className="text-2xl font-bold text-gray-900">{profile.full_name}</h3>
-                            <p className="text-gray-600">{profile.email}</p>
-                          </div>
-                          
-                          {profile.phone && (
-                            <div className="flex items-center text-gray-600">
-                              <Phone className="w-4 h-4 mr-2" />
-                              {profile.phone}
-                            </div>
-                          )}
-                          
-                          {(profile.location || profile.state) && (
-                            <div className="flex items-center text-gray-600">
-                              <MapPin className="w-4 h-4 mr-2" />
-                              {profile.location}{profile.location && profile.state && ', '}{profile.state}
-                            </div>
-                          )}
-                          
-                          {profile.bio && (
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-1">About</h4>
-                              <p className="text-gray-600">{profile.bio}</p>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center text-sm text-gray-500">
-                            <Award className="w-4 h-4 mr-2" />
-                            Member since {format(new Date(profile.created_at), 'MMMM yyyy')}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Verification Status */}
-                  <div className="border-t pt-6">
-                    <h4 className="font-medium text-gray-900 mb-3">Verification Status</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center">
-                        {profile.is_verified ? (
-                          <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-500 mr-3" />
-                        )}
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            Identity Verification
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {profile.is_verified ? 'Verified' : 'Not verified'}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center">
-                        {profile.stripe_onboarding_complete ? (
-                          <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-500 mr-3" />
-                        )}
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            Payment Setup
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {profile.stripe_onboarding_complete ? 'Complete' : 'Incomplete'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="avatar-upload"
+                />
+                <button 
+                  onClick={() => document.getElementById('avatar-upload')?.click()}
+                  disabled={isUploadingImage}
+                  className="absolute bottom-2 right-2 p-2 bg-white rounded-full shadow-lg border hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  {isUploadingImage ? (
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4 text-gray-600" />
+                  )}
+                </button>
               </div>
-            )}
 
-            {/* Payments & Verification Tab */}
-            {activeTab === 'verification' && (
-              <div className="space-y-6">
-                <VerificationDashboard />
-              </div>
-            )}
-
-            {/* Trust & Safety Tab */}
-            {activeTab === 'trust' && (
-              <div className="space-y-6">
-                <Card className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Trust Score</h2>
-                  
-                  <div className="text-center mb-6">
-                    <div className={`text-5xl font-bold ${getTrustScoreColor(profile.trust_score || 0)}`}>
-                      {profile.trust_score || 0}
-                    </div>
-                    <div className="mt-2">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getTrustScoreBadge(profile.trust_score || 0).color}`}>
-                        {getTrustScoreBadge(profile.trust_score || 0).text}
-                      </span>
-                    </div>
-                    <p className="text-gray-600 mt-2">Your trust score is based on your activity and feedback</p>
-                  </div>
-
+              <div className="flex-1">
+                {isEditing ? (
                   <div className="space-y-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Completion Rate</span>
-                      <span className="font-medium">{profile.completion_rate || 0}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-500 h-2 rounded-full" 
-                        style={{ width: `${profile.completion_rate || 0}%` }}
-                      ></div>
-                    </div>
-                    
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Response Time</span>
-                      <span className="font-medium">Excellent</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-green-500 h-2 rounded-full w-4/5"></div>
-                    </div>
-                    
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Item Quality</span>
-                      <span className="font-medium">Very Good</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-yellow-500 h-2 rounded-full w-3/4"></div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                    <h4 className="font-medium text-blue-900 mb-2">How to improve your score:</h4>
-                    <ul className="text-sm text-blue-800 space-y-1">
-                      <li>• Complete identity verification</li>
-                      <li>• Maintain high completion rates</li>
-                      <li>• Respond quickly to messages</li>
-                      <li>• Provide accurate item descriptions</li>
-                      <li>• Receive positive reviews</li>
-                    </ul>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* Notifications Tab */}
-            {activeTab === 'notifications' && (
-              <div className="space-y-6">
-                <Card className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Notification Preferences</h2>
-                  
-                  <div className="space-y-6">
                     <div>
-                      <h3 className="font-medium text-gray-900 mb-4">Email Notifications</h3>
-                      <div className="space-y-3">
-                        {[
-                          { key: 'email_bookings', label: 'Booking updates and confirmations', description: 'Get notified about new bookings and status changes' },
-                          { key: 'email_messages', label: 'New messages', description: 'Receive emails when you get new messages' },
-                          { key: 'email_marketing', label: 'Marketing and promotions', description: 'Tips, news, and special offers from Rent It Forward' }
-                        ].map((item) => (
-                          <div key={item.key} className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                              <p className="text-sm text-gray-500">{item.description}</p>
-                            </div>
-                            <button
-                              onClick={() => handleNotificationUpdate(item.key as keyof NotificationSettings, !notifications[item.key as keyof NotificationSettings])}
-                              className={`ml-4 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
-                                notifications[item.key as keyof NotificationSettings] ? 'bg-green-600' : 'bg-gray-200'
-                              }`}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  notifications[item.key as keyof NotificationSettings] ? 'translate-x-5' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-4">SMS Notifications</h3>
-                      <div className="space-y-3">
-                        {[
-                          { key: 'sms_bookings', label: 'Urgent booking alerts', description: 'Time-sensitive booking notifications' },
-                          { key: 'sms_reminders', label: 'Rental reminders', description: 'Reminders about upcoming pickups and returns' }
-                        ].map((item) => (
-                          <div key={item.key} className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                              <p className="text-sm text-gray-500">{item.description}</p>
-                            </div>
-                            <button
-                              onClick={() => handleNotificationUpdate(item.key as keyof NotificationSettings, !notifications[item.key as keyof NotificationSettings])}
-                              className={`ml-4 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
-                                notifications[item.key as keyof NotificationSettings] ? 'bg-green-600' : 'bg-gray-200'
-                              }`}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  notifications[item.key as keyof NotificationSettings] ? 'translate-x-5' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* Security Tab */}
-            {activeTab === 'security' && (
-              <div className="space-y-6">
-                <Card className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Security Settings</h2>
-                  
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-4">Two-Factor Authentication</h3>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">Enable 2FA</p>
-                          <p className="text-sm text-gray-500">Add an extra layer of security to your account</p>
-                        </div>
-                        <Button variant="outline">
-                          {security.two_factor_enabled ? 'Disable' : 'Enable'} 2FA
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-4">Password</h3>
-                      <Button variant="outline">
-                        Change Password
-                      </Button>
-                    </div>
-
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-4">Login Alerts</h3>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">Email alerts for new logins</p>
-                          <p className="text-sm text-gray-500">Get notified when someone logs into your account</p>
-                        </div>
-                        <button
-                          onClick={() => handleSecurityUpdate('login_alerts', !security.login_alerts)}
-                          className={`ml-4 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
-                            security.login_alerts ? 'bg-green-600' : 'bg-gray-200'
-                          }`}
-                        >
-                          <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                              security.login_alerts ? 'translate-x-5' : 'translate-x-0'
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* Account Tab */}
-            {activeTab === 'account' && (
-              <div className="space-y-6">
-                <Card className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Account Management</h2>
-                  
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-4">Payment Setup</h3>
-                      <StripeConnectSetup 
-                        onSetupComplete={() => {
-                          loadProfile(); // Refresh profile data after setup
-                          toast.success('Payment setup completed!');
-                        }}
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.full_name ?? ''}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
-
                     <div>
-                      <h3 className="font-medium text-gray-900 mb-4">Data & Privacy</h3>
-                      <div className="space-y-3">
-                        <Button variant="outline" className="w-full justify-start">
-                          Download Your Data
-                        </Button>
-                        <Button variant="outline" className="w-full justify-start">
-                          Privacy Settings
-                        </Button>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={editForm.phone_number ?? ''}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, phone_number: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Bio
+                      </label>
+                      <textarea
+                        value={editForm.bio ?? ''}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="Tell others about yourself..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Address
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.address ?? ''}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, address: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          City
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.city ?? ''}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, city: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
                       </div>
                     </div>
-
-                    <div className="border-t pt-6">
-                      <h3 className="font-medium text-red-600 mb-4">Danger Zone</h3>
-                      <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-red-900">Delete Account</p>
-                            <p className="text-sm text-red-700">
-                              Permanently delete your account and all associated data
-                            </p>
-                          </div>
-                          <Button
-                            variant="outline"
-                            onClick={() => setShowDeleteConfirm(true)}
-                            className="text-red-600 border-red-300 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        State
+                      </label>
+                      <select
+                        value={editForm.state ?? ''}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, state: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        <option value="">Select state</option>
+                        <option value="NSW">NSW</option>
+                        <option value="VIC">VIC</option>
+                        <option value="QLD">QLD</option>
+                        <option value="SA">SA</option>
+                        <option value="WA">WA</option>
+                        <option value="TAS">TAS</option>
+                        <option value="NT">NT</option>
+                        <option value="ACT">ACT</option>
+                      </select>
+                    </div>
+                    <div className="flex space-x-3">
+                      <Button onClick={handleProfileUpdate}>
+                        Save Changes
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsEditing(false)}>
+                        Cancel
+                      </Button>
                     </div>
                   </div>
-                </Card>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900">{profile.full_name}</h3>
+                      <p className="text-gray-600">{profile.email}</p>
+                    </div>
+                    
+                    {profile.phone_number && (
+                      <div className="flex items-center text-gray-600">
+                        <Phone className="w-4 h-4 mr-2" />
+                        {profile.phone_number}
+                      </div>
+                    )}
+                    
+                    {(profile.address || profile.city || profile.state) && (
+                      <div className="flex items-center text-gray-600">
+                        <MapPin className="w-4 h-4 mr-2" />
+                        {profile.address}{profile.address && (profile.city || profile.state) && ', '}{profile.city}{profile.city && profile.state && ', '}{profile.state}
+                      </div>
+                    )}
+                    
+                    {profile.bio && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-1">About</h4>
+                        <p className="text-gray-600">{profile.bio}</p>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Award className="w-4 h-4 mr-2" />
+                      Member since {format(new Date(profile.created_at), 'MMMM yyyy')}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Verification Status Card */}
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Verification Status</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex items-center">
+                {profile.verified ? (
+                  <CheckCircle className="w-6 h-6 text-green-500 mr-3" />
+                ) : (
+                  <XCircle className="w-6 h-6 text-red-500 mr-3" />
+                )}
+                <div>
+                  <p className="font-medium text-gray-900">
+                    Identity Verification
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {profile.verified ? 'Verified' : 'Verification required'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center">
+                {profile.stripe_onboarded ? (
+                  <CheckCircle className="w-6 h-6 text-green-500 mr-3" />
+                ) : (
+                  <XCircle className="w-6 h-6 text-red-500 mr-3" />
+                )}
+                <div>
+                  <p className="font-medium text-gray-900">
+                    Payment Setup
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {profile.stripe_onboarded ? 'Setup complete' : 'Setup required'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {(!profile.verified || !profile.stripe_onboarded) && (
+              <div className="mt-4">
+                <Button 
+                  onClick={() => router.push('/settings')}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Complete Setup
+                </Button>
               </div>
             )}
-          </div>
-        </div>
+          </Card>
 
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="p-6 max-w-md mx-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Account</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete your account? This action cannot be undone.
-              </p>
-              <div className="flex space-x-3">
-                <Button
-                  onClick={handleDeleteAccount}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  Yes, Delete Account
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Cancel
-                </Button>
+          {/* Trust Score Card */}
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Trust Score</h2>
+            
+            <div className="text-center mb-6">
+              <div className={`text-5xl font-bold ${getTrustScoreColor(profile.trust_score || 0)}`}>
+                {profile.trust_score || 0}
               </div>
-            </Card>
-          </div>
-        )}
+              <div className="mt-2">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getTrustScoreBadge(profile.trust_score || 0).color}`}>
+                  {getTrustScoreBadge(profile.trust_score || 0).text}
+                </span>
+              </div>
+              <p className="text-gray-600 mt-2">Your trust score is based on your activity and feedback</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Completion Rate</span>
+                <span className="font-medium">{profile.completion_rate || 0}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-green-500 h-2 rounded-full" 
+                  style={{ width: `${profile.completion_rate || 0}%` }}
+                ></div>
+              </div>
+              
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Response Time</span>
+                <span className="font-medium">Excellent</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-green-500 h-2 rounded-full w-4/5"></div>
+              </div>
+              
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Item Quality</span>
+                <span className="font-medium">Very Good</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-yellow-500 h-2 rounded-full w-3/4"></div>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">How to improve your score:</h4>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• Complete identity verification</li>
+                <li>• Maintain high completion rates</li>
+                <li>• Respond quickly to messages</li>
+                <li>• Provide accurate item descriptions</li>
+                <li>• Receive positive reviews</li>
+              </ul>
+            </div>
+          </Card>
+        </div>
       </div>
     </AuthenticatedLayout>
   );
