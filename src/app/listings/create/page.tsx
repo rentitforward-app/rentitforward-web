@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -147,7 +147,7 @@ const steps = [
   { id: 5, title: 'Photos', description: 'Add photos to showcase your item' }
 ];
 
-export default function CreateListingPage() {
+function CreateListingContent() {
   const [user, setUser] = useState<any>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -1064,5 +1064,17 @@ export default function CreateListingPage() {
         </div>
       </div>
     </AuthenticatedLayout>
+  );
+}
+
+export default function CreateListingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <CreateListingContent />
+    </Suspense>
   );
 } 
