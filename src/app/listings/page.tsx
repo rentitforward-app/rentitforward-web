@@ -19,10 +19,16 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
-  Clock
+  Clock,
+  Pause,
+  Play,
+  Trash2,
+  Settings,
+  MoreVertical
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
@@ -68,6 +74,7 @@ export default function MyListingsPage() {
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'items' | 'bookings' | 'earnings'>('items');
   const [isLoading, setIsLoading] = useState(true);
+  const [updatingListings, setUpdatingListings] = useState<Set<string>>(new Set());
   
   const router = useRouter();
   const supabase = createClient();
@@ -282,6 +289,86 @@ export default function MyListingsPage() {
     ? ratingsWithReviews.reduce((sum, listing) => sum + listing.rating, 0) / ratingsWithReviews.length
     : 0;
 
+  const toggleListingStatus = async (listingId: string, currentStatus: string) => {
+    setUpdatingListings(prev => new Set(prev).add(listingId));
+    
+    try {
+      const newIsActive = currentStatus !== 'active';
+      
+      const { error } = await supabase
+        .from('listings')
+        .update({ is_active: newIsActive })
+        .eq('id', listingId);
+
+      if (error) {
+        console.error('Error updating listing status:', error);
+        toast.error('Failed to update listing status');
+        return;
+      }
+
+      // Update local state
+      setListings(prev => prev.map(listing => 
+        listing.id === listingId 
+          ? { 
+              ...listing, 
+              status: newIsActive ? 'active' : 'paused' as 'active' | 'paused' | 'draft'
+            }
+          : listing
+      ));
+
+      toast.success(newIsActive ? 'Listing activated' : 'Listing paused');
+    } catch (error) {
+      console.error('Error updating listing status:', error);
+      toast.error('Failed to update listing status');
+    } finally {
+      setUpdatingListings(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(listingId);
+        return newSet;
+      });
+    }
+  };
+
+  const deleteListing = async (listingId: string, listingTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${listingTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setUpdatingListings(prev => new Set(prev).add(listingId));
+    
+    try {
+      const { error } = await supabase
+        .from('listings')
+        .delete()
+        .eq('id', listingId);
+
+      if (error) {
+        console.error('Error deleting listing:', error);
+        toast.error('Failed to delete listing');
+        return;
+      }
+
+      // Update local state
+      setListings(prev => prev.filter(listing => listing.id !== listingId));
+      toast.success('Listing deleted successfully');
+    } catch (error) {
+      console.error('Error deleting listing:', error);
+      toast.error('Failed to delete listing');
+    } finally {
+      setUpdatingListings(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(listingId);
+        return newSet;
+      });
+    }
+  };
+
+  const editListing = (listingId: string) => {
+    // For now, redirect to the create page with edit mode
+    // In a full implementation, you'd create a dedicated edit page
+    router.push(`/listings/create?edit=${listingId}`);
+  };
+
   if (isLoading) {
     return (
       <AuthenticatedLayout>
@@ -459,13 +546,45 @@ export default function MyListingsPage() {
                         View
                       </Button>
                       <Button
-                        onClick={() => router.push(`/listings/${listing.id}/edit`)}
+                        onClick={() => editListing(listing.id)}
                         variant="outline"
                         size="sm"
                         className="flex-1"
                       >
                         <Edit className="w-3 h-3 mr-1" />
                         Edit
+                      </Button>
+                    </div>
+                    
+                    <div className="flex gap-1 mt-2">
+                      <Button
+                        onClick={() => toggleListingStatus(listing.id, listing.status)}
+                        disabled={updatingListings.has(listing.id)}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                      >
+                        {listing.status === 'active' ? (
+                          <>
+                            <Pause className="w-3 h-3 mr-1" />
+                            Pause
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3 h-3 mr-1" />
+                            Activate
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => deleteListing(listing.id, listing.title)}
+                        disabled={updatingListings.has(listing.id)}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-red-600 hover:text-red-700 hover:border-red-300"
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Delete
                       </Button>
                     </div>
                   </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { 
@@ -154,7 +154,10 @@ export default function CreateListingPage() {
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [editingListing, setEditingListing] = useState<any>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const {
@@ -178,7 +181,72 @@ export default function CreateListingPage() {
   
   useEffect(() => {
     checkUser();
+    checkEditMode();
   }, []);
+
+  const checkEditMode = async () => {
+    const editId = searchParams.get('edit');
+    if (editId) {
+      setIsEditMode(true);
+      await loadExistingListing(editId);
+    }
+  };
+
+  const loadExistingListing = async (listingId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('id', listingId)
+        .single();
+
+      if (error || !data) {
+        toast.error('Failed to load listing for editing');
+        router.push('/listings');
+        return;
+      }
+
+      setEditingListing(data);
+      
+      // Pre-populate form with existing data
+      setValue('title', data.title);
+      setValue('description', data.description);
+      setValue('category', data.category);
+      setValue('condition', data.condition);
+      setValue('dailyRate', data.price_per_day);
+      setValue('weeklyRate', data.price_weekly);
+      setValue('depositAmount', data.deposit);
+      setValue('brand', data.brand || '');
+      setValue('model', data.model || '');
+      setValue('year', data.year);
+      
+      // Parse address for location fields
+      if (data.address) {
+        const addressParts = data.address.split(',');
+        if (addressParts.length >= 2) {
+          setValue('location', data.city || addressParts[0].trim());
+          setValue('state', data.state);
+          setValue('postcode', data.postal_code);
+        }
+      }
+
+      // Set delivery methods from features if available
+      const deliveryMethods = [];
+      if (data.features?.includes('pickup')) deliveryMethods.push('pickup');
+      if (data.features?.includes('delivery')) deliveryMethods.push('delivery');
+      if (data.features?.includes('shipping')) deliveryMethods.push('shipping');
+      setValue('deliveryMethods', deliveryMethods);
+
+      // Load existing images as preview URLs
+      if (data.images && data.images.length > 0) {
+        setImagePreview(data.images);
+      }
+    } catch (error) {
+      console.error('Error loading listing:', error);
+      toast.error('Failed to load listing for editing');
+      router.push('/listings');
+    }
+  };
 
   useEffect(() => {
     if (watchCategory) {
@@ -298,7 +366,14 @@ export default function CreateListingPage() {
   };
 
   const onSubmit = async (data: ListingForm) => {
-    if (images.length === 0) {
+    // For edit mode, allow submission without new images if existing images exist
+    if (!isEditMode && images.length === 0) {
+      toast.error('Please add at least one image');
+      setCurrentStep(5);
+      return;
+    }
+    
+    if (isEditMode && images.length === 0 && imagePreview.length === 0) {
       toast.error('Please add at least one image');
       setCurrentStep(5);
       return;
@@ -306,45 +381,105 @@ export default function CreateListingPage() {
 
     setIsLoading(true);
     try {
-      // Upload images
-      const imageUrls = await uploadImages();
-
-      // Create listing
-      const { data: listing, error } = await supabase
-        .from('listings')
-        .insert({
-          owner_id: user.id,
-          title: data.title,
-          description: data.description,
-          category: data.category,
-          subcategory: data.subcategory || null,
-          price_per_day: data.dailyRate,
-          price_weekly: data.weeklyRate || null,
-          monthly_rate: data.monthlyRate || null,
-          deposit: data.depositAmount,
-          images: imageUrls,
-          location: data.location,
-          state: data.state,
-          postal_code: data.postcode,
-          condition: data.condition,
-          brand: data.brand || null,
-          model: data.model || null,
-          year: data.year || null,
-          delivery_methods: data.deliveryMethods,
-          is_active: false,
-          approval_status: 'pending',
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating listing:', error);
-        toast.error('Failed to create listing. Please try again.');
-        return;
+      // Upload new images if any
+      let imageUrls: string[] = [];
+      if (images.length > 0) {
+        imageUrls = await uploadImages();
       }
 
-      toast.success('Listing created successfully! Your listing is awaiting admin approval.');
-      router.push(`/listings/${listing.id}`);
+      // For edit mode, combine new images with existing ones
+      let finalImageUrls: string[] = imageUrls;
+      if (isEditMode) {
+        finalImageUrls = [...imagePreview.filter(url => typeof url === 'string'), ...imageUrls];
+      }
+
+      // Default coordinates (Sydney)
+      const defaultLat = -33.8688;
+      const defaultLng = 151.2093;
+
+      // Prepare features array including delivery methods and subcategory
+      const features = [...(data.deliveryMethods || [])];
+      if (data.subcategory) {
+        features.push(`Subcategory: ${data.subcategory}`);
+      }
+
+      // Prepare description with subcategory if provided
+      let fullDescription = data.description;
+      if (data.subcategory) {
+        fullDescription = `${data.description}\n\nSubcategory: ${data.subcategory}`;
+      }
+
+      if (isEditMode && editingListing) {
+        // Update existing listing
+        const { error } = await supabase
+          .from('listings')
+          .update({
+            title: data.title,
+            description: fullDescription,
+            category: data.category,
+            price_per_day: data.dailyRate,
+            price_weekly: data.weeklyRate || null,
+            deposit: data.depositAmount,
+            images: finalImageUrls,
+            address: `${data.location}, ${data.state} ${data.postcode}`,
+            city: data.location,
+            state: data.state,
+            postal_code: data.postcode,
+            condition: data.condition,
+            brand: data.brand || null,
+            model: data.model || null,
+            year: data.year || null,
+            features: features,
+          })
+          .eq('id', editingListing.id);
+
+        if (error) {
+          console.error('Error updating listing:', error);
+          toast.error(`Failed to update listing: ${error.message || 'Please try again.'}`);
+          return;
+        }
+
+        toast.success('Listing updated successfully!');
+        router.push(`/listings/${editingListing.id}`);
+      } else {
+        // Create new listing
+        const { data: result, error } = await supabase.rpc('create_listing_with_location', {
+          p_owner_id: user.id,
+          p_title: data.title,
+          p_description: fullDescription,
+          p_category: data.category,
+          p_price_per_day: data.dailyRate,
+          p_price_weekly: data.weeklyRate || null,
+          p_deposit: data.depositAmount,
+          p_images: finalImageUrls,
+          p_address: `${data.location}, ${data.state} ${data.postcode}`,
+          p_city: data.location,
+          p_state: data.state,
+          p_postal_code: data.postcode,
+          p_longitude: defaultLng,
+          p_latitude: defaultLat,
+          p_condition: data.condition,
+          p_brand: data.brand || null,
+          p_model: data.model || null,
+          p_year: data.year || null,
+          p_features: features,
+        });
+
+        if (error) {
+          console.error('Error creating listing:', error);
+          toast.error(`Failed to create listing: ${error.message || 'Please try again.'}`);
+          return;
+        }
+
+        if (!result?.id) {
+          console.error('No listing ID returned from database');
+          toast.error('Failed to create listing. Please try again.');
+          return;
+        }
+
+        toast.success('Listing created successfully! Your listing is awaiting admin approval.');
+        router.push(`/listings/${result.id}`);
+      }
     } catch (error) {
       console.error('Error creating listing:', error);
       toast.error('Something went wrong. Please try again.');
@@ -367,8 +502,12 @@ export default function CreateListingPage() {
         <div className="container mx-auto px-4 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">List Your Item</h1>
-          <p className="text-gray-600">Share your items with the community and earn money</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {isEditMode ? 'Edit Your Listing' : 'List Your Item'}
+          </h1>
+          <p className="text-gray-600">
+            {isEditMode ? 'Update your listing details' : 'Share your items with the community and earn money'}
+          </p>
         </div>
 
         {/* Progress Steps */}
@@ -911,10 +1050,10 @@ export default function CreateListingPage() {
                     {isLoading ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Creating...
+                        {isEditMode ? 'Updating...' : 'Creating...'}
                       </>
                     ) : (
-                      'Create Listing'
+                      isEditMode ? 'Update Listing' : 'Create Listing'
                     )}
                   </Button>
                 )}
