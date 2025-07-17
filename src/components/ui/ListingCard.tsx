@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Star, MapPin, Heart } from 'lucide-react';
+import { Star, MapPin, Heart, Package, Truck } from 'lucide-react';
 import { Card } from './Card';
 import { Button } from './Button';
 import { cn, formatPrice } from '@/lib/utils';
@@ -15,6 +15,10 @@ interface ListingCardProps {
   reviewCount?: number;
   distance?: number;
   category?: string;
+  city?: string;
+  state?: string;
+  delivery_available?: boolean;
+  pickup_available?: boolean;
   owner: {
     name: string;
     avatar?: string;
@@ -32,6 +36,10 @@ export default function ListingCard({
   reviewCount,
   distance,
   category,
+  city,
+  state,
+  delivery_available,
+  pickup_available,
   owner,
   className,
 }: ListingCardProps) {
@@ -109,11 +117,38 @@ export default function ListingCard({
             </div>
           )}
 
+          {/* Location (masked for security) */}
+          {(city || state) && (
+            <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
+              <MapPin className="w-4 h-4" />
+              <span>
+                {city && state ? `${city}, ${state}` : city || state}
+              </span>
+            </div>
+          )}
+
           {/* Distance */}
           {distance && (
-            <div className="flex items-center gap-1 text-sm text-gray-500 mb-3">
-              <MapPin className="w-4 h-4" />
+            <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
               <span>{distance.toFixed(1)} km away</span>
+            </div>
+          )}
+
+          {/* Delivery Methods */}
+          {(delivery_available || pickup_available) && (
+            <div className="flex items-center gap-2 mb-3">
+              {pickup_available && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                  <Package className="w-3 h-3 mr-1" />
+                  Pickup
+                </span>
+              )}
+              {delivery_available && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                  <Truck className="w-3 h-3 mr-1" />
+                  Delivery
+                </span>
+              )}
             </div>
           )}
 

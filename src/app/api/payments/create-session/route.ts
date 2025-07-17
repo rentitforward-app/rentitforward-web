@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       .from('bookings')
       .select(`
         *,
-        listings!item_id (
+        listings!listing_id (
           id,
           title,
           images,

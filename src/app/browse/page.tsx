@@ -19,7 +19,6 @@ interface Listing {
   title: string;
   description: string;
   category: string;
-  subcategory: string | null;
   price_per_day: number;
   price_weekly: number | null;
   price_hourly: number | null;
@@ -30,6 +29,8 @@ interface Listing {
   state: string;
   country: string;
   postal_code: string;
+  delivery_available: boolean;
+  pickup_available: boolean;
   is_active: boolean;
   condition: string;
   brand: string | null;
@@ -196,6 +197,8 @@ function BrowseContent() {
           state,
           country,
           postal_code,
+          delivery_available,
+          pickup_available,
           is_active,
           condition,
           brand,
@@ -744,6 +747,10 @@ function BrowseContent() {
                     price={listing.price_per_day}
                     period="day"
                     category={listing.category}
+                    city={listing.city}
+                    state={listing.state}
+                    delivery_available={listing.delivery_available}
+                    pickup_available={listing.pickup_available}
                     rating={mockData.rating}
                     reviewCount={mockData.reviewCount}
                     distance={mockData.distance}

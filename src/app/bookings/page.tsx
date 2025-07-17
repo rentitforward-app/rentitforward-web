@@ -162,6 +162,8 @@ interface Booking {
   return_instructions?: string;
   pickup_location?: string;
   return_location?: string;
+  delivery_method?: 'pickup' | 'delivery';
+  delivery_address?: string;
   insurance_selected: boolean;
   deposit_amount?: number;
   deposit_status?: 'held' | 'released' | 'returned';
@@ -233,6 +235,7 @@ export default function BookingsPage() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'active' | 'past' | 'all'>('upcoming');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [deliveryFilter, setDeliveryFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -258,7 +261,7 @@ export default function BookingsPage() {
 
   useEffect(() => {
     filterBookings();
-  }, [bookings, statusFilter, roleFilter, searchTerm]);
+  }, [bookings, statusFilter, roleFilter, deliveryFilter, searchTerm]);
 
   // Add periodic refresh to catch status changes from other users
   useEffect(() => {
@@ -291,7 +294,7 @@ export default function BookingsPage() {
           .from('bookings')
           .select(`
             *,
-            listings!item_id (
+            listings!listing_id (
               id,
               title,
               images,
@@ -315,7 +318,7 @@ export default function BookingsPage() {
           .from('bookings')
           .select(`
             *,
-            listings!item_id (
+            listings!listing_id (
               id,
               title,
               images,
@@ -379,6 +382,8 @@ export default function BookingsPage() {
           deposit_status: booking.deposit_status,
           pickup_location: booking.pickup_location || 'TBD',
           return_location: booking.return_location || 'TBD',
+          delivery_method: booking.delivery_method,
+          delivery_address: booking.delivery_address,
           pickup_instructions: booking.pickup_instructions,
           return_instructions: booking.return_instructions,
           userRole: isOwnerBooking ? 'owner' : 'renter',
@@ -466,6 +471,11 @@ export default function BookingsPage() {
     // Filter by user role
     if (roleFilter !== 'all') {
       filtered = filtered.filter(booking => booking.userRole === roleFilter);
+    }
+
+    // Filter by delivery method
+    if (deliveryFilter !== 'all') {
+      filtered = filtered.filter(booking => booking.delivery_method === deliveryFilter);
     }
 
     // Filter by search term
@@ -793,6 +803,16 @@ export default function BookingsPage() {
                 <option value="all">All Bookings</option>
                 <option value="renter">I'm Renting</option>
                 <option value="owner">My Items</option>
+              </select>
+
+              <select
+                value={deliveryFilter}
+                onChange={(e) => setDeliveryFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="all">All Delivery</option>
+                <option value="pickup">Pickup Only</option>
+                <option value="delivery">Delivery Only</option>
               </select>
             </div>
             
@@ -1144,18 +1164,40 @@ export default function BookingsPage() {
                     </div>
                   </div>
 
-                  {/* Pickup/Return Locations */}
-                  {selectedBooking.pickup_location && (
+                  {/* Delivery Information */}
+                  {(selectedBooking.delivery_method || selectedBooking.pickup_location) && (
                     <div>
-                      <h3 className="font-semibold mb-2">Pickup & Return</h3>
+                      <h3 className="font-semibold mb-2">Delivery & Return</h3>
                       <div className="space-y-2">
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-medium">Pickup Location</p>
-                            <p className="text-sm text-gray-600">{selectedBooking.pickup_location}</p>
+                        {selectedBooking.delivery_method && (
+                          <div className="flex items-start gap-2">
+                            <Package className="w-4 h-4 text-gray-400 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium">Delivery Method</p>
+                              <p className="text-sm text-gray-600">
+                                {selectedBooking.delivery_method === 'pickup' ? 'Pickup from owner' : 'Delivery to renter'}
+                              </p>
+                            </div>
                           </div>
-                        </div>
+                        )}
+                        {selectedBooking.delivery_method === 'delivery' && selectedBooking.delivery_address && (
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium">Delivery Address</p>
+                              <p className="text-sm text-gray-600">{selectedBooking.delivery_address}</p>
+                            </div>
+                          </div>
+                        )}
+                        {selectedBooking.delivery_method === 'pickup' && selectedBooking.pickup_location && (
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium">Pickup Location</p>
+                              <p className="text-sm text-gray-600">{selectedBooking.pickup_location}</p>
+                            </div>
+                          </div>
+                        )}
                         {selectedBooking.return_location && (
                           <div className="flex items-start gap-2">
                             <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />

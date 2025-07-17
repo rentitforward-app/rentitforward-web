@@ -124,7 +124,7 @@ export default function NotificationsPage() {
           duration_days,
           price_total,
           renter:profiles!bookings_renter_id_fkey(full_name),
-          item:listings!bookings_item_id_fkey(title, owner_id)
+          item:listings!bookings_listing_id_fkey(title, owner_id)
         `)
         .eq('status', 'pending')
         .eq('listings.owner_id', user.id)
@@ -158,7 +158,7 @@ export default function NotificationsPage() {
           price_total,
           platform_fee,
           renter:profiles!bookings_renter_id_fkey(full_name),
-          item:listings!bookings_item_id_fkey(title, owner_id)
+          item:listings!bookings_listing_id_fkey(title, owner_id)
         `)
         .eq('status', 'confirmed')
         .eq('listings.owner_id', user.id)

@@ -84,7 +84,7 @@ export default function PaymentPage() {
         .from('bookings')
         .select(`
           *,
-          listings!item_id (
+          listings!listing_id (
             id,
             title,
             images,

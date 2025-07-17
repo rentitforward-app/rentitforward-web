@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         status: 'pending',
         delivery_method: bookingData.delivery_method,
         delivery_address: bookingData.delivery_address || null,
-        pickup_address: bookingData.pickup_address || null,
+        pickup_location: bookingData.pickup_location || null,
         special_instructions: bookingData.special_instructions || null,
       })
       .select()

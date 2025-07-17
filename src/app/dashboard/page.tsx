@@ -129,7 +129,7 @@ export default function DashboardPage() {
         .from('bookings')
         .select(`
           *,
-          listing:item_id(title),
+          listing:listing_id(title),
           renter:renter_id(full_name)
         `)
         .eq('owner_id', user.id)

@@ -111,7 +111,7 @@ export default function PaymentSuccessPage() {
         .from('bookings')
         .select(`
           *,
-          listings!item_id (
+          listings!listing_id (
             title,
             images,
             category,

@@ -48,7 +48,7 @@ export default function AdminBookings() {
           start_date,
           end_date,
           total_amount,
-          listings:item_id (title),
+          listings:listing_id (title),
           renter:renter_id (full_name),
           owner:owner_id (full_name)
         `)

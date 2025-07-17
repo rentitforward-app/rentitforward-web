@@ -125,15 +125,15 @@ export default function MyListingsPage() {
       // Fetch bookings for the user's listings to calculate earnings
       const listingIds = listingsData?.map(listing => listing.id) || [];
       
-      let bookingsData: Array<{item_id: string; total_amount: number; status: string}> = [];
+      let bookingsData: Array<{listing_id: string; total_amount: number; status: string}> = [];
       let itemBookingsData: Array<any> = [];
       
       if (listingIds.length > 0) {
         // Fetch bookings for calculating earnings and stats
         const { data: bookingsRaw, error: bookingsError } = await supabase
           .from('bookings')
-          .select('item_id, total_amount, status')
-          .in('item_id', listingIds);
+          .select('listing_id, total_amount, status')
+          .in('listing_id', listingIds);
 
         if (bookingsError) {
           console.error('Error fetching bookings:', bookingsError);
@@ -151,7 +151,7 @@ export default function MyListingsPage() {
             total_amount,
             status,
             created_at,
-            item_id,
+            listing_id,
             listings!inner(
               id,
               title
@@ -164,7 +164,7 @@ export default function MyListingsPage() {
               phone_number
             )
           `)
-          .in('item_id', listingIds)
+          .in('listing_id', listingIds)
           .order('created_at', { ascending: false });
 
         if (itemBookingsError) {
@@ -177,7 +177,7 @@ export default function MyListingsPage() {
       // Transform listings data to match the interface
       const transformedListings: Listing[] = (listingsData || []).map(listing => {
         // Calculate stats for this listing
-        const listingBookings = bookingsData.filter(booking => booking.item_id === listing.id);
+        const listingBookings = bookingsData.filter(booking => booking.listing_id === listing.id);
         const completedBookings = listingBookings.filter(booking => booking.status === 'completed');
         const totalEarnings = completedBookings.reduce((sum, booking) => sum + (booking.total_amount || 0), 0);
 
@@ -223,7 +223,7 @@ export default function MyListingsPage() {
         total_amount: Number(booking.total_amount),
         status: booking.status as any, // Cast to match our enum
         created_at: booking.created_at,
-        listing_id: booking.item_id,
+        listing_id: booking.listing_id,
         listing_title: booking.listings?.title || 'Unknown Item',
         renter: {
           id: booking.profiles?.id || '',
@@ -504,7 +504,7 @@ export default function MyListingsPage() {
                   <Card key={listing.id} className="overflow-hidden">
                   <div className="relative h-48">
                     <Image
-                      src={listing.images[0]}
+                      src={listing.images?.[0] || '/images/placeholder-item.jpg'}
                       alt={listing.title}
                       fill
                       className="object-cover"

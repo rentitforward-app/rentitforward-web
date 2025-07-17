@@ -45,6 +45,8 @@ interface Listing {
   location: string;
   state: string;
   postal_code: string;
+  address: string | null;
+  city: string | null;
   condition: string;
   brand: string | null;
   model: string | null;
@@ -53,6 +55,8 @@ interface Listing {
   rules: string[];
   view_count: number;
   favorite_count: number;
+  delivery_available: boolean;
+  pickup_available: boolean;
   created_at: string;
   profiles: {
     id: string;
@@ -268,7 +272,7 @@ export default function ListingDetailPage() {
       const { data, error } = await supabase
         .from('bookings')
         .select('start_date, end_date')
-        .eq('item_id', listingId)
+        .eq('listing_id', listingId)
         .in('status', ['confirmed', 'in_progress']);
 
       if (error) {
@@ -410,21 +414,28 @@ export default function ListingDetailPage() {
     try {
       const costs = calculateBookingCost();
       
+      // Calculate the required fields based on actual database schema
+      const totalDays = Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / (1000 * 60 * 60 * 24));
+      const pricePerDay = parseFloat(listing.price_per_day.toString());
+      const subtotal = pricePerDay * totalDays;
+      const serviceFee = parseFloat((subtotal * 0.05).toFixed(2)); // 5% service fee
+      const totalAmount = subtotal + serviceFee;
+
       const { error } = await supabase
         .from('bookings')
         .insert({
-          item_id: listingId,
+          listing_id: listingId,
           renter_id: user.id,
           owner_id: listing.profiles.id,
           start_date: data.startDate,
           end_date: data.endDate,
-          price_per_day: listing.price_per_day,
-          subtotal: costs.subtotal,
-          service_fee: costs.serviceFee,
-          total_amount: costs.total,
-          deposit_amount: listing.deposit,
-          pickup_location: data.deliveryMethod === 'delivery' ? data.deliveryAddress : null,
-          pickup_instructions: data.deliveryMethod === 'pickup' ? 'Pickup arrangement' : 'Delivery arrangement',
+          price_per_day: pricePerDay,
+          subtotal: subtotal,
+          service_fee: serviceFee,
+          total_amount: totalAmount,
+          delivery_method: data.deliveryMethod,
+          delivery_address: data.deliveryMethod === 'delivery' ? data.deliveryAddress : null,
+          pickup_location: data.deliveryMethod === 'pickup' ? `${listing.address || ''}, ${listing.city || ''}, ${listing.state || ''} ${listing.postal_code || ''}`.trim() : null,
           renter_message: data.specialInstructions || null,
           status: 'pending'
         });
@@ -480,8 +491,35 @@ export default function ListingDetailPage() {
   };
 
   const getDeliveryMethods = () => {
-    // Provide default delivery methods since the field might not exist
-    return ['pickup', 'delivery'];
+    if (!listing) return [];
+    
+    const methods = [];
+    if (listing.pickup_available) {
+      methods.push('pickup');
+    }
+    if (listing.delivery_available) {
+      methods.push('delivery');
+    }
+    
+    return methods;
+  };
+
+  const getMaskedPickupLocation = () => {
+    if (!listing) return 'Pickup location not specified';
+    
+    // Show only city and state, hide street address and postal code for security
+    const city = listing.city?.trim();
+    const state = listing.state?.trim();
+    
+    if (city && state) {
+      return `${city}, ${state}`;
+    } else if (city) {
+      return city;
+    } else if (state) {
+      return state;
+    }
+    
+    return 'Pickup location available';
   };
 
   const nextImage = () => {
@@ -950,6 +988,31 @@ export default function ListingDetailPage() {
                               placeholder="Enter your delivery address..."
                               className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
                             />
+                          </div>
+                        )}
+
+                        {/* Pickup Location (if pickup selected) */}
+                        {watchDeliveryMethod === 'pickup' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Pickup Location
+                            </label>
+                            <div className="border border-gray-300 rounded-md px-3 py-2 bg-gray-50">
+                              <div className="flex items-center">
+                                <MapPin className="h-4 w-4 text-[#44D62C] mr-2 flex-shrink-0" />
+                                <span className="text-gray-900 font-medium">
+                                  {getMaskedPickupLocation()}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
+                              <div className="flex items-start">
+                                <Shield className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                                <p className="text-xs text-blue-700 leading-relaxed">
+                                  The exact pickup address will be provided by the owner once your booking is confirmed.
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
 
