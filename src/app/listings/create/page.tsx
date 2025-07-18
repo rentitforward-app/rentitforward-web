@@ -26,55 +26,97 @@ import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import Image from 'next/image';
 
 const categories = {
-  'tools-diy': { 
-    label: 'Tools & DIY', 
-    icon: '🔧',
-    subcategories: ['Power Tools', 'Hand Tools', 'Measuring Tools', 'Safety Equipment', 'Ladders & Scaffolding'] 
-  },
-  'electronics': { 
-    label: 'Electronics', 
-    icon: '📱',
-    subcategories: ['Computers', 'Audio', 'Gaming', 'Smart Home', 'Tablets'] 
-  },
-  'cameras': { 
-    label: 'Cameras', 
-    icon: '📷',
-    subcategories: ['DSLR', 'Mirrorless', 'Action Cameras', 'Lenses', 'Accessories'] 
-  },
-  'sports-outdoors': { 
-    label: 'Sports & Outdoors', 
-    icon: '🏃',
-    subcategories: ['Camping', 'Cycling', 'Water Sports', 'Winter Sports', 'Fitness'] 
-  },
-  'event-party': { 
-    label: 'Event & Party', 
-    icon: '🎉',
-    subcategories: ['Sound Systems', 'Lighting', 'Decorations', 'Furniture', 'Catering Equipment'] 
-  },
-  'instruments': { 
-    label: 'Instruments', 
-    icon: '🎸',
-    subcategories: ['Guitars', 'Keyboards', 'Drums', 'Wind Instruments', 'Recording Equipment'] 
+  'appliances': { 
+    label: 'Appliances',
+    subcategories: ['Cleaning', 'Heating & Cooling', 'Kitchen', 'Laundry', 'Small Appliances'] 
   },
   'automotive': { 
-    label: 'Automotive', 
-    icon: '🚗',
-    subcategories: ['Car Care', 'Tools', 'Accessories', 'Bike Racks', 'Trailers'] 
+    label: 'Automotive',
+    subcategories: ['Accessories', 'Bike Racks', 'Car Care', 'Tools', 'Trailers'] 
+  },
+  'books-learning': {
+    label: 'Books & Learning',
+    subcategories: ['E-readers', 'Educational Materials', 'Reference Books', 'Study Aids', 'Textbooks']
+  },
+  'cameras': { 
+    label: 'Cameras',
+    subcategories: ['Accessories', 'Action Cameras', 'DSLR', 'Lenses', 'Mirrorless'] 
+  },
+  'cleaning-maintenance': {
+    label: 'Cleaning & Maintenance',
+    subcategories: ['Floor Care', 'Pest Control', 'Pressure Washers', 'Vacuum Cleaners', 'Window Cleaning']
+  },
+  'clothing-costumes': {
+    label: 'Clothing & Costumes',
+    subcategories: ['Accessories', 'Costumes', 'Formal Wear', 'Uniforms', 'Work Clothing']
+  },
+  'crafts-creative': {
+    label: 'Crafts & Creative Supplies',
+    subcategories: ['Art Supplies', 'Craft Tools', 'Pottery', 'Sewing Equipment', 'Woodworking']
+  },
+  'electronics': { 
+    label: 'Electronics',
+    subcategories: ['Audio', 'Computers', 'Gaming', 'Smart Home', 'Tablets'] 
+  },
+  'event-party': { 
+    label: 'Event & Party',
+    subcategories: ['Catering Equipment', 'Decorations', 'Furniture', 'Lighting', 'Sound Systems'] 
+  },
+  'furniture-decor': {
+    label: 'Furniture & Decor',
+    subcategories: ['Decor Items', 'Lighting', 'Seating', 'Storage', 'Tables']
+  },
+  'games-entertainment': {
+    label: 'Games & Entertainment',
+    subcategories: ['Arcade Games', 'Board Games', 'Entertainment Systems', 'Party Games', 'Video Games']
+  },
+  'health-mobility': {
+    label: 'Health & Mobility',
+    subcategories: ['Exercise Equipment', 'Medical Devices', 'Recovery Tools', 'Walking Aids', 'Wheelchairs']
   },
   'home-garden': { 
-    label: 'Home & Garden', 
-    icon: '🏡',
-    subcategories: ['Gardening Tools', 'Lawn Care', 'Cleaning Equipment', 'Furniture', 'Appliances'] 
+    label: 'Home & Garden',
+    subcategories: ['Appliances', 'Cleaning Equipment', 'Furniture', 'Gardening Tools', 'Lawn Care'] 
   },
-  'appliances': { 
-    label: 'Appliances', 
-    icon: '🔌',
-    subcategories: ['Kitchen', 'Laundry', 'Heating & Cooling', 'Small Appliances', 'Cleaning'] 
+  'instruments': { 
+    label: 'Instruments',
+    subcategories: ['Drums', 'Guitars', 'Keyboards', 'Recording Equipment', 'Wind Instruments'] 
+  },
+  'kids-baby': {
+    label: 'Kids & Baby',
+    subcategories: ['Baby Gear', 'Car Seats', 'High Chairs', 'Strollers', 'Toys']
+  },
+  'moving-storage': {
+    label: 'Moving & Storage',
+    subcategories: ['Dollies', 'Lifting Equipment', 'Moving Equipment', 'Packing Supplies', 'Storage Solutions']
+  },
+  'office-tech': {
+    label: 'Office & Tech',
+    subcategories: ['Communication', 'Computers', 'Office Furniture', 'Presentation Equipment', 'Printers']
   },
   'other': { 
-    label: 'Other', 
-    icon: '📦',
-    subcategories: ['Books', 'Games', 'Baby Items', 'Pet Supplies', 'Miscellaneous'] 
+    label: 'Other',
+    subcategories: ['Baby Items', 'Books', 'Games', 'Miscellaneous', 'Pet Supplies'] 
+  },
+  'pets': {
+    label: 'Pets',
+    subcategories: ['Carriers', 'Exercise Equipment', 'Grooming', 'Pet Care', 'Training Aids']
+  },
+  'seasonal-holiday': {
+    label: 'Seasonal & Holiday',
+    subcategories: ['Christmas Decorations', 'Easter Supplies', 'Halloween Items', 'Holiday Lighting', 'Party Themes']
+  },
+  'sports-outdoors': { 
+    label: 'Sports & Outdoors',
+    subcategories: ['Camping', 'Cycling', 'Fitness', 'Water Sports', 'Winter Sports'] 
+  },
+  'tools-diy': { 
+    label: 'Tools & DIY',
+    subcategories: ['Hand Tools', 'Ladders & Scaffolding', 'Measuring Tools', 'Power Tools', 'Safety Equipment'] 
+  },
+  'travel-camping': {
+    label: 'Travel & Camping',
+    subcategories: ['Backpacks', 'Outdoor Cooking', 'Sleeping Gear', 'Tents', 'Travel Accessories']
   }
 };
 
@@ -108,25 +150,31 @@ const stepSchemas = {
     title: z.string().min(5, 'Title must be at least 5 characters').max(100, 'Title must be less than 100 characters'),
     description: z.string().min(20, 'Description must be at least 20 characters').max(2000, 'Description must be less than 2000 characters'),
     category: z.string().min(1, 'Please select a category'),
-    subcategory: z.string().optional(),
+    subcategory: z.string().min(1, 'Please select a subcategory'),
+    condition: z.string().min(1, 'Please select the item condition'),
+    brand: z.string().min(1, 'Please enter the brand'),
+    model: z.string().min(1, 'Please enter the model'),
+    year: z.number().min(1950, 'Please enter a valid year').max(new Date().getFullYear(), 'Year cannot be in the future'),
   }),
   2: z.object({
-    condition: z.string().min(1, 'Please select the item condition'),
-    brand: z.string().optional(),
-    model: z.string().optional(),
-    year: z.number().optional(),
+    dailyRate: z.number().min(1, 'Daily rate must be at least $1').max(1000, 'Daily rate must be less than $1000'),
+    hourlyRate: z.union([z.number(), z.nan()]).optional().transform(val => isNaN(val as number) ? undefined : val),
+    weeklyRate: z.union([z.number(), z.nan()]).optional().transform(val => isNaN(val as number) ? undefined : val),
+    monthlyRate: z.union([z.number(), z.nan()]).optional().transform(val => isNaN(val as number) ? undefined : val),
+    depositAmount: z.number().min(0, 'Deposit amount must be at least $0'),
+    availabilityType: z.enum(['always', 'partial'], { required_error: 'Please select availability type' }),
+    availableFrom: z.string().optional(),
+    availableTo: z.string().optional(),
+    insuranceEnabled: z.boolean().optional(),
   }),
   3: z.object({
-    dailyRate: z.number().min(1, 'Daily rate must be at least $1').max(1000, 'Daily rate must be less than $1000'),
-    weeklyRate: z.number().optional(),
-    monthlyRate: z.number().optional(),
-    depositAmount: z.number().min(0, 'Deposit amount must be at least $0'),
-  }),
-  4: z.object({
-    location: z.string().min(2, 'Please enter your suburb/city'),
+    unitNumber: z.string().optional(),
+    streetNumber: z.string().min(1, 'Please enter the street number'),
+    streetName: z.string().min(2, 'Please enter the street name'),
+    suburb: z.string().min(2, 'Please enter your suburb/city'),
     state: z.string().min(1, 'Please select your state'),
     postcode: z.string().regex(/^[0-9]{4}$/, 'Please enter a valid Australian postcode'),
-    deliveryMethods: z.array(z.string()).min(1, 'Please select at least one delivery method'),
+    deliveryMethods: z.array(z.string()).optional(),
   })
 };
 
@@ -134,17 +182,14 @@ const fullSchema = z.object({
   ...stepSchemas[1].shape,
   ...stepSchemas[2].shape,
   ...stepSchemas[3].shape,
-  ...stepSchemas[4].shape,
 });
 
 type ListingForm = z.infer<typeof fullSchema>;
 
 const steps = [
-  { id: 1, title: 'Basic Details', description: 'Tell us about your item' },
-  { id: 2, title: 'Item Condition', description: 'Describe the condition and specifications' },
-  { id: 3, title: 'Pricing', description: 'Set your rental rates' },
-  { id: 4, title: 'Location & Delivery', description: 'Where and how will renters get the item' },
-  { id: 5, title: 'Photos', description: 'Add photos to showcase your item' }
+  { id: 1, title: 'Basic Details', description: 'Tell us about your item, condition, and photos' },
+  { id: 2, title: 'Pricing & Availability', description: 'Set your rental rates and availability' },
+  { id: 3, title: 'Location & Delivery', description: 'Where and how will renters get the item' }
 ];
 
 function CreateListingContent() {
@@ -156,6 +201,7 @@ function CreateListingContent() {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [editingListing, setEditingListing] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState<string[]>([]);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -167,6 +213,7 @@ function CreateListingContent() {
     setValue,
     trigger,
     getValues,
+    clearErrors,
     formState: { errors },
   } = useForm<ListingForm>({
     resolver: zodResolver(fullSchema),
@@ -174,10 +221,43 @@ function CreateListingContent() {
     defaultValues: {
       deliveryMethods: [],
       depositAmount: 0,
+      insuranceEnabled: false,
+      brand: '',
+      model: '',
+      availabilityType: 'always',
+      availableFrom: '',
+      availableTo: '',
     }
   });
 
   const watchCategory = watch('category');
+  const watchAvailabilityType = watch('availabilityType');
+
+  // Helper function to get field names for each step
+  const getStepFields = (step: number): string[] => {
+    switch (step) {
+      case 1:
+        return ['title', 'description', 'category', 'subcategory', 'condition', 'brand', 'model', 'year'];
+      case 2:
+        return ['dailyRate', 'hourlyRate', 'weeklyRate', 'monthlyRate', 'depositAmount', 'availabilityType', 'availableFrom', 'availableTo', 'insuranceEnabled'];
+      case 3:
+        return ['unitNumber', 'streetNumber', 'streetName', 'suburb', 'state', 'postcode', 'deliveryMethods'];
+      default:
+        return [];
+    }
+  };
+
+  // Helper function to get errors for current step only
+  const getCurrentStepErrors = () => {
+    const stepFields = getStepFields(currentStep);
+    const stepErrors: any = {};
+    stepFields.forEach(field => {
+      if (errors[field as keyof typeof errors]) {
+        stepErrors[field] = errors[field as keyof typeof errors];
+      }
+    });
+    return stepErrors;
+  };
   
   useEffect(() => {
     checkUser();
@@ -214,28 +294,53 @@ function CreateListingContent() {
       setValue('category', data.category);
       setValue('condition', data.condition);
       setValue('dailyRate', data.price_per_day);
+      setValue('hourlyRate', data.price_hourly);
       setValue('weeklyRate', data.price_weekly);
+      setValue('monthlyRate', data.monthly_rate);
       setValue('depositAmount', data.deposit);
       setValue('brand', data.brand || '');
       setValue('model', data.model || '');
-      setValue('year', data.year);
+      setValue('year', data.year || new Date().getFullYear());
+      setValue('availableFrom', data.available_from ? data.available_from.split('T')[0] : '');
+      setValue('availableTo', data.available_to ? data.available_to.split('T')[0] : '');
+      setValue('insuranceEnabled', data.insurance_enabled || false);
+      
+      // Set availability type based on whether dates are set
+      setValue('availabilityType', (data.available_from || data.available_to) ? 'partial' : 'always');
       
       // Parse address for location fields
       if (data.address) {
         const addressParts = data.address.split(',');
-        if (addressParts.length >= 2) {
-          setValue('location', data.city || addressParts[0].trim());
-          setValue('state', data.state);
-          setValue('postcode', data.postal_code);
+        const fullAddress = addressParts[0]?.trim() || '';
+        
+        // Try to parse the address components
+        const addressRegex = /^(?:(\d+[A-Za-z]?|Unit\s+\w+)\s+)?(\d+)\s+(.+)$/;
+        const match = fullAddress.match(addressRegex);
+        
+        if (match) {
+          setValue('unitNumber', match[1] || '');
+          setValue('streetNumber', match[2] || '');
+          setValue('streetName', match[3] || '');
+        } else {
+          // Fallback: split by spaces and try to identify parts
+          const parts = fullAddress.split(' ');
+          if (parts.length >= 2) {
+            setValue('streetNumber', parts[0] || '');
+            setValue('streetName', parts.slice(1).join(' ') || '');
+          }
         }
+        
+        setValue('suburb', data.city || '');
+        setValue('state', data.state || '');
+        setValue('postcode', data.postal_code || '');
       }
 
-      // Set delivery methods from features if available
+      // Set delivery methods from features if available (excluding pickup since it's always available)
       const deliveryMethods = [];
-      if (data.features?.includes('pickup')) deliveryMethods.push('pickup');
       if (data.features?.includes('delivery')) deliveryMethods.push('delivery');
       if (data.features?.includes('shipping')) deliveryMethods.push('shipping');
       setValue('deliveryMethods', deliveryMethods);
+      setSelectedDeliveryMethods(deliveryMethods);
 
       // Load existing images as preview URLs
       if (data.images && data.images.length > 0) {
@@ -254,6 +359,18 @@ function CreateListingContent() {
     }
   }, [watchCategory, setValue]);
 
+  useEffect(() => {
+    if (watchAvailabilityType === 'always') {
+      setValue('availableFrom', ''); // Clear date fields when switching to always available
+      setValue('availableTo', '');
+    }
+  }, [watchAvailabilityType, setValue]);
+
+  // Clear ALL errors when step changes
+  useEffect(() => {
+    clearErrors();
+  }, [currentStep, clearErrors]);
+
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -268,14 +385,35 @@ function CreateListingContent() {
     if (!currentSchema) return true;
 
     const currentData = getValues();
-    const result = currentSchema.safeParse(currentData);
+    
+    // Extract only the fields for the current step
+    const stepFields = getStepFields(currentStep);
+    const stepData: any = {};
+    stepFields.forEach(field => {
+      stepData[field] = currentData[field as keyof typeof currentData];
+    });
+    
+    // For step 2, handle NaN values in optional rate fields
+    if (currentStep === 2) {
+      if (isNaN(stepData.hourlyRate as number)) stepData.hourlyRate = undefined;
+      if (isNaN(stepData.weeklyRate as number)) stepData.weeklyRate = undefined;
+      if (isNaN(stepData.monthlyRate as number)) stepData.monthlyRate = undefined;
+    }
+    
+    const result = currentSchema.safeParse(stepData);
+    
+    // Additional validation for step 1: check minimum photos
+    if (currentStep === 1 && imagePreview.length < 3) {
+      toast.error('Please add at least 3 photos before continuing');
+      return false;
+    }
     
     if (result.success) {
       setCompletedSteps(prev => new Set([...prev, currentStep]));
       return true;
     } else {
-      // Trigger validation for current step fields
-      const stepFields = Object.keys(currentSchema.shape);
+      
+      // Trigger validation for current step fields to show inline errors
       await trigger(stepFields as any);
       return false;
     }
@@ -283,14 +421,30 @@ function CreateListingContent() {
 
   const nextStep = async () => {
     const isValid = await validateCurrentStep();
-    if (isValid && currentStep < 5) {
+    if (isValid && currentStep < 3) {
+      // Clear ALL errors before moving to next step
+      clearErrors();
+      
       setCurrentStep(currentStep + 1);
+      
+      // Clear errors again after step change (in next tick)
+      setTimeout(() => {
+        clearErrors();
+      }, 0);
     }
   };
 
   const previousStep = () => {
     if (currentStep > 1) {
+      // Clear ALL errors before moving to previous step
+      clearErrors();
+      
       setCurrentStep(currentStep - 1);
+      
+      // Clear errors again after step change (in next tick)
+      setTimeout(() => {
+        clearErrors();
+      }, 0);
     }
   };
 
@@ -357,25 +511,69 @@ function CreateListingContent() {
 
   const handleDeliveryMethodChange = (method: string, checked: boolean) => {
     const currentMethods = getValues('deliveryMethods') || [];
+    let newMethods;
+    
     if (checked) {
-      setValue('deliveryMethods', [...currentMethods, method]);
+      newMethods = [...currentMethods, method];
+      setSelectedDeliveryMethods(prev => [...prev, method]);
     } else {
-      setValue('deliveryMethods', currentMethods.filter(m => m !== method));
+      newMethods = currentMethods.filter(m => m !== method);
+      setSelectedDeliveryMethods(prev => prev.filter(m => m !== method));
     }
+    
+    setValue('deliveryMethods', newMethods);
     trigger('deliveryMethods');
   };
 
+  // Handle whole number input (remove decimals)
+  const handleWholeNumberInput = (e: React.FormEvent<HTMLInputElement>, fieldName: string) => {
+    const input = e.currentTarget;
+    const value = input.value;
+    
+    // Remove any decimal points and everything after them
+    const wholeNumber = value.split('.')[0];
+    
+    if (value !== wholeNumber) {
+      input.value = wholeNumber;
+      setValue(fieldName as any, parseInt(wholeNumber) || 0);
+    }
+  };
+
   const onSubmit = async (data: ListingForm) => {
-    // For edit mode, allow submission without new images if existing images exist
-    if (!isEditMode && images.length === 0) {
-      toast.error('Please add at least one image');
-      setCurrentStep(5);
+    // Check if we have at least 3 images (either new uploads or existing previews)
+    if (imagePreview.length < 3) {
+      toast.error('Please add at least 3 images');
+      setCurrentStep(1); // Go back to first step where photos are now located
       return;
     }
-    
-    if (isEditMode && images.length === 0 && imagePreview.length === 0) {
-      toast.error('Please add at least one image');
-      setCurrentStep(5);
+
+    // Clean up optional number fields (convert NaN to undefined)
+    const cleanedData = { ...data };
+    if (isNaN(cleanedData.hourlyRate as number)) cleanedData.hourlyRate = undefined;
+    if (isNaN(cleanedData.weeklyRate as number)) cleanedData.weeklyRate = undefined;
+    if (isNaN(cleanedData.monthlyRate as number)) cleanedData.monthlyRate = undefined;
+
+    // Validate the complete form data
+    const fullValidation = fullSchema.safeParse(cleanedData);
+    if (!fullValidation.success) {
+      
+      // Find the first error and redirect to the appropriate step
+      const firstError = fullValidation.error.issues[0];
+      const fieldName = firstError.path[0] as string;
+      
+      // Determine which step contains the error and redirect there
+      if (['title', 'description', 'category', 'subcategory', 'condition', 'brand', 'model', 'year'].includes(fieldName)) {
+        setCurrentStep(1);
+      } else if (['dailyRate', 'hourlyRate', 'weeklyRate', 'monthlyRate', 'depositAmount', 'availabilityType', 'availableFrom', 'availableTo', 'insuranceEnabled'].includes(fieldName)) {
+        setCurrentStep(2);
+      } else if (['unitNumber', 'streetNumber', 'streetName', 'suburb', 'state', 'postcode', 'deliveryMethods'].includes(fieldName)) {
+        setCurrentStep(3);
+      }
+      
+      // Trigger validation to show inline errors
+      await trigger();
+      
+      toast.error('Please fix the form errors before submitting');
       return;
     }
 
@@ -393,43 +591,63 @@ function CreateListingContent() {
         finalImageUrls = [...imagePreview.filter(url => typeof url === 'string'), ...imageUrls];
       }
 
+      // Handle availability dates based on availability type
+      const availableFromDate = cleanedData.availabilityType === 'partial' && cleanedData.availableFrom 
+        ? new Date(cleanedData.availableFrom) 
+        : null;
+      const availableToDate = cleanedData.availabilityType === 'partial' && cleanedData.availableTo 
+        ? new Date(cleanedData.availableTo) 
+        : null;
+
       // Default coordinates (Sydney)
       const defaultLat = -33.8688;
       const defaultLng = 151.2093;
 
       // Prepare features array including delivery methods and subcategory
-      const features = [...(data.deliveryMethods || [])];
-      if (data.subcategory) {
-        features.push(`Subcategory: ${data.subcategory}`);
+      // Always include pickup, plus any additional delivery methods
+      const features = ['pickup', ...(cleanedData.deliveryMethods || [])];
+      if (cleanedData.subcategory) {
+        features.push(`Subcategory: ${cleanedData.subcategory}`);
       }
 
       // Prepare description with subcategory if provided
-      let fullDescription = data.description;
-      if (data.subcategory) {
-        fullDescription = `${data.description}\n\nSubcategory: ${data.subcategory}`;
+      let fullDescription = cleanedData.description;
+      if (cleanedData.subcategory) {
+        fullDescription = `${cleanedData.description}\n\nSubcategory: ${cleanedData.subcategory}`;
       }
 
       if (isEditMode && editingListing) {
+        // Default coordinates for Perth, WA (will be improved with geocoding later) 
+        const defaultLat = -31.9505;
+        const defaultLng = 115.8605;
+
         // Update existing listing
         const { error } = await supabase
           .from('listings')
           .update({
-            title: data.title,
+            title: cleanedData.title,
             description: fullDescription,
-            category: data.category,
-            price_per_day: data.dailyRate,
-            price_weekly: data.weeklyRate || null,
-            deposit: data.depositAmount,
+            category: cleanedData.category,
+            price_per_day: cleanedData.dailyRate,
+            price_hourly: cleanedData.hourlyRate || null,
+            price_weekly: cleanedData.weeklyRate || null,
+            deposit: cleanedData.depositAmount,
             images: finalImageUrls,
-            address: `${data.location}, ${data.state} ${data.postcode}`,
-            city: data.location,
-            state: data.state,
-            postal_code: data.postcode,
-            condition: data.condition,
-            brand: data.brand || null,
-            model: data.model || null,
-            year: data.year || null,
+            location: `POINT(${defaultLng} ${defaultLat})`,
+            address: `${cleanedData.unitNumber ? cleanedData.unitNumber + ' ' : ''}${cleanedData.streetNumber} ${cleanedData.streetName}, ${cleanedData.suburb}, ${cleanedData.state} ${cleanedData.postcode}`,
+            city: cleanedData.suburb,
+            state: cleanedData.state,
+            postal_code: cleanedData.postcode,
+            condition: cleanedData.condition,
+            brand: cleanedData.brand,
+            model: cleanedData.model,
+            year: cleanedData.year,
             features: features,
+            available_from: availableFromDate?.toISOString() || null,
+            available_to: availableToDate?.toISOString() || null,
+            pickup_available: true,
+            delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
+            insurance_enabled: cleanedData.insuranceEnabled || false,
           })
           .eq('id', editingListing.id);
 
@@ -442,28 +660,54 @@ function CreateListingContent() {
         toast.success('Listing updated successfully!');
         router.push(`/listings/${editingListing.id}`);
       } else {
-        // Create new listing
-        const { data: result, error } = await supabase.rpc('create_listing_with_location', {
-          p_owner_id: user.id,
-          p_title: data.title,
-          p_description: fullDescription,
-          p_category: data.category,
-          p_price_per_day: data.dailyRate,
-          p_price_weekly: data.weeklyRate || null,
-          p_deposit: data.depositAmount,
-          p_images: finalImageUrls,
-          p_address: `${data.location}, ${data.state} ${data.postcode}`,
-          p_city: data.location,
-          p_state: data.state,
-          p_postal_code: data.postcode,
-          p_longitude: defaultLng,
-          p_latitude: defaultLat,
-          p_condition: data.condition,
-          p_brand: data.brand || null,
-          p_model: data.model || null,
-          p_year: data.year || null,
-          p_features: features,
+        // Create new listing with error handling
+        console.log('Attempting to create listing with data:', {
+          owner_id: user.id,
+          title: cleanedData.title,
+          description: fullDescription,
+          category: cleanedData.category,
+          price_per_day: cleanedData.dailyRate,
+          deposit: cleanedData.depositAmount,
         });
+
+        // Default coordinates for Perth, WA (will be improved with geocoding later)
+        const defaultLat = -31.9505;
+        const defaultLng = 115.8605;
+
+        const { data: result, error } = await supabase
+          .from('listings')
+          .insert({
+            owner_id: user.id,
+            title: cleanedData.title,
+            description: fullDescription,
+            category: cleanedData.category,
+            price_per_day: cleanedData.dailyRate,
+            price_hourly: cleanedData.hourlyRate || null,
+            price_weekly: cleanedData.weeklyRate || null,
+            deposit: cleanedData.depositAmount,
+            currency: 'AUD',
+            images: finalImageUrls,
+            location: `POINT(${defaultLng} ${defaultLat})`,
+            address: `${cleanedData.unitNumber ? cleanedData.unitNumber + ' ' : ''}${cleanedData.streetNumber} ${cleanedData.streetName}, ${cleanedData.suburb}, ${cleanedData.state} ${cleanedData.postcode}`,
+            city: cleanedData.suburb,
+            state: cleanedData.state,
+            postal_code: cleanedData.postcode,
+            country: 'Australia',
+            condition: cleanedData.condition,
+            brand: cleanedData.brand,
+            model: cleanedData.model,
+            year: cleanedData.year,
+            features: features,
+            available_from: availableFromDate?.toISOString() || null,
+            available_to: availableToDate?.toISOString() || null,
+            pickup_available: true,
+            delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
+            insurance_enabled: cleanedData.insuranceEnabled || false,
+            is_active: false,
+            approval_status: 'pending',
+          })
+          .select()
+          .single();
 
         if (error) {
           console.error('Error creating listing:', error);
@@ -481,8 +725,12 @@ function CreateListingContent() {
         router.push(`/listings/${result.id}`);
       }
     } catch (error) {
-      console.error('Error creating listing:', error);
-      toast.error('Something went wrong. Please try again.');
+      console.error('Error creating/updating listing:', error);
+      if (error instanceof Error) {
+        toast.error(`Failed to save listing: ${error.message}`);
+      } else {
+        toast.error('Something went wrong. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -543,11 +791,104 @@ function CreateListingContent() {
             {/* Step 1: Basic Details */}
             {currentStep === 1 && (
               <div className="space-y-6">
-                <div className="text-center mb-6">
-                  <Package className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold text-gray-900">Tell us about your item</h2>
-                  <p className="text-gray-600">Give your item a great title and description</p>
+                {/* Photos Section - Moved to Top */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Camera className="w-5 h-5 mr-2 text-green-500" />
+                    Add Photos *
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">Add at least 3 photos to showcase your item</p>
+
+                  {/* Photo Grid Upload */}
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-4 mb-6">
+                    {/* Render uploaded photos */}
+                    {imagePreview.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <div className="aspect-square relative overflow-hidden rounded-lg border-2 border-gray-200 bg-gray-50">
+                          <Image
+                            src={preview}
+                            alt={`Preview ${index + 1}`}
+                            fill
+                            className="object-contain"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                          {index === 0 && (
+                            <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded">
+                              Main
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Add photo slots */}
+                    {Array.from({ length: Math.max(0, 10 - imagePreview.length) }).map((_, index) => {
+                      const isFirstEmpty = imagePreview.length === 0 && index === 0;
+                      return (
+                        <label
+                          key={`empty-${index}`}
+                          htmlFor="image-upload"
+                          className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors bg-gray-50"
+                        >
+                          {isFirstEmpty ? (
+                            <Camera className="w-8 h-8 text-gray-400" />
+                          ) : (
+                            <div className="w-8 h-8 text-gray-400 flex items-center justify-center text-2xl font-light">
+                              +
+                            </div>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {/* Hidden file input */}
+                  <input
+                    type="file"
+                    id="image-upload"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                  
+                  <div className="text-sm text-gray-600">
+                    <p className="mb-2"><strong>Photo Requirements:</strong></p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Upload 3-10 photos (JPEG, PNG, WebP up to 10MB each)</li>
+                      <li>First photo will be your main listing photo</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="mt-4 text-sm text-gray-600">
+                    <p><strong>Tips for great photos:</strong></p>
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      <li>Take photos in good lighting</li>
+                      <li>Show the item from multiple angles</li>
+                      <li>Include any accessories or parts</li>
+                      <li>Highlight any wear or damage honestly</li>
+                    </ul>
+                  </div>
+
+                  {imagePreview.length < 3 && (
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm text-amber-800 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        Please add at least 3 photos to continue ({imagePreview.length}/3)
+                      </p>
+                    </div>
+                  )}
                 </div>
+
+                {/* Item Details Section */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Item Details</h3>
 
                 {/* Title */}
                 <div>
@@ -593,31 +934,24 @@ function CreateListingContent() {
 
                 {/* Category */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Category *
                   </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <select
+                    {...register('category')}
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                      errors.category ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Select a category</option>
                     {Object.entries(categories).map(([key, category]) => (
-                      <label key={key} className="relative">
-                        <input
-                          {...register('category')}
-                          type="radio"
-                          value={key}
-                          className="sr-only"
-                        />
-                        <div className={`p-4 border-2 rounded-lg cursor-pointer transition-colors text-center ${
-                          watchCategory === key 
-                            ? 'border-green-500 bg-green-50' 
-                            : 'border-gray-300 hover:border-gray-400'
-                        }`}>
-                          <div className="text-2xl mb-2">{category.icon}</div>
-                          <div className="text-sm font-medium">{category.label}</div>
-                        </div>
-                      </label>
+                      <option key={key} value={key}>
+                        {category.label}
+                      </option>
                     ))}
-                  </div>
+                  </select>
                   {errors.category && (
-                    <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
                       <AlertCircle className="w-4 h-4 mr-1" />
                       {errors.category.message}
                     </p>
@@ -628,394 +962,520 @@ function CreateListingContent() {
                 {watchCategory && categories[watchCategory as keyof typeof categories] && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Subcategory (Optional)
+                      Subcategory *
                     </label>
                     <select
                       {...register('subcategory')}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                        errors.subcategory ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     >
-                      <option value="">Select subcategory (optional)</option>
+                      <option value="">Select a subcategory</option>
                       {categories[watchCategory as keyof typeof categories].subcategories.map((sub) => (
                         <option key={sub} value={sub}>{sub}</option>
                       ))}
                     </select>
+                    {errors.subcategory && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {errors.subcategory.message}
+                      </p>
+                    )}
                   </div>
-                                 )}
+                )}
+
+                {/* Item Condition Section */}
+                <div className="border-t pt-6 mt-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Info className="w-5 h-5 mr-2 text-green-500" />
+                    Item Condition & Details
+                  </h3>
+
+                  {/* Condition */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Condition *
+                    </label>
+                    <select
+                      {...register('condition')}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                        errors.condition ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Select condition</option>
+                      {conditionOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label} - {option.description}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.condition && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {errors.condition.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Brand & Model */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Brand *
+                      </label>
+                      <input
+                        {...register('brand')}
+                        type="text"
+                        placeholder="e.g. Canon, Apple, Bosch"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                          errors.brand ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                      />
+                      {errors.brand && (
+                        <p className="mt-1 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="w-4 h-4 mr-1" />
+                          {errors.brand.message}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Model *
+                      </label>
+                      <input
+                        {...register('model')}
+                        type="text"
+                        placeholder="e.g. EOS R5, iPhone 14, DCS391"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                          errors.model ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                      />
+                      {errors.model && (
+                        <p className="mt-1 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="w-4 h-4 mr-1" />
+                          {errors.model.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Year */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Year *
+                    </label>
+                    <input
+                      {...register('year', { valueAsNumber: true })}
+                      type="number"
+                      min="1950"
+                      max={new Date().getFullYear()}
+                      placeholder="e.g. 2023"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                        errors.year ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                    />
+                    {errors.year && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {errors.year.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                </div>
+
                </div>
              )}
 
-             {/* Step 2: Item Condition */}
+             {/* Step 2: Pricing & Availability */}
              {currentStep === 2 && (
                <div className="space-y-6">
-                 <div className="text-center mb-6">
-                   <Info className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                   <h2 className="text-2xl font-bold text-gray-900">Item Condition & Details</h2>
-                   <p className="text-gray-600">Help renters know what to expect</p>
+                 {/* Pricing Section */}
+                 <div className="space-y-6">
+                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Rental Rates</h3>
+
+                   {/* Daily Rate */}
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Daily Rate * (AUD)
+                     </label>
+                     <div className="relative">
+                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                       <input
+                         {...register('dailyRate', { valueAsNumber: true })}
+                         type="number"
+                         min="1"
+                         max="1000"
+                         step="1"
+                         placeholder="25"
+                         onInput={(e) => handleWholeNumberInput(e, 'dailyRate')}
+                         className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                           errors.dailyRate ? 'border-red-300' : 'border-gray-300'
+                         }`}
+                       />
+                     </div>
+                     {errors.dailyRate && (
+                       <p className="mt-1 text-sm text-red-600 flex items-center">
+                         <AlertCircle className="w-4 h-4 mr-1" />
+                         {errors.dailyRate.message}
+                       </p>
+                     )}
+                   </div>
+
+                   {/* Hourly and Optional Rates */}
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Hourly Rate (Optional)
+                       </label>
+                       <div className="relative">
+                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                                                <input
+                         {...register('hourlyRate', { valueAsNumber: true })}
+                         type="number"
+                         min="1"
+                         step="1"
+                         placeholder="5"
+                         onInput={(e) => handleWholeNumberInput(e, 'hourlyRate')}
+                         className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       />
+                       </div>
+                       <p className="mt-1 text-xs text-gray-500">For short-term rentals</p>
+                     </div>
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Weekly Rate (Optional)
+                       </label>
+                       <div className="relative">
+                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                         <input
+                           {...register('weeklyRate', { valueAsNumber: true })}
+                           type="number"
+                           min="1"
+                           step="10"
+                           placeholder="150"
+                           onInput={(e) => handleWholeNumberInput(e, 'weeklyRate')}
+                           className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                         />
+                       </div>
+                       <p className="mt-1 text-xs text-gray-500">Usually 20-30% discount from daily rate</p>
+                     </div>
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Monthly Rate (Optional)
+                       </label>
+                       <div className="relative">
+                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                         <input
+                           {...register('monthlyRate', { valueAsNumber: true })}
+                           type="number"
+                           min="1"
+                           step="10"
+                           placeholder="500"
+                           onInput={(e) => handleWholeNumberInput(e, 'monthlyRate')}
+                           className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                         />
+                       </div>
+                       <p className="mt-1 text-xs text-gray-500">Usually 40-50% discount from daily rate</p>
+                     </div>
+                   </div>
+
+                   {/* Deposit */}
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Security Deposit (AUD)
+                     </label>
+                     <div className="relative">
+                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                       <input
+                         {...register('depositAmount', { valueAsNumber: true })}
+                         type="number"
+                         min="0"
+                         step="10"
+                         placeholder="100"
+                         onInput={(e) => handleWholeNumberInput(e, 'depositAmount')}
+                         className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                           errors.depositAmount ? 'border-red-300' : 'border-gray-300'
+                         }`}
+                       />
+                     </div>
+                     <p className="mt-1 text-xs text-gray-500">
+                       Refundable deposit to protect against damage. Usually $50-$500 based on item value.
+                     </p>
+                     {errors.depositAmount && (
+                       <p className="mt-1 text-sm text-red-600 flex items-center">
+                         <AlertCircle className="w-4 h-4 mr-1" />
+                         {errors.depositAmount.message}
+                       </p>
+                     )}
+                   </div>
                  </div>
 
-                 {/* Condition */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                     Condition *
-                   </label>
-                   <div className="space-y-3">
-                     {conditionOptions.map((option) => (
-                       <label key={option.value} className="flex items-start space-x-3">
+                                  {/* Availability Section */}
+                 <div className="border-t pt-6 mt-8">
+                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Availability</h3>
+                   
+                   {/* Availability Type Selector */}
+                   <div className="mb-6">
+                     <label className="block text-sm font-medium text-gray-700 mb-3">
+                       Availability Type *
+                     </label>
+                     <div className="space-y-2">
+                       <label className="flex items-start space-x-3">
                          <input
-                           {...register('condition')}
+                           {...register('availabilityType')}
                            type="radio"
-                           value={option.value}
+                           value="always"
                            className="mt-1 text-green-600 focus:ring-green-500"
                          />
                          <div>
-                           <div className="font-medium text-gray-900">{option.label}</div>
-                           <div className="text-sm text-gray-500">{option.description}</div>
+                           <div className="font-medium text-gray-900">Always Available</div>
+                           <div className="text-sm text-gray-500">Item is available for rent at any time</div>
                          </div>
                        </label>
-                     ))}
+                       
+                       <label className="flex items-start space-x-3">
+                         <input
+                           {...register('availabilityType')}
+                           type="radio"
+                           value="partial"
+                           className="mt-1 text-green-600 focus:ring-green-500"
+                         />
+                         <div>
+                           <div className="font-medium text-gray-900">Partial Available</div>
+                           <div className="text-sm text-gray-500">Item is only available during specific date ranges</div>
+                         </div>
+                       </label>
+                     </div>
+                     {errors.availabilityType && (
+                       <p className="mt-2 text-sm text-red-600 flex items-center">
+                         <AlertCircle className="w-4 h-4 mr-1" />
+                         {errors.availabilityType.message}
+                       </p>
+                     )}
                    </div>
-                   {errors.condition && (
-                     <p className="mt-2 text-sm text-red-600 flex items-center">
-                       <AlertCircle className="w-4 h-4 mr-1" />
-                       {errors.condition.message}
-                     </p>
+                   
+                   {/* Date Range Selection - Only show when partial availability is selected */}
+                   {watchAvailabilityType === 'partial' && (
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                           Available From (Optional)
+                         </label>
+                         <input
+                           {...register('availableFrom')}
+                           type="date"
+                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                         />
+                         <p className="mt-1 text-xs text-gray-500">When is your item first available?</p>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                           Available Until (Optional)
+                         </label>
+                         <input
+                           {...register('availableTo')}
+                           type="date"
+                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                         />
+                         <p className="mt-1 text-xs text-gray-500">When will you stop renting this item?</p>
+                       </div>
+                     </div>
                    )}
-                 </div>
 
-                 {/* Brand & Model */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {/* Insurance Option */}
                    <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Brand (Optional)
+                     <label className="flex items-center space-x-3">
+                       <input
+                         {...register('insuranceEnabled')}
+                         type="checkbox"
+                         className="text-green-600 focus:ring-green-500"
+                       />
+                       <div>
+                         <div className="font-medium text-gray-900">Enable Insurance Option</div>
+                         <div className="text-sm text-gray-500">Allow renters to purchase insurance to cover potential damage</div>
+                       </div>
                      </label>
-                     <input
-                       {...register('brand')}
-                       type="text"
-                       placeholder="e.g. Canon, Apple, Bosch"
-                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                     />
                    </div>
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Model (Optional)
-                     </label>
-                     <input
-                       {...register('model')}
-                       type="text"
-                       placeholder="e.g. EOS R5, iPhone 14, DCS391"
-                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                     />
-                   </div>
-                 </div>
-
-                 {/* Year */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Year (Optional)
-                   </label>
-                   <input
-                     {...register('year', { valueAsNumber: true })}
-                     type="number"
-                     min="1950"
-                     max={new Date().getFullYear()}
-                     placeholder="e.g. 2023"
-                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                   />
                  </div>
                </div>
              )}
 
-             {/* Step 3: Pricing */}
+             {/* Step 3: Location & Delivery */}
              {currentStep === 3 && (
                <div className="space-y-6">
-                 <div className="text-center mb-6">
-                   <DollarSign className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                   <h2 className="text-2xl font-bold text-gray-900">Set Your Rental Rates</h2>
-                   <p className="text-gray-600">Choose competitive rates to attract renters</p>
-                 </div>
-
-                 {/* Daily Rate */}
+                 {/* Item Location for Pickup */}
                  <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Daily Rate * (AUD)
-                   </label>
-                   <div className="relative">
-                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                     <input
-                       {...register('dailyRate', { valueAsNumber: true })}
-                       type="number"
-                       min="1"
-                       max="1000"
-                       step="0.01"
-                       placeholder="25.00"
-                       className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                         errors.dailyRate ? 'border-red-300' : 'border-gray-300'
-                       }`}
-                     />
-                   </div>
-                   {errors.dailyRate && (
-                     <p className="mt-1 text-sm text-red-600 flex items-center">
-                       <AlertCircle className="w-4 h-4 mr-1" />
-                       {errors.dailyRate.message}
-                     </p>
-                   )}
-                 </div>
-
-                 {/* Optional Rates */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Weekly Rate (Optional)
-                     </label>
-                     <div className="relative">
-                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                       <input
-                         {...register('weeklyRate', { valueAsNumber: true })}
-                         type="number"
-                         min="1"
-                         step="0.01"
-                         placeholder="150.00"
-                         className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                       />
-                     </div>
-                     <p className="mt-1 text-xs text-gray-500">Usually 20-30% off daily rate</p>
-                   </div>
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Monthly Rate (Optional)
-                     </label>
-                     <div className="relative">
-                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                       <input
-                         {...register('monthlyRate', { valueAsNumber: true })}
-                         type="number"
-                         min="1"
-                         step="0.01"
-                         placeholder="500.00"
-                         className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                       />
-                     </div>
-                     <p className="mt-1 text-xs text-gray-500">Usually 40-50% off daily rate</p>
-                   </div>
-                 </div>
-
-                 {/* Deposit */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Security Deposit (AUD)
-                   </label>
-                   <div className="relative">
-                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                     <input
-                       {...register('depositAmount', { valueAsNumber: true })}
-                       type="number"
-                       min="0"
-                       step="0.01"
-                       placeholder="100.00"
-                       className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                         errors.depositAmount ? 'border-red-300' : 'border-gray-300'
-                       }`}
-                     />
-                   </div>
-                   <p className="mt-1 text-xs text-gray-500">
-                     Refundable deposit to protect against damage. Usually 20-50% of item value.
-                   </p>
-                   {errors.depositAmount && (
-                     <p className="mt-1 text-sm text-red-600 flex items-center">
-                       <AlertCircle className="w-4 h-4 mr-1" />
-                       {errors.depositAmount.message}
-                     </p>
-                   )}
-                 </div>
-               </div>
-             )}
-
-             {/* Step 4: Location & Delivery */}
-             {currentStep === 4 && (
-               <div className="space-y-6">
-                 <div className="text-center mb-6">
-                   <MapPin className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                   <h2 className="text-2xl font-bold text-gray-900">Location & Delivery</h2>
-                   <p className="text-gray-600">Where can renters find your item?</p>
-                 </div>
-
-                 {/* Location */}
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                   <div className="md:col-span-2">
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Suburb/City *
-                     </label>
-                     <input
-                       {...register('location')}
-                       type="text"
-                       placeholder="e.g. Bondi Beach"
-                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                         errors.location ? 'border-red-300' : 'border-gray-300'
-                       }`}
-                     />
-                     {errors.location && (
-                       <p className="mt-1 text-sm text-red-600 flex items-center">
-                         <AlertCircle className="w-4 h-4 mr-1" />
-                         {errors.location.message}
-                       </p>
-                     )}
-                   </div>
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Postcode *
-                     </label>
-                     <input
-                       {...register('postcode')}
-                       type="text"
-                       maxLength={4}
-                       placeholder="2026"
-                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                         errors.postcode ? 'border-red-300' : 'border-gray-300'
-                       }`}
-                     />
-                     {errors.postcode && (
-                       <p className="mt-1 text-sm text-red-600 flex items-center">
-                         <AlertCircle className="w-4 h-4 mr-1" />
-                         {errors.postcode.message}
-                       </p>
-                     )}
-                   </div>
-                 </div>
-
-                 {/* State */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     State *
-                   </label>
-                   <select
-                     {...register('state')}
-                     className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                       errors.state ? 'border-red-300' : 'border-gray-300'
-                     }`}
-                   >
-                     <option value="">Select your state</option>
-                     {australianStates.map((state) => (
-                       <option key={state.code} value={state.code}>
-                         {state.name}
-                       </option>
-                     ))}
-                   </select>
-                   {errors.state && (
-                     <p className="mt-1 text-sm text-red-600 flex items-center">
-                       <AlertCircle className="w-4 h-4 mr-1" />
-                       {errors.state.message}
-                     </p>
-                   )}
-                 </div>
-
-                 {/* Delivery Methods */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                     Delivery Options *
-                   </label>
-                   <div className="space-y-3">
-                     {deliveryOptions.map((option) => (
-                       <label key={option.value} className="flex items-start space-x-3">
-                         <input
-                           type="checkbox"
-                           onChange={(e) => handleDeliveryMethodChange(option.value, e.target.checked)}
-                           className="mt-1 text-green-600 focus:ring-green-500"
-                         />
-                         <div>
-                           <div className="font-medium text-gray-900">{option.label}</div>
-                           <div className="text-sm text-gray-500">{option.description}</div>
-                         </div>
+                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Item Location for Pickup</h3>
+                   <p className="text-sm text-gray-600 mb-4">Where will renters pick up this item? This is required for all rentals.</p>
+                   
+                   {/* Unit Number and Street Number */}
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Unit Number (Optional)
                        </label>
-                     ))}
+                       <input
+                         {...register('unitNumber')}
+                         type="text"
+                         placeholder="e.g. 5A, Unit 12"
+                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       />
+                       <p className="mt-1 text-xs text-gray-500">Apartment, unit, suite, etc.</p>
+                     </div>
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Street Number *
+                       </label>
+                       <input
+                         {...register('streetNumber')}
+                         type="text"
+                         placeholder="e.g. 123"
+                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                           errors.streetNumber ? 'border-red-300' : 'border-gray-300'
+                         }`}
+                       />
+                       {errors.streetNumber && (
+                         <p className="mt-1 text-sm text-red-600 flex items-center">
+                           <AlertCircle className="w-4 h-4 mr-1" />
+                           {errors.streetNumber.message}
+                         </p>
+                       )}
+                     </div>
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Postcode *
+                       </label>
+                       <input
+                         {...register('postcode')}
+                         type="text"
+                         maxLength={4}
+                         placeholder="2026"
+                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                           errors.postcode ? 'border-red-300' : 'border-gray-300'
+                         }`}
+                       />
+                       {errors.postcode && (
+                         <p className="mt-1 text-sm text-red-600 flex items-center">
+                           <AlertCircle className="w-4 h-4 mr-1" />
+                           {errors.postcode.message}
+                         </p>
+                       )}
+                     </div>
                    </div>
-                   {errors.deliveryMethods && (
-                     <p className="mt-2 text-sm text-red-600 flex items-center">
-                       <AlertCircle className="w-4 h-4 mr-1" />
-                       {errors.deliveryMethods.message}
-                     </p>
-                   )}
-                 </div>
-               </div>
-             )}
 
-             {/* Step 5: Photos */}
-             {currentStep === 5 && (
-               <div className="space-y-6">
-                 <div className="text-center mb-6">
-                   <Camera className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                   <h2 className="text-2xl font-bold text-gray-900">Add Photos</h2>
-                   <p className="text-gray-600">Great photos help your item get rented faster</p>
+                   {/* Street Name and Suburb */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Street Name *
+                       </label>
+                       <input
+                         {...register('streetName')}
+                         type="text"
+                         placeholder="e.g. Campbell Parade"
+                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                           errors.streetName ? 'border-red-300' : 'border-gray-300'
+                         }`}
+                       />
+                       {errors.streetName && (
+                         <p className="mt-1 text-sm text-red-600 flex items-center">
+                           <AlertCircle className="w-4 h-4 mr-1" />
+                           {errors.streetName.message}
+                         </p>
+                       )}
+                     </div>
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Suburb/City *
+                       </label>
+                       <input
+                         {...register('suburb')}
+                         type="text"
+                         placeholder="e.g. Bondi Beach"
+                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                           errors.suburb ? 'border-red-300' : 'border-gray-300'
+                         }`}
+                       />
+                       {errors.suburb && (
+                         <p className="mt-1 text-sm text-red-600 flex items-center">
+                           <AlertCircle className="w-4 h-4 mr-1" />
+                           {errors.suburb.message}
+                         </p>
+                       )}
+                     </div>
+                   </div>
+
+                   {/* State */}
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       State *
+                     </label>
+                     <select
+                       {...register('state')}
+                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                         errors.state ? 'border-red-300' : 'border-gray-300'
+                       }`}
+                     >
+                       <option value="">Select your state</option>
+                       {australianStates.map((state) => (
+                         <option key={state.code} value={state.code}>
+                           {state.name}
+                         </option>
+                       ))}
+                     </select>
+                     {errors.state && (
+                       <p className="mt-1 text-sm text-red-600 flex items-center">
+                         <AlertCircle className="w-4 h-4 mr-1" />
+                         {errors.state.message}
+                       </p>
+                     )}
+                   </div>
                  </div>
 
-                 {/* Photo Upload */}
-                 <div>
-                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
-                     <input
-                       type="file"
-                       id="image-upload"
-                       multiple
-                       accept="image/*"
-                       onChange={handleImageChange}
-                       className="hidden"
-                     />
-                     <label htmlFor="image-upload" className="cursor-pointer">
-                       <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                       <p className="text-lg font-medium text-gray-900 mb-2">
-                         Click to upload photos
-                       </p>
-                       <p className="text-sm text-gray-500">
-                         Upload up to 10 photos. JPEG, PNG, WebP up to 10MB each.
-                       </p>
+                 {/* Additional Delivery Options */}
+                 <div className="border-t pt-6">
+                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Additional Delivery Options</h3>
+                   <p className="text-sm text-gray-600 mb-4">Select any additional delivery services you can provide (optional):</p>
+                   
+                   <div className="space-y-3">
+                     <label className="flex items-start space-x-3">
+                       <input
+                         type="checkbox"
+                         value="delivery"
+                         checked={selectedDeliveryMethods.includes('delivery')}
+                         onChange={(e) => handleDeliveryMethodChange('delivery', e.target.checked)}
+                         className="mt-1 text-green-600 focus:ring-green-500"
+                       />
+                       <div>
+                         <div className="font-medium text-gray-900">Delivery Available</div>
+                         <div className="text-sm text-gray-500">You can deliver within your area</div>
+                       </div>
+                     </label>
+                     
+                     <label className="flex items-start space-x-3">
+                       <input
+                         type="checkbox"
+                         value="shipping"
+                         checked={selectedDeliveryMethods.includes('shipping')}
+                         onChange={(e) => handleDeliveryMethodChange('shipping', e.target.checked)}
+                         className="mt-1 text-green-600 focus:ring-green-500"
+                       />
+                       <div>
+                         <div className="font-medium text-gray-900">Shipping</div>
+                         <div className="text-sm text-gray-500">Can be shipped Australia-wide</div>
+                       </div>
                      </label>
                    </div>
                    
-                   <div className="mt-4 text-sm text-gray-600">
-                     <p><strong>Tips for great photos:</strong></p>
-                     <ul className="list-disc pl-5 mt-2 space-y-1">
-                       <li>Take photos in good lighting</li>
-                       <li>Show the item from multiple angles</li>
-                       <li>Include any accessories or parts</li>
-                       <li>Highlight any wear or damage honestly</li>
-                     </ul>
-                   </div>
+                   <p className="mt-3 text-xs text-gray-500">
+                     Note: Pickup is always available. These are additional services you can offer.
+                   </p>
                  </div>
-
-                 {/* Image Preview */}
-                 {imagePreview.length > 0 && (
-                   <div>
-                     <h3 className="text-lg font-medium text-gray-900 mb-4">
-                       Photos ({imagePreview.length}/10)
-                     </h3>
-                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                       {imagePreview.map((preview, index) => (
-                         <div key={index} className="relative group">
-                           <div className="aspect-square relative overflow-hidden rounded-lg">
-                             <Image
-                               src={preview}
-                               alt={`Preview ${index + 1}`}
-                               fill
-                               className="object-cover"
-                             />
-                           </div>
-                           <button
-                             type="button"
-                             onClick={() => removeImage(index)}
-                             className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                           >
-                             <X className="w-4 h-4" />
-                           </button>
-                           {index === 0 && (
-                             <div className="absolute bottom-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
-                               Main
-                             </div>
-                           )}
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 )}
                </div>
              )}
+
+
 
              {/* Navigation Buttons */}
             <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
@@ -1033,7 +1493,7 @@ function CreateListingContent() {
               </div>
               
               <div>
-                {currentStep < 5 ? (
+                {currentStep < 3 ? (
                   <Button
                     type="button"
                     onClick={nextStep}
@@ -1044,7 +1504,7 @@ function CreateListingContent() {
                 ) : (
                   <Button
                     type="submit"
-                    disabled={isLoading || images.length === 0}
+                    disabled={isLoading || imagePreview.length < 3}
                     className="min-w-32"
                   >
                     {isLoading ? (
