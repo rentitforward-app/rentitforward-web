@@ -28,6 +28,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*.local
 .env
+.env.local.backup
+.env*
+!/.env.template
 
 # vercel
 .vercel
@@ -53,8 +56,13 @@ Thumbs.db
 
 # cursor
 .cursor
+.cursor/
+.cursorignore
 
 .vercel
 
 # MCP
 mcp.json
+
+# documents
+DOCUMENTS/

@@ -39,7 +39,7 @@ const categories = {
     subcategories: ['E-readers', 'Educational Materials', 'Reference Books', 'Study Aids', 'Textbooks']
   },
   'cameras': { 
-    label: 'Cameras',
+    label: 'Cameras', 
     subcategories: ['Accessories', 'Action Cameras', 'DSLR', 'Lenses', 'Mirrorless'] 
   },
   'cleaning-maintenance': {
@@ -59,7 +59,7 @@ const categories = {
     subcategories: ['Audio', 'Computers', 'Gaming', 'Smart Home', 'Tablets'] 
   },
   'event-party': { 
-    label: 'Event & Party',
+    label: 'Event & Party', 
     subcategories: ['Catering Equipment', 'Decorations', 'Furniture', 'Lighting', 'Sound Systems'] 
   },
   'furniture-decor': {
@@ -75,7 +75,7 @@ const categories = {
     subcategories: ['Exercise Equipment', 'Medical Devices', 'Recovery Tools', 'Walking Aids', 'Wheelchairs']
   },
   'home-garden': { 
-    label: 'Home & Garden',
+    label: 'Home & Garden', 
     subcategories: ['Appliances', 'Cleaning Equipment', 'Furniture', 'Gardening Tools', 'Lawn Care'] 
   },
   'instruments': { 
@@ -95,7 +95,7 @@ const categories = {
     subcategories: ['Communication', 'Computers', 'Office Furniture', 'Presentation Equipment', 'Printers']
   },
   'other': { 
-    label: 'Other',
+    label: 'Other', 
     subcategories: ['Baby Items', 'Books', 'Games', 'Miscellaneous', 'Pet Supplies'] 
   },
   'pets': {
@@ -546,7 +546,7 @@ function CreateListingContent() {
       setCurrentStep(1); // Go back to first step where photos are now located
       return;
     }
-
+    
     // Clean up optional number fields (convert NaN to undefined)
     const cleanedData = { ...data };
     if (isNaN(cleanedData.hourlyRate as number)) cleanedData.hourlyRate = undefined;
@@ -729,7 +729,7 @@ function CreateListingContent() {
       if (error instanceof Error) {
         toast.error(`Failed to save listing: ${error.message}`);
       } else {
-        toast.error('Something went wrong. Please try again.');
+      toast.error('Something went wrong. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -821,7 +821,7 @@ function CreateListingContent() {
                           {index === 0 && (
                             <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded">
                               Main
-                            </div>
+                </div>
                           )}
                         </div>
                       </div>
@@ -938,7 +938,7 @@ function CreateListingContent() {
                     Category *
                   </label>
                   <select
-                    {...register('category')}
+                          {...register('category')}
                     className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
                       errors.category ? 'border-red-300' : 'border-gray-300'
                     }`}
@@ -980,9 +980,9 @@ function CreateListingContent() {
                         <AlertCircle className="w-4 h-4 mr-1" />
                         {errors.subcategory.message}
                       </p>
-                    )}
-                  </div>
-                )}
+                                 )}
+               </div>
+             )}
 
                 {/* Item Condition Section */}
                 <div className="border-t pt-6 mt-8">
@@ -991,13 +991,13 @@ function CreateListingContent() {
                     Item Condition & Details
                   </h3>
 
-                  {/* Condition */}
+                 {/* Condition */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Condition *
-                    </label>
+                     Condition *
+                   </label>
                     <select
-                      {...register('condition')}
+                           {...register('condition')}
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
                         errors.condition ? 'border-red-300' : 'border-gray-300'
                       }`}
@@ -1007,26 +1007,26 @@ function CreateListingContent() {
                         <option key={option.value} value={option.value}>
                           {option.label} - {option.description}
                         </option>
-                      ))}
+                     ))}
                     </select>
-                    {errors.condition && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-1" />
-                        {errors.condition.message}
-                      </p>
-                    )}
-                  </div>
+                   {errors.condition && (
+                     <p className="mt-2 text-sm text-red-600 flex items-center">
+                       <AlertCircle className="w-4 h-4 mr-1" />
+                       {errors.condition.message}
+                     </p>
+                   )}
+                 </div>
 
-                  {/* Brand & Model */}
+                 {/* Brand & Model */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Brand *
-                      </label>
-                      <input
-                        {...register('brand')}
-                        type="text"
-                        placeholder="e.g. Canon, Apple, Bosch"
+                     </label>
+                     <input
+                       {...register('brand')}
+                       type="text"
+                       placeholder="e.g. Canon, Apple, Bosch"
                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
                           errors.brand ? 'border-red-300' : 'border-gray-300'
                         }`}
@@ -1037,15 +1037,15 @@ function CreateListingContent() {
                           {errors.brand.message}
                         </p>
                       )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                   </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Model *
-                      </label>
-                      <input
-                        {...register('model')}
-                        type="text"
-                        placeholder="e.g. EOS R5, iPhone 14, DCS391"
+                     </label>
+                     <input
+                       {...register('model')}
+                       type="text"
+                       placeholder="e.g. EOS R5, iPhone 14, DCS391"
                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
                           errors.model ? 'border-red-300' : 'border-gray-300'
                         }`}
@@ -1056,20 +1056,20 @@ function CreateListingContent() {
                           {errors.model.message}
                         </p>
                       )}
-                    </div>
-                  </div>
+                   </div>
+                 </div>
 
-                  {/* Year */}
+                 {/* Year */}
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
                       Year *
-                    </label>
-                    <input
-                      {...register('year', { valueAsNumber: true })}
-                      type="number"
-                      min="1950"
-                      max={new Date().getFullYear()}
-                      placeholder="e.g. 2023"
+                   </label>
+                   <input
+                     {...register('year', { valueAsNumber: true })}
+                     type="number"
+                     min="1950"
+                     max={new Date().getFullYear()}
+                     placeholder="e.g. 2023"
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
                         errors.year ? 'border-red-300' : 'border-gray-300'
                       }`}
@@ -1080,7 +1080,7 @@ function CreateListingContent() {
                         {errors.year.message}
                       </p>
                     )}
-                  </div>
+                 </div>
                 </div>
                 </div>
 
@@ -1094,33 +1094,33 @@ function CreateListingContent() {
                  <div className="space-y-6">
                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Rental Rates</h3>
 
-                   {/* Daily Rate */}
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Daily Rate * (AUD)
-                     </label>
-                     <div className="relative">
-                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                       <input
-                         {...register('dailyRate', { valueAsNumber: true })}
-                         type="number"
-                         min="1"
-                         max="1000"
+                 {/* Daily Rate */}
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Daily Rate * (AUD)
+                   </label>
+                   <div className="relative">
+                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                     <input
+                       {...register('dailyRate', { valueAsNumber: true })}
+                       type="number"
+                       min="1"
+                       max="1000"
                          step="1"
                          placeholder="25"
                          onInput={(e) => handleWholeNumberInput(e, 'dailyRate')}
-                         className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                           errors.dailyRate ? 'border-red-300' : 'border-gray-300'
-                         }`}
-                       />
-                     </div>
-                     {errors.dailyRate && (
-                       <p className="mt-1 text-sm text-red-600 flex items-center">
-                         <AlertCircle className="w-4 h-4 mr-1" />
-                         {errors.dailyRate.message}
-                       </p>
-                     )}
+                       className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                         errors.dailyRate ? 'border-red-300' : 'border-gray-300'
+                       }`}
+                     />
                    </div>
+                   {errors.dailyRate && (
+                     <p className="mt-1 text-sm text-red-600 flex items-center">
+                       <AlertCircle className="w-4 h-4 mr-1" />
+                       {errors.dailyRate.message}
+                     </p>
+                   )}
+                 </div>
 
                    {/* Hourly and Optional Rates */}
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1142,74 +1142,74 @@ function CreateListingContent() {
                        </div>
                        <p className="mt-1 text-xs text-gray-500">For short-term rentals</p>
                      </div>
-                     <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                         Weekly Rate (Optional)
-                       </label>
-                       <div className="relative">
-                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                         <input
-                           {...register('weeklyRate', { valueAsNumber: true })}
-                           type="number"
-                           min="1"
-                           step="10"
-                           placeholder="150"
-                           onInput={(e) => handleWholeNumberInput(e, 'weeklyRate')}
-                           className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                         />
-                       </div>
-                       <p className="mt-1 text-xs text-gray-500">Usually 20-30% discount from daily rate</p>
-                     </div>
-                     <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                         Monthly Rate (Optional)
-                       </label>
-                       <div className="relative">
-                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                         <input
-                           {...register('monthlyRate', { valueAsNumber: true })}
-                           type="number"
-                           min="1"
-                           step="10"
-                           placeholder="500"
-                           onInput={(e) => handleWholeNumberInput(e, 'monthlyRate')}
-                           className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                         />
-                       </div>
-                       <p className="mt-1 text-xs text-gray-500">Usually 40-50% discount from daily rate</p>
-                     </div>
-                   </div>
-
-                   {/* Deposit */}
                    <div>
                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Security Deposit (AUD)
+                       Weekly Rate (Optional)
                      </label>
                      <div className="relative">
                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
                        <input
-                         {...register('depositAmount', { valueAsNumber: true })}
+                         {...register('weeklyRate', { valueAsNumber: true })}
                          type="number"
-                         min="0"
+                         min="1"
+                           step="10"
+                           placeholder="150"
+                           onInput={(e) => handleWholeNumberInput(e, 'weeklyRate')}
+                         className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       />
+                     </div>
+                       <p className="mt-1 text-xs text-gray-500">Usually 20-30% discount from daily rate</p>
+                   </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Monthly Rate (Optional)
+                     </label>
+                     <div className="relative">
+                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                       <input
+                         {...register('monthlyRate', { valueAsNumber: true })}
+                         type="number"
+                         min="1"
+                           step="10"
+                           placeholder="500"
+                           onInput={(e) => handleWholeNumberInput(e, 'monthlyRate')}
+                         className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       />
+                     </div>
+                       <p className="mt-1 text-xs text-gray-500">Usually 40-50% discount from daily rate</p>
+                   </div>
+                 </div>
+
+                 {/* Deposit */}
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Security Deposit (AUD)
+                   </label>
+                   <div className="relative">
+                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                     <input
+                       {...register('depositAmount', { valueAsNumber: true })}
+                       type="number"
+                       min="0"
                          step="10"
                          placeholder="100"
                          onInput={(e) => handleWholeNumberInput(e, 'depositAmount')}
-                         className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                           errors.depositAmount ? 'border-red-300' : 'border-gray-300'
-                         }`}
-                       />
-                     </div>
-                     <p className="mt-1 text-xs text-gray-500">
-                       Refundable deposit to protect against damage. Usually $50-$500 based on item value.
-                     </p>
-                     {errors.depositAmount && (
-                       <p className="mt-1 text-sm text-red-600 flex items-center">
-                         <AlertCircle className="w-4 h-4 mr-1" />
-                         {errors.depositAmount.message}
-                       </p>
-                     )}
+                       className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                         errors.depositAmount ? 'border-red-300' : 'border-gray-300'
+                       }`}
+                     />
                    </div>
+                   <p className="mt-1 text-xs text-gray-500">
+                       Refundable deposit to protect against damage. Usually $50-$500 based on item value.
+                   </p>
+                   {errors.depositAmount && (
+                     <p className="mt-1 text-sm text-red-600 flex items-center">
+                       <AlertCircle className="w-4 h-4 mr-1" />
+                       {errors.depositAmount.message}
+                     </p>
+                   )}
                  </div>
+               </div>
 
                                   {/* Availability Section */}
                  <div className="border-t pt-6 mt-8">
@@ -1268,7 +1268,7 @@ function CreateListingContent() {
                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                          />
                          <p className="mt-1 text-xs text-gray-500">When is your item first available?</p>
-                       </div>
+                 </div>
                        <div>
                          <label className="block text-sm font-medium text-gray-700 mb-2">
                            Available Until (Optional)
@@ -1312,12 +1312,12 @@ function CreateListingContent() {
                    {/* Unit Number and Street Number */}
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                      <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
                          Unit Number (Optional)
-                       </label>
-                       <input
+                     </label>
+                     <input
                          {...register('unitNumber')}
-                         type="text"
+                       type="text"
                          placeholder="e.g. 5A, Unit 12"
                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                        />
@@ -1331,38 +1331,38 @@ function CreateListingContent() {
                          {...register('streetNumber')}
                          type="text"
                          placeholder="e.g. 123"
-                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
                            errors.streetNumber ? 'border-red-300' : 'border-gray-300'
-                         }`}
-                       />
+                       }`}
+                     />
                        {errors.streetNumber && (
-                         <p className="mt-1 text-sm text-red-600 flex items-center">
-                           <AlertCircle className="w-4 h-4 mr-1" />
+                       <p className="mt-1 text-sm text-red-600 flex items-center">
+                         <AlertCircle className="w-4 h-4 mr-1" />
                            {errors.streetNumber.message}
-                         </p>
-                       )}
-                     </div>
-                     <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                         Postcode *
-                       </label>
-                       <input
-                         {...register('postcode')}
-                         type="text"
-                         maxLength={4}
-                         placeholder="2026"
-                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                           errors.postcode ? 'border-red-300' : 'border-gray-300'
-                         }`}
-                       />
-                       {errors.postcode && (
-                         <p className="mt-1 text-sm text-red-600 flex items-center">
-                           <AlertCircle className="w-4 h-4 mr-1" />
-                           {errors.postcode.message}
-                         </p>
-                       )}
-                     </div>
+                       </p>
+                     )}
                    </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Postcode *
+                     </label>
+                     <input
+                       {...register('postcode')}
+                       type="text"
+                       maxLength={4}
+                       placeholder="2026"
+                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                         errors.postcode ? 'border-red-300' : 'border-gray-300'
+                       }`}
+                     />
+                     {errors.postcode && (
+                       <p className="mt-1 text-sm text-red-600 flex items-center">
+                         <AlertCircle className="w-4 h-4 mr-1" />
+                         {errors.postcode.message}
+                       </p>
+                     )}
+                   </div>
+                 </div>
 
                    {/* Street Name and Suburb */}
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1406,30 +1406,30 @@ function CreateListingContent() {
                      </div>
                    </div>
 
-                   {/* State */}
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       State *
-                     </label>
-                     <select
-                       {...register('state')}
-                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                         errors.state ? 'border-red-300' : 'border-gray-300'
-                       }`}
-                     >
-                       <option value="">Select your state</option>
-                       {australianStates.map((state) => (
-                         <option key={state.code} value={state.code}>
-                           {state.name}
-                         </option>
-                       ))}
-                     </select>
-                     {errors.state && (
-                       <p className="mt-1 text-sm text-red-600 flex items-center">
-                         <AlertCircle className="w-4 h-4 mr-1" />
-                         {errors.state.message}
-                       </p>
-                     )}
+                 {/* State */}
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     State *
+                   </label>
+                   <select
+                     {...register('state')}
+                     className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                       errors.state ? 'border-red-300' : 'border-gray-300'
+                     }`}
+                   >
+                     <option value="">Select your state</option>
+                     {australianStates.map((state) => (
+                       <option key={state.code} value={state.code}>
+                         {state.name}
+                       </option>
+                     ))}
+                   </select>
+                   {errors.state && (
+                     <p className="mt-1 text-sm text-red-600 flex items-center">
+                       <AlertCircle className="w-4 h-4 mr-1" />
+                       {errors.state.message}
+                     </p>
+                   )}
                    </div>
                  </div>
 
@@ -1440,21 +1440,21 @@ function CreateListingContent() {
                    
                    <div className="space-y-3">
                      <label className="flex items-start space-x-3">
-                       <input
-                         type="checkbox"
+                         <input
+                           type="checkbox"
                          value="delivery"
                          checked={selectedDeliveryMethods.includes('delivery')}
                          onChange={(e) => handleDeliveryMethodChange('delivery', e.target.checked)}
-                         className="mt-1 text-green-600 focus:ring-green-500"
-                       />
-                       <div>
+                           className="mt-1 text-green-600 focus:ring-green-500"
+                         />
+                         <div>
                          <div className="font-medium text-gray-900">Delivery Available</div>
                          <div className="text-sm text-gray-500">You can deliver within your area</div>
-                       </div>
-                     </label>
+                         </div>
+                       </label>
                      
                      <label className="flex items-start space-x-3">
-                       <input
+                     <input
                          type="checkbox"
                          value="shipping"
                          checked={selectedDeliveryMethods.includes('shipping')}
@@ -1471,7 +1471,7 @@ function CreateListingContent() {
                    <p className="mt-3 text-xs text-gray-500">
                      Note: Pickup is always available. These are additional services you can offer.
                    </p>
-                 </div>
+                   </div>
                </div>
              )}
 
