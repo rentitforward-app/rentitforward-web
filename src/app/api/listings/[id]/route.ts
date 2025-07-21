@@ -86,37 +86,25 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       addressString = listingData.address;
     }
 
-    // Default coordinates for Perth, WA (will be improved with geocoding later)
-    const defaultLat = -31.9505;
-    const defaultLng = 115.8605;
-
-    // Update listing with error handling
+    // Update listing with correct database field names from schema
     const updateData = {
       title: listingData.title,
       description: listingData.description,
       category: listingData.category,
-      price_per_day: listingData.price_per_day || listingData.dailyRate,
-      price_hourly: listingData.price_hourly || listingData.hourlyRate || null,
-      price_weekly: listingData.price_weekly || listingData.weeklyRate || null,
-      deposit: listingData.deposit || listingData.securityDeposit || null,
-      currency: 'AUD',
+      daily_rate: listingData.price_per_day || listingData.dailyRate,
+      weekly_rate: listingData.price_weekly || listingData.weeklyRate || null,
+      monthly_rate: listingData.price_monthly || listingData.monthlyRate || null,
+      deposit_amount: listingData.deposit || listingData.securityDeposit || 0,
       condition: listingData.condition,
       brand: listingData.brand || null,
       model: listingData.model || null,
       year: listingData.year || null,
       features: listingData.features || [],
       images: listingData.images || [],
-      location: `POINT(${defaultLng} ${defaultLat})`,
-      address: addressString || listingData.location || '',
-      city: listingData.city || (listingData.address?.suburb) || '',
-      state: listingData.state || (listingData.address?.state) || null,
-      postal_code: listingData.postal_code || listingData.postcode || (listingData.address?.postcode) || null,
-      country: 'Australia',
-      available_from: listingData.available_from ? new Date(listingData.available_from) : null,
-      available_to: listingData.available_to ? new Date(listingData.available_to) : null,
-      pickup_available: listingData.pickup_available !== false,
-      delivery_available: listingData.delivery_available || false,
-      insurance_enabled: listingData.insurance_enabled || false,
+      location: addressString || 'Location not specified', // Required field from schema
+      state: listingData.state || (listingData.address?.state) || 'Unknown',
+      postcode: listingData.postal_code || listingData.postcode || (listingData.address?.postcode) || '0000',
+      delivery_methods: listingData.delivery_available ? ['delivery', 'pickup'] : ['pickup'],
     };
 
     console.log('Updating listing with data:', updateData);

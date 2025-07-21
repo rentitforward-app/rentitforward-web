@@ -111,38 +111,32 @@ export async function POST(request: NextRequest) {
       addressString = listingData.address;
     }
 
-    // Create listing with EXACT database field names
+    // Create listing with EXACT database field names from schema
     const insertData = {
         owner_id: user.id,
         title: listingData.title,
         description: listingData.description,
         category: listingData.category,
-      price_per_day: listingData.price_per_day || listingData.dailyRate,
-      price_hourly: listingData.price_hourly || listingData.hourlyRate || null,
-      price_weekly: listingData.price_weekly || listingData.weeklyRate || null,
-      deposit: listingData.deposit || listingData.securityDeposit || null,
-      currency: 'AUD',
+        daily_rate: listingData.price_per_day || listingData.dailyRate,
+        weekly_rate: listingData.price_weekly || listingData.weeklyRate || null,
+        monthly_rate: listingData.price_monthly || listingData.monthlyRate || null,
+        deposit_amount: listingData.deposit || listingData.securityDeposit || 0,
         condition: listingData.condition,
         brand: listingData.brand || null,
         model: listingData.model || null,
         year: listingData.year || null,
         features: listingData.features || [],
-      images: listingData.images || [],
-      address: addressString || listingData.location || '',
-      city: listingData.city || (listingData.address?.suburb) || '',
-      state: listingData.state || (listingData.address?.state) || null,
-      postal_code: listingData.postal_code || listingData.postcode || (listingData.address?.postcode) || null,
-      country: 'Australia',
-      available_from: listingData.available_from ? new Date(listingData.available_from) : null,
-      available_to: listingData.available_to ? new Date(listingData.available_to) : null,
-      pickup_available: listingData.pickup_available !== false, // default true
-      delivery_available: listingData.delivery_available || false,
-      insurance_enabled: listingData.insurance_enabled || false,
-      is_active: false, // Start as inactive, admin approval needed
-      approval_status: 'pending',
+        images: listingData.images || [],
+        location: addressString || 'Location not specified', // Required field from schema
+        state: listingData.state || (listingData.address?.state) || 'Unknown',
+        postcode: listingData.postal_code || listingData.postcode || (listingData.address?.postcode) || '0000',
+        latitude: null, // Could be added later with geocoding
+        longitude: null, // Could be added later with geocoding
+        is_available: true, // Changed to true so listings are immediately available
+        delivery_methods: listingData.delivery_available ? ['delivery', 'pickup'] : ['pickup'],
     };
 
-    console.log('Inserting data:', insertData);
+    console.log('Inserting data with correct schema fields:', insertData);
 
     // Create listing
     const { data, error } = await supabase
@@ -153,6 +147,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Supabase error creating listing:', error);
+      console.error('Failed insert data was:', insertData);
       return NextResponse.json({ 
         error: 'Failed to create listing', 
         details: error.message,

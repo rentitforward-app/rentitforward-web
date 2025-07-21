@@ -386,40 +386,40 @@ function CreateListingContent() {
     if (!currentSchema) return true;
 
     try {
-      const currentData = getValues();
-      
-      // Extract only the fields for the current step
-      const stepFields = getStepFields(currentStep);
-      const stepData: any = {};
-      stepFields.forEach(field => {
-        stepData[field] = currentData[field as keyof typeof currentData];
-      });
-      
-      // For step 2, handle NaN values in optional rate fields
-      if (currentStep === 2) {
-        if (isNaN(stepData.hourlyRate as number)) stepData.hourlyRate = undefined;
-        if (isNaN(stepData.weeklyRate as number)) stepData.weeklyRate = undefined;
-        if (isNaN(stepData.monthlyRate as number)) stepData.monthlyRate = undefined;
-      }
-      
-      const result = currentSchema.safeParse(stepData);
-      
-      // Additional validation for step 1: check minimum photos
-      if (currentStep === 1 && imagePreview.length < 3) {
-        toast.error('Please add at least 3 photos before continuing');
-        return false;
-      }
-      
-      if (result.success) {
-        setCompletedSteps(prev => new Set([...prev, currentStep]));
-        return true;
-      } else {
+    const currentData = getValues();
+    
+    // Extract only the fields for the current step
+    const stepFields = getStepFields(currentStep);
+    const stepData: any = {};
+    stepFields.forEach(field => {
+      stepData[field] = currentData[field as keyof typeof currentData];
+    });
+    
+    // For step 2, handle NaN values in optional rate fields
+    if (currentStep === 2) {
+      if (isNaN(stepData.hourlyRate as number)) stepData.hourlyRate = undefined;
+      if (isNaN(stepData.weeklyRate as number)) stepData.weeklyRate = undefined;
+      if (isNaN(stepData.monthlyRate as number)) stepData.monthlyRate = undefined;
+    }
+    
+    const result = currentSchema.safeParse(stepData);
+    
+    // Additional validation for step 1: check minimum photos
+    if (currentStep === 1 && imagePreview.length < 3) {
+      toast.error('Please add at least 3 photos before continuing');
+      return false;
+    }
+    
+    if (result.success) {
+      setCompletedSteps(prev => new Set([...prev, currentStep]));
+      return true;
+    } else {
         console.log('Mobile validation error for step', currentStep, ':', result.error.issues);
-        
-        // Trigger validation for current step fields to show inline errors
+      
+      // Trigger validation for current step fields to show inline errors
         // Add delay for mobile devices to handle keyboard hiding
         setTimeout(async () => {
-          await trigger(stepFields as any);
+      await trigger(stepFields as any);
         }, 100);
         
         return false;
@@ -545,8 +545,8 @@ function CreateListingContent() {
       // Create preview URLs with error handling for mobile
       successfullyCompressed.forEach((file, index) => {
         try {
-          const reader = new FileReader();
-          reader.onload = (e) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
             if (e.target?.result) {
               const target = e.target;
               setImagePreview(prev => [...prev, target.result as string]);
@@ -555,8 +555,8 @@ function CreateListingContent() {
           reader.onerror = () => {
             console.error(`Failed to read file: ${file.name}`);
             toast.error(`Failed to preview ${file.name}.`);
-          };
-          reader.readAsDataURL(file);
+      };
+      reader.readAsDataURL(file);
         } catch (error) {
           console.error(`Error processing file ${file.name}:`, error);
           toast.error(`Failed to process ${file.name}. Please try again.`);
@@ -646,7 +646,7 @@ function CreateListingContent() {
     if (images.length === 0) return [];
 
     try {
-      const uploadPromises = images.map(async (image, index) => {
+    const uploadPromises = images.map(async (image, index) => {
         try {
           // Final size check (should be unnecessary now due to compression, but good safeguard)
           if (image.size > 5 * 1024 * 1024) {
@@ -657,8 +657,8 @@ function CreateListingContent() {
           
           // Use a longer timeout for mobile network issues since images are now optimized
           const uploadPromise = supabase.storage
-            .from('listing-images')
-            .upload(fileName, image);
+        .from('listing-images')
+        .upload(fileName, image);
 
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Upload timeout - please check your connection')), 45000)
@@ -666,8 +666,8 @@ function CreateListingContent() {
 
           const { data, error } = await Promise.race([uploadPromise, timeoutPromise]) as any;
 
-          if (error) {
-            console.error('Error uploading image:', error);
+      if (error) {
+        console.error('Error uploading image:', error);
             
             // Capture detailed upload error for Sentry
             Sentry.captureException(error, {
@@ -688,13 +688,13 @@ function CreateListingContent() {
             });
             
             throw new Error(`Failed to upload ${image.name}: ${error.message}`);
-          }
+      }
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('listing-images')
-            .getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage
+        .from('listing-images')
+        .getPublicUrl(fileName);
 
-          return publicUrl;
+      return publicUrl;
         } catch (imageError) {
           console.error(`Error uploading image ${index}:`, imageError);
           
@@ -717,9 +717,9 @@ function CreateListingContent() {
           
           throw imageError;
         }
-      });
+    });
 
-      return Promise.all(uploadPromises);
+    return Promise.all(uploadPromises);
     } catch (error) {
       console.error('Error in uploadImages:', error);
       
@@ -871,17 +871,17 @@ function CreateListingContent() {
       if (isEditMode && editingListing) {
         // Prepare the listing data for API call
         const listingPayload = {
-          title: cleanedData.title,
-          description: fullDescription,
-          category: cleanedData.category,
-          price_per_day: cleanedData.dailyRate,
-          price_hourly: cleanedData.hourlyRate || null,
-          price_weekly: cleanedData.weeklyRate || null,
-          deposit: cleanedData.depositAmount,
-          condition: cleanedData.condition,
-          brand: cleanedData.brand,
-          model: cleanedData.model,
-          year: cleanedData.year,
+            title: cleanedData.title,
+            description: fullDescription,
+            category: cleanedData.category,
+            price_per_day: cleanedData.dailyRate,
+            price_hourly: cleanedData.hourlyRate || null,
+            price_weekly: cleanedData.weeklyRate || null,
+            deposit: cleanedData.depositAmount,
+            condition: cleanedData.condition,
+            brand: cleanedData.brand,
+            model: cleanedData.model,
+            year: cleanedData.year,
           images: finalImageUrls,
           address: {
             unitNumber: cleanedData.unitNumber || '',
@@ -894,12 +894,12 @@ function CreateListingContent() {
           city: cleanedData.suburb,
           state: cleanedData.state,
           postal_code: cleanedData.postcode,
-          features: features,
-          available_from: availableFromDate?.toISOString() || null,
-          available_to: availableToDate?.toISOString() || null,
-          pickup_available: true,
-          delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
-          insurance_enabled: cleanedData.insuranceEnabled || false,
+            features: features,
+            available_from: availableFromDate?.toISOString() || null,
+            available_to: availableToDate?.toISOString() || null,
+            pickup_available: true,
+            delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
+            insurance_enabled: cleanedData.insuranceEnabled || false,
         };
 
         // Update existing listing via API
@@ -917,10 +917,10 @@ function CreateListingContent() {
           if (!response.ok) {
             console.error('API error updating listing:', result);
             throw new Error(result.error || result.details || 'Failed to update listing');
-          }
+        }
 
-          toast.success('Listing updated successfully!');
-          router.push(`/listings/${editingListing.id}`);
+        toast.success('Listing updated successfully!');
+        router.push(`/listings/${editingListing.id}`);
         } catch (apiError) {
           console.error('Error calling update API:', apiError);
           toast.error(`Failed to update listing: ${apiError instanceof Error ? apiError.message : 'Please try again.'}`);
@@ -929,17 +929,17 @@ function CreateListingContent() {
       } else {
         // Prepare the listing data for API call
         const listingPayload = {
-          title: cleanedData.title,
-          description: fullDescription,
-          category: cleanedData.category,
-          price_per_day: cleanedData.dailyRate,
-          price_hourly: cleanedData.hourlyRate || null,
-          price_weekly: cleanedData.weeklyRate || null,
-          deposit: cleanedData.depositAmount,
-          condition: cleanedData.condition,
-          brand: cleanedData.brand,
-          model: cleanedData.model,
-          year: cleanedData.year,
+            title: cleanedData.title,
+            description: fullDescription,
+            category: cleanedData.category,
+            price_per_day: cleanedData.dailyRate,
+            price_hourly: cleanedData.hourlyRate || null,
+            price_weekly: cleanedData.weeklyRate || null,
+            deposit: cleanedData.depositAmount,
+            condition: cleanedData.condition,
+            brand: cleanedData.brand,
+            model: cleanedData.model,
+            year: cleanedData.year,
           images: finalImageUrls,
           address: {
             unitNumber: cleanedData.unitNumber || '',
@@ -952,12 +952,12 @@ function CreateListingContent() {
           city: cleanedData.suburb,
           state: cleanedData.state,
           postal_code: cleanedData.postcode,
-          features: features,
-          available_from: availableFromDate?.toISOString() || null,
-          available_to: availableToDate?.toISOString() || null,
-          pickup_available: true,
-          delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
-          insurance_enabled: cleanedData.insuranceEnabled || false,
+            features: features,
+            available_from: availableFromDate?.toISOString() || null,
+            available_to: availableToDate?.toISOString() || null,
+            pickup_available: true,
+            delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
+            insurance_enabled: cleanedData.insuranceEnabled || false,
         };
 
         // Create new listing via API (mobile-friendly)
@@ -982,9 +982,9 @@ function CreateListingContent() {
           if (!result?.listing?.id) {
             console.error('No listing ID returned from API');
             throw new Error('Invalid response from server');
-          }
+        }
 
-          toast.success('Listing created successfully! Your listing is awaiting admin approval.');
+        toast.success('Listing created successfully! Your listing is awaiting admin approval.');
           router.push(`/listings/${result.listing.id}`);
         } catch (apiError) {
           console.error('Error calling create API:', apiError);
@@ -1198,7 +1198,7 @@ function CreateListingContent() {
                       <li>Perfect quality maintained for listing photos</li>
                     </ul>
                   </div>
-
+                  
                   <div className="mt-4 text-sm text-gray-600">
                     <p><strong>Tips for great photos:</strong></p>
                     <ul className="list-disc pl-5 mt-2 space-y-1">
