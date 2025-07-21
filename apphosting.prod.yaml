@@ -6,6 +6,8 @@ env:
   - variable: SUPABASE_SERVICE_ROLE_KEY
     value: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   - variable: NEXTAUTH_URL
-    value: https://rentitforward-web--rent-it-forward.asia-east1.hosted.app
+    value: https://rentitforward.com.au
   - variable: NEXTAUTH_SECRET
-    value: ${{ secrets.NEXTAUTH_SECRET }} 
+    value: ${{ secrets.NEXTAUTH_SECRET }}
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://rentitforward.com.au 

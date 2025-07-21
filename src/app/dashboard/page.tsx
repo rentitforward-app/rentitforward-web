@@ -358,24 +358,24 @@ export default function DashboardPage() {
   
   return (
     <AuthenticatedLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Welcome Header */}
-        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
-          <h1 className="text-2xl font-bold mb-2">Welcome back, {user?.user_metadata?.full_name || user?.email || 'there'}!</h1>
-          <p className="text-green-100">Here's what's happening with your rentals</p>
+        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg md:rounded-xl p-4 md:p-6 text-white">
+          <h1 className="text-xl md:text-2xl font-bold mb-2">Welcome back, {user?.user_metadata?.full_name || user?.email || 'there'}!</h1>
+          <p className="text-sm md:text-base text-green-100">Here's what's happening with your rentals</p>
         </div>
 
         {/* Admin Panel Link */}
         {isAdmin && !adminLoading && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <Shield className="w-5 h-5 text-blue-600 mr-2" />
-                <span className="text-blue-900 font-medium">Admin Access</span>
+                <span className="text-sm md:text-base text-blue-900 font-medium">Admin Access</span>
               </div>
               <Link 
                 href="/admin" 
-                className="text-blue-600 hover:text-blue-700 font-medium flex items-center"
+                className="text-blue-600 hover:text-blue-700 font-medium flex items-center text-sm md:text-base"
               >
                 Go to Admin Panel <ArrowRight className="w-4 h-4 ml-1" />
               </Link>
@@ -384,136 +384,136 @@ export default function DashboardPage() {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Package className="w-6 h-6 text-blue-600" />
+              <div className="p-2 md:p-3 bg-blue-100 rounded-lg">
+                <Package className="w-4 h-4 md:w-6 md:h-6 text-blue-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Listings</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalListings}</p>
+              <div className="ml-2 md:ml-4 min-w-0">
+                <p className="text-xs md:text-sm font-medium text-gray-600 truncate">Total Listings</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900">{stats.totalListings}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Calendar className="w-6 h-6 text-green-600" />
+              <div className="p-2 md:p-3 bg-green-100 rounded-lg">
+                <Calendar className="w-4 h-4 md:w-6 md:h-6 text-green-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active Bookings</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activeRentals}</p>
+              <div className="ml-2 md:ml-4 min-w-0">
+                <p className="text-xs md:text-sm font-medium text-gray-600 truncate">Active Bookings</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900">{stats.activeRentals}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-6 col-span-2 lg:col-span-1">
             <div className="flex items-center">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-purple-600" />
+              <div className="p-2 md:p-3 bg-purple-100 rounded-lg">
+                <DollarSign className="w-4 h-4 md:w-6 md:h-6 text-purple-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Earnings</p>
-                <p className="text-2xl font-bold text-gray-900">${stats.totalEarnings}</p>
+              <div className="ml-2 md:ml-4 min-w-0">
+                <p className="text-xs md:text-sm font-medium text-gray-600 truncate">Total Earnings</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900">${stats.totalEarnings}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <Eye className="w-6 h-6 text-yellow-600" />
+              <div className="p-2 md:p-3 bg-yellow-100 rounded-lg">
+                <Eye className="w-4 h-4 md:w-6 md:h-6 text-yellow-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Views</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalViews}</p>
+              <div className="ml-2 md:ml-4 min-w-0">
+                <p className="text-xs md:text-sm font-medium text-gray-600 truncate">Total Views</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900">{stats.totalViews}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-orange-100 rounded-lg">
-                <Bell className="w-6 h-6 text-orange-600" />
+              <div className="p-2 md:p-3 bg-orange-100 rounded-lg">
+                <Bell className="w-4 h-4 md:w-6 md:h-6 text-orange-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending Bookings</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.pendingBookings}</p>
+              <div className="ml-2 md:ml-4 min-w-0">
+                <p className="text-xs md:text-sm font-medium text-gray-600 truncate">Pending Bookings</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900">{stats.pendingBookings}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-indigo-100 rounded-lg">
-                <MessageCircle className="w-6 h-6 text-indigo-600" />
+              <div className="p-2 md:p-3 bg-indigo-100 rounded-lg">
+                <MessageCircle className="w-4 h-4 md:w-6 md:h-6 text-indigo-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Unread Messages</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.unreadMessages}</p>
+              <div className="ml-2 md:ml-4 min-w-0">
+                <p className="text-xs md:text-sm font-medium text-gray-600 truncate">Unread Messages</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900">{stats.unreadMessages}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link href="/listings/create" className="btn-primary p-4 rounded-lg text-center hover:bg-green-600 transition-colors">
-              <Plus className="w-6 h-6 mx-auto mb-2" />
-              <span className="font-medium">Create Listing</span>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+            <Link href="/listings/create" className="btn-primary p-3 md:p-4 rounded-lg text-center hover:bg-green-600 transition-colors">
+              <Plus className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2" />
+              <span className="text-sm md:text-base font-medium">Create Listing</span>
             </Link>
-            <Link href="/listings" className="bg-indigo-500 text-white p-4 rounded-lg text-center hover:bg-indigo-600 transition-colors">
-              <List className="w-6 h-6 mx-auto mb-2" />
-              <span className="font-medium">My Listings</span>
+            <Link href="/listings" className="bg-indigo-500 text-white p-3 md:p-4 rounded-lg text-center hover:bg-indigo-600 transition-colors">
+              <List className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2" />
+              <span className="text-sm md:text-base font-medium">My Listings</span>
             </Link>
-            <Link href="/browse" className="bg-blue-500 text-white p-4 rounded-lg text-center hover:bg-blue-600 transition-colors">
-              <Search className="w-6 h-6 mx-auto mb-2" />
-              <span className="font-medium">Browse Items</span>
+            <Link href="/browse" className="bg-blue-500 text-white p-3 md:p-4 rounded-lg text-center hover:bg-blue-600 transition-colors">
+              <Search className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2" />
+              <span className="text-sm md:text-base font-medium">Browse Items</span>
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Recent Activity */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+          <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+            <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Recent Activity</h2>
             {recentActivity.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 {recentActivity.map((activity, index) => (
                   <div key={index} className="flex items-start space-x-3">
-                    <div className="p-2 bg-gray-100 rounded-lg">
-                      <activity.icon className="w-4 h-4 text-gray-600" />
+                    <div className="p-2 bg-gray-100 rounded-lg flex-shrink-0">
+                      <activity.icon className="w-3 h-3 md:w-4 md:h-4 text-gray-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">{activity.message}</p>
+                      <p className="text-xs md:text-sm text-gray-900 break-words">{activity.message}</p>
                       <p className="text-xs text-gray-500">{activity.time}</p>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500">No recent activity yet</p>
-                <p className="text-sm text-gray-400">Activity will appear here as you use the platform</p>
+              <div className="text-center py-6 md:py-8">
+                <TrendingUp className="w-8 h-8 md:w-12 md:h-12 text-gray-400 mx-auto mb-2 md:mb-3" />
+                <p className="text-sm md:text-base text-gray-500">No recent activity yet</p>
+                <p className="text-xs md:text-sm text-gray-400">Activity will appear here as you use the platform</p>
               </div>
             )}
           </div>
 
           {/* Recent Bookings */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Bookings</h2>
+          <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+            <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Recent Bookings</h2>
             {recentBookings.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 {recentBookings.map((booking) => (
-                  <div key={booking.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-medium text-gray-900">{booking.item}</h3>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
+                  <div key={booking.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                    <div className="flex justify-between items-start mb-2 gap-2">
+                      <h3 className="text-sm md:text-base font-medium text-gray-900 break-words flex-1">{booking.item}</h3>
+                      <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
                         booking.status === 'completed' ? 'bg-green-100 text-green-800' :
                         booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
                         booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -522,39 +522,39 @@ export default function DashboardPage() {
                         {booking.status}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-1">Renter: {booking.renter}</p>
-                    <p className="text-sm text-gray-600 mb-1">Period: {booking.period}</p>
-                    <p className="text-sm font-medium text-gray-900">${booking.amount}</p>
+                    <p className="text-xs md:text-sm text-gray-600 mb-1 break-words">Renter: {booking.renter}</p>
+                    <p className="text-xs md:text-sm text-gray-600 mb-1 break-words">Period: {booking.period}</p>
+                    <p className="text-sm md:text-base font-medium text-gray-900">${booking.amount}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500">No bookings yet</p>
-                <p className="text-sm text-gray-400">Your rental bookings will appear here</p>
+              <div className="text-center py-6 md:py-8">
+                <Calendar className="w-8 h-8 md:w-12 md:h-12 text-gray-400 mx-auto mb-2 md:mb-3" />
+                <p className="text-sm md:text-base text-gray-500">No bookings yet</p>
+                <p className="text-xs md:text-sm text-gray-400">Your rental bookings will appear here</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Browse Categories */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Browse Popular Categories</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Browse Popular Categories</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {categories.map((category) => (
               <Link
                 key={category.slug}
                 href={`/browse?category=${category.slug}`}
-                className="group p-4 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-all"
+                className="group p-3 md:p-4 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-all"
               >
                 <div className="flex items-center mb-2">
-                  <span className="text-2xl mr-3">{category.icon}</span>
-                  <h3 className="font-medium text-gray-900 group-hover:text-green-700">
+                  <span className="text-xl md:text-2xl mr-2 md:mr-3 flex-shrink-0">{category.icon}</span>
+                  <h3 className="text-sm md:text-base font-medium text-gray-900 group-hover:text-green-700 break-words">
                     {category.name}
                   </h3>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-xs md:text-sm text-gray-600 break-words">
                   {category.items.slice(0, 2).join(', ')}{category.items.length > 2 && ', ...'}
                 </p>
               </Link>

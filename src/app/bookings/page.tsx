@@ -698,17 +698,17 @@ export default function BookingsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
-            <p className="text-gray-600">Track items you're renting and booking requests for your items</p>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">My Bookings</h1>
+            <p className="text-sm md:text-base text-gray-600">Track items you're renting and booking requests for your items</p>
           </div>
           
           <Button
             onClick={() => router.push('/browse')}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-2 text-sm md:text-base"
           >
             <Plus className="w-4 h-4" />
             Find Items to Rent
@@ -716,59 +716,59 @@ export default function BookingsPage() {
         </div>
 
         {/* Timeline Tabs */}
-        <div className="mb-6">
-          <div className="flex space-x-1 bg-gray-50 p-1 rounded-lg">
+        <div className="mb-4 md:mb-6">
+          <div className="flex space-x-1 bg-gray-50 p-1 rounded-lg overflow-x-auto">
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-md transition-colors flex-shrink-0 ${
                 activeTab === 'upcoming'
                   ? 'bg-white text-green-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              <Timer className="h-4 w-4 mr-2 inline" />
+              <Timer className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 inline" />
               Upcoming
             </button>
             <button
               onClick={() => setActiveTab('active')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-md transition-colors flex-shrink-0 ${
                 activeTab === 'active'
                   ? 'bg-white text-green-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              <Zap className="h-4 w-4 mr-2 inline" />
+              <Zap className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 inline" />
               Active
             </button>
             <button
               onClick={() => setActiveTab('past')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-md transition-colors flex-shrink-0 ${
                 activeTab === 'past'
                   ? 'bg-white text-green-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              <CheckSquare className="h-4 w-4 mr-2 inline" />
+              <CheckSquare className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 inline" />
               Past
             </button>
             <button
               onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-md transition-colors flex-shrink-0 ${
                 activeTab === 'all'
                   ? 'bg-white text-green-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              <List className="h-4 w-4 mr-2 inline" />
+              <List className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 inline" />
               All
             </button>
           </div>
         </div>
 
         {/* Filters */}
-        <Card className="p-6 mb-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-            <div className="flex items-center space-x-4">
+        <Card className="p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col space-y-3 md:space-y-0 md:flex-row md:items-center md:space-x-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
@@ -776,53 +776,55 @@ export default function BookingsPage() {
                   placeholder="Search bookings..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm md:text-base w-full md:w-auto"
                 />
               </div>
               
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="payment_required">Payment Required</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="in_progress">Active</option>
-                <option value="return_pending">Return Pending</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-0 md:flex md:space-x-4">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm md:text-base"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="payment_required">Payment Required</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="in_progress">Active</option>
+                  <option value="return_pending">Return Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
 
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="all">All Bookings</option>
-                <option value="renter">I'm Renting</option>
-                <option value="owner">My Items</option>
-              </select>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm md:text-base"
+                >
+                  <option value="all">All Bookings</option>
+                  <option value="renter">I'm Renting</option>
+                  <option value="owner">My Items</option>
+                </select>
 
-              <select
-                value={deliveryFilter}
-                onChange={(e) => setDeliveryFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="all">All Delivery</option>
-                <option value="pickup">Pickup Only</option>
-                <option value="delivery">Delivery Only</option>
-              </select>
+                <select
+                  value={deliveryFilter}
+                  onChange={(e) => setDeliveryFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm md:text-base"
+                >
+                  <option value="all">All Delivery</option>
+                  <option value="pickup">Pickup Only</option>
+                  <option value="delivery">Delivery Only</option>
+                </select>
+              </div>
             </div>
             
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" className="text-xs md:text-sm">
+                <Download className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                 Export
               </Button>
-              <Button variant="outline" size="sm" onClick={loadBookings}>
-                <RefreshCw className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" onClick={loadBookings} className="text-xs md:text-sm">
+                <RefreshCw className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                 Refresh
               </Button>
             </div>
@@ -831,13 +833,13 @@ export default function BookingsPage() {
 
         {/* Bookings List */}
         {filteredBookings.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {filteredBookings.map((booking) => (
-              <Card key={booking.id} className="p-6 hover:shadow-lg transition-shadow">
+              <Card key={booking.id} className="p-4 md:p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-start justify-between">
-                  <div className="flex space-x-4 flex-1">
+                  <div className="flex space-x-3 md:space-x-4 flex-1 min-w-0">
                     {/* Item Image */}
-                    <div className="w-20 h-20 flex-shrink-0">
+                    <div className="w-16 h-16 md:w-20 md:h-20 flex-shrink-0">
                       <Image
                         src={booking.listing.images[0] || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTA5Mzk2IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjUwMCI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pgo8L3N2Zz4K'}
                         alt={booking.listing.title}
@@ -849,19 +851,19 @@ export default function BookingsPage() {
 
                     {/* Booking Details */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">
+                      <div className="flex items-start justify-between mb-2 gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-base md:text-lg font-semibold text-gray-900 truncate">
                             {booking.listing.title}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs md:text-sm text-gray-500 break-words">
                             {booking.userRole === 'owner' 
                               ? `Booking request from: ${booking.owner.full_name}`
                               : `Rented from: ${booking.owner.full_name}`
                             }
                           </p>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col items-end space-y-1 md:space-y-2 flex-shrink-0">
                           {/* Role Badge */}
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                             booking.userRole === 'owner' 
@@ -878,26 +880,26 @@ export default function BookingsPage() {
                       </div>
 
                       {/* Dates and Duration */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Calendar className="w-4 h-4 mr-2" />
-                          <div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-3 md:mb-4">
+                        <div className="flex items-center text-xs md:text-sm text-gray-600">
+                          <Calendar className="w-3 h-3 md:w-4 md:h-4 mr-2 flex-shrink-0" />
+                          <div className="min-w-0">
                             <p className="font-medium">Start Date</p>
-                            <p>{format(new Date(booking.start_date), 'MMM d, yyyy')}</p>
+                            <p className="truncate">{format(new Date(booking.start_date), 'MMM d, yyyy')}</p>
                           </div>
                         </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Clock className="w-4 h-4 mr-2" />
-                          <div>
+                        <div className="flex items-center text-xs md:text-sm text-gray-600">
+                          <Clock className="w-3 h-3 md:w-4 md:h-4 mr-2 flex-shrink-0" />
+                          <div className="min-w-0">
                             <p className="font-medium">End Date</p>
-                            <p>{format(new Date(booking.end_date), 'MMM d, yyyy')}</p>
+                            <p className="truncate">{format(new Date(booking.end_date), 'MMM d, yyyy')}</p>
                           </div>
                         </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <DollarSign className="w-4 h-4 mr-2" />
-                          <div>
+                        <div className="flex items-center text-xs md:text-sm text-gray-600">
+                          <DollarSign className="w-3 h-3 md:w-4 md:h-4 mr-2 flex-shrink-0" />
+                          <div className="min-w-0">
                             <p className="font-medium">Total Amount</p>
-                            <p className="text-lg font-semibold text-green-600">
+                            <p className="text-sm md:text-lg font-semibold text-green-600">
                               {formatPrice(booking.total_amount)}
                             </p>
                           </div>
@@ -905,35 +907,35 @@ export default function BookingsPage() {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <div className="flex flex-col space-y-3 md:space-y-0 md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-500">
                           {booking.insurance_selected && (
-                            <span className="text-blue-600">Insurance included</span>
+                            <span className="text-blue-600 bg-blue-50 px-2 py-1 rounded">Insurance included</span>
                           )}
                           {booking.deposit_amount && (
-                            <span>Deposit: {formatPrice(booking.deposit_amount)}</span>
+                            <span className="bg-gray-50 px-2 py-1 rounded">Deposit: {formatPrice(booking.deposit_amount)}</span>
                           )}
                         </div>
 
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {/* Owner actions for pending booking requests */}
                           {booking.userRole === 'owner' && booking.status === 'pending' && (
                             <>
                               <Button
                                 onClick={() => updateBookingStatus(booking.id, 'payment_required')}
                                 size="sm"
-                                className="bg-green-600 hover:bg-green-700 text-white"
+                                className="bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm"
                               >
-                                <CheckCircle className="w-4 h-4 mr-1" />
+                                <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                 Accept
                               </Button>
                               <Button
                                 onClick={() => updateBookingStatus(booking.id, 'cancelled')}
                                 size="sm"
                                 variant="outline"
-                                className="border-red-300 text-red-600 hover:bg-red-50"
+                                className="border-red-300 text-red-600 hover:bg-red-50 text-xs md:text-sm"
                               >
-                                <XCircle className="w-4 h-4 mr-1" />
+                                <XCircle className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                 Decline
                               </Button>
                             </>
@@ -947,9 +949,9 @@ export default function BookingsPage() {
                                 <Button
                                   onClick={() => router.push(`/bookings/${booking.id}/payment`)}
                                   size="sm"
-                                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs md:text-sm"
                                 >
-                                  <DollarSign className="w-4 h-4 mr-1" />
+                                  <DollarSign className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                   Pay Now
                                 </Button>
                               )}
@@ -959,10 +961,11 @@ export default function BookingsPage() {
                                 <Button
                                   onClick={() => openConfirmationModal('pickup', booking)}
                                   size="sm"
-                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                  className="bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm"
                                 >
-                                  <Camera className="w-4 h-4 mr-1" />
-                                  Confirm Pickup
+                                  <Camera className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                                  <span className="hidden sm:inline">Confirm Pickup</span>
+                                  <span className="sm:hidden">Pickup</span>
                                 </Button>
                               )}
 
@@ -971,10 +974,11 @@ export default function BookingsPage() {
                                 <Button
                                   onClick={() => openConfirmationModal('return', booking)}
                                   size="sm"
-                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm"
                                 >
-                                  <Camera className="w-4 h-4 mr-1" />
-                                  Confirm Return
+                                  <Camera className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                                  <span className="hidden sm:inline">Confirm Return</span>
+                                  <span className="sm:hidden">Return</span>
                                 </Button>
                               )}
 
@@ -997,7 +1001,7 @@ export default function BookingsPage() {
                             <>
                               {/* Status indicators for owner */}
                               {booking.status === 'in_progress' && (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                                     🏃 Active Rental
                                   </span>
@@ -1010,17 +1014,18 @@ export default function BookingsPage() {
                               )}
                               
                               {booking.status === 'return_pending' && (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
                                     📥 Item Returned
                                   </span>
                                   <Button
                                     onClick={() => openOwnerReceiptModal(booking)}
                                     size="sm"
-                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                    className="bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm"
                                   >
-                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                    Confirm Receipt
+                                    <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                                    <span className="hidden sm:inline">Confirm Receipt</span>
+                                    <span className="sm:hidden">Receipt</span>
                                   </Button>
                                 </div>
                               )}
@@ -1044,25 +1049,28 @@ export default function BookingsPage() {
                             onClick={() => window.open(`mailto:${booking.owner.email}`)}
                             variant="outline"
                             size="sm"
+                            className="text-xs md:text-sm"
                           >
-                            <Mail className="w-4 h-4 mr-1" />
-                            Email
+                            <Mail className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                            <span className="hidden sm:inline">Email</span>
                           </Button>
                           <Button
                             onClick={() => router.push(`/messages?user=${booking.owner.id}`)}
                             variant="outline"
                             size="sm"
+                            className="text-xs md:text-sm"
                           >
-                            <MessageCircle className="w-4 h-4 mr-1" />
-                            Message
+                            <MessageCircle className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                            <span className="hidden sm:inline">Message</span>
                           </Button>
                           <Button
                             onClick={() => setSelectedBooking(booking)}
                             variant="outline"
                             size="sm"
+                            className="text-xs md:text-sm"
                           >
-                            <Eye className="w-4 h-4 mr-1" />
-                            Details
+                            <Eye className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                            <span className="hidden sm:inline">Details</span>
                           </Button>
                         </div>
                       </div>
@@ -1073,10 +1081,10 @@ export default function BookingsPage() {
             ))}
           </div>
         ) : (
-          <Card className="p-12 text-center">
-            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings found</h3>
-            <p className="text-gray-500 mb-6">
+          <Card className="p-8 md:p-12 text-center">
+            <Package className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">No bookings found</h3>
+            <p className="text-gray-500 mb-4 md:mb-6 text-sm md:text-base">
               No bookings match your current filters. Try adjusting the filters above or start exploring!
             </p>
             {user && (
@@ -1084,13 +1092,14 @@ export default function BookingsPage() {
                 Debug: User ID: {user.id}
               </p>
             )}
-            <div className="flex items-center justify-center space-x-4">
-              <Button onClick={() => router.push('/browse')}>
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4">
+              <Button onClick={() => router.push('/browse')} className="w-full sm:w-auto">
                 Browse Items to Rent
               </Button>
               <Button 
                 onClick={() => router.push('/listings/create')}
                 variant="outline"
+                className="w-full sm:w-auto"
               >
                 List an Item
               </Button>
@@ -1121,45 +1130,45 @@ export default function BookingsPage() {
         {selectedBooking && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
+              <div className="p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold">Booking Details</h2>
+                  <h2 className="text-lg md:text-xl font-bold">Booking Details</h2>
                   <button
                     onClick={() => setSelectedBooking(null)}
                     className="text-gray-400 hover:text-gray-600"
                   >
-                    <XCircle className="w-6 h-6" />
+                    <XCircle className="w-5 h-5 md:w-6 md:h-6" />
                   </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-4 md:space-y-6">
                   {/* Item Info */}
                   <div>
-                    <h3 className="font-semibold mb-2">Item Information</h3>
-                    <div className="flex items-center gap-4">
+                    <h3 className="font-semibold mb-2 text-sm md:text-base">Item Information</h3>
+                    <div className="flex items-center gap-3 md:gap-4">
                       <Image
                         src={selectedBooking.listing.images[0]}
                         alt={selectedBooking.listing.title}
                         width={80}
                         height={80}
-                        className="w-20 h-20 object-cover rounded-lg"
+                        className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-lg"
                       />
                       <div>
-                        <p className="font-medium">{selectedBooking.listing.title}</p>
-                        <p className="text-sm text-gray-600">{selectedBooking.listing.category}</p>
-                        <p className="text-sm text-green-600">{formatPrice(selectedBooking.listing.daily_rate)}/day</p>
+                        <p className="font-medium text-sm md:text-base">{selectedBooking.listing.title}</p>
+                        <p className="text-xs md:text-sm text-gray-600">{selectedBooking.listing.category}</p>
+                        <p className="text-xs md:text-sm text-green-600">{formatPrice(selectedBooking.listing.daily_rate)}/day</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Owner Contact */}
                   <div>
-                    <h3 className="font-semibold mb-2">Owner Contact</h3>
+                    <h3 className="font-semibold mb-2 text-sm md:text-base">Owner Contact</h3>
                     <div className="space-y-2">
-                      <p>{selectedBooking.owner.full_name}</p>
-                      <p className="text-sm text-gray-600">{selectedBooking.owner.email}</p>
+                      <p className="text-sm md:text-base">{selectedBooking.owner.full_name}</p>
+                      <p className="text-xs md:text-sm text-gray-600">{selectedBooking.owner.email}</p>
                       {selectedBooking.owner.phone && (
-                        <p className="text-sm text-gray-600">{selectedBooking.owner.phone}</p>
+                        <p className="text-xs md:text-sm text-gray-600">{selectedBooking.owner.phone}</p>
                       )}
                     </div>
                   </div>
@@ -1167,14 +1176,14 @@ export default function BookingsPage() {
                   {/* Delivery Information */}
                   {(selectedBooking.delivery_method || selectedBooking.pickup_location) && (
                     <div>
-                      <h3 className="font-semibold mb-2">Delivery & Return</h3>
+                      <h3 className="font-semibold mb-2 text-sm md:text-base">Delivery & Return</h3>
                       <div className="space-y-2">
                         {selectedBooking.delivery_method && (
                           <div className="flex items-start gap-2">
-                            <Package className="w-4 h-4 text-gray-400 mt-0.5" />
+                            <Package className="w-3 h-3 md:w-4 md:h-4 text-gray-400 mt-0.5" />
                             <div>
-                              <p className="text-sm font-medium">Delivery Method</p>
-                              <p className="text-sm text-gray-600">
+                              <p className="text-xs md:text-sm font-medium">Delivery Method</p>
+                              <p className="text-xs md:text-sm text-gray-600">
                                 {selectedBooking.delivery_method === 'pickup' ? 'Pickup from owner' : 'Delivery to renter'}
                               </p>
                             </div>
@@ -1182,28 +1191,28 @@ export default function BookingsPage() {
                         )}
                         {selectedBooking.delivery_method === 'delivery' && selectedBooking.delivery_address && (
                           <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                            <MapPin className="w-3 h-3 md:w-4 md:h-4 text-gray-400 mt-0.5" />
                             <div>
-                              <p className="text-sm font-medium">Delivery Address</p>
-                              <p className="text-sm text-gray-600">{selectedBooking.delivery_address}</p>
+                              <p className="text-xs md:text-sm font-medium">Delivery Address</p>
+                              <p className="text-xs md:text-sm text-gray-600 break-words">{selectedBooking.delivery_address}</p>
                             </div>
                           </div>
                         )}
                         {selectedBooking.delivery_method === 'pickup' && selectedBooking.pickup_location && (
                           <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                            <MapPin className="w-3 h-3 md:w-4 md:h-4 text-gray-400 mt-0.5" />
                             <div>
-                              <p className="text-sm font-medium">Pickup Location</p>
-                              <p className="text-sm text-gray-600">{selectedBooking.pickup_location}</p>
+                              <p className="text-xs md:text-sm font-medium">Pickup Location</p>
+                              <p className="text-xs md:text-sm text-gray-600 break-words">{selectedBooking.pickup_location}</p>
                             </div>
                           </div>
                         )}
                         {selectedBooking.return_location && (
                           <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                            <MapPin className="w-3 h-3 md:w-4 md:h-4 text-gray-400 mt-0.5" />
                             <div>
-                              <p className="text-sm font-medium">Return Location</p>
-                              <p className="text-sm text-gray-600">{selectedBooking.return_location}</p>
+                              <p className="text-xs md:text-sm font-medium">Return Location</p>
+                              <p className="text-xs md:text-sm text-gray-600 break-words">{selectedBooking.return_location}</p>
                             </div>
                           </div>
                         )}
@@ -1214,16 +1223,16 @@ export default function BookingsPage() {
                   {/* Condition Notes */}
                   {selectedBooking.condition_before && (
                     <div>
-                      <h3 className="font-semibold mb-2">Item Condition</h3>
+                      <h3 className="font-semibold mb-2 text-sm md:text-base">Item Condition</h3>
                       <div className="space-y-2">
                         <div>
-                          <p className="text-sm font-medium">Before Rental</p>
-                          <p className="text-sm text-gray-600">{selectedBooking.condition_before}</p>
+                          <p className="text-xs md:text-sm font-medium">Before Rental</p>
+                          <p className="text-xs md:text-sm text-gray-600">{selectedBooking.condition_before}</p>
                         </div>
                         {selectedBooking.condition_after && (
                           <div>
-                            <p className="text-sm font-medium">After Return</p>
-                            <p className="text-sm text-gray-600">{selectedBooking.condition_after}</p>
+                            <p className="text-xs md:text-sm font-medium">After Return</p>
+                            <p className="text-xs md:text-sm text-gray-600">{selectedBooking.condition_after}</p>
                           </div>
                         )}
                       </div>

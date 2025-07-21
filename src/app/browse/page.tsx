@@ -88,6 +88,7 @@ function BrowseContent() {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
@@ -530,21 +531,44 @@ function BrowseContent() {
   return (
     <>
       {/* Filters Panel */}
-      <div className="bg-white border-b border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+      <div className="bg-white border-b border-gray-200 p-4 md:p-6">
+        {/* Mobile Filter Toggle & Header */}
+        <div className="flex items-center justify-between mb-4 md:mb-6">
+          <div className="flex items-center space-x-3">
+            <h2 className="text-base md:text-lg font-semibold text-gray-900">Filters</h2>
+            {/* Mobile Toggle Button */}
+            <button
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className="md:hidden flex items-center space-x-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors relative"
+            >
+              <Filter className="w-4 h-4 text-gray-600" />
+              <span className="text-sm text-gray-600">
+                {showMobileFilters ? 'Hide' : 'Show'}
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform ${showMobileFilters ? 'rotate-180' : ''}`} />
+              {/* Active filters indicator */}
+              {(searchTerm || selectedCategories.length > 0 || selectedState || priceRange.min || priceRange.max) && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></div>
+              )}
+            </button>
+          </div>
           <button 
             onClick={clearFilters}
-            className="text-green-500 hover:text-green-600 font-medium transition-colors"
+            className="text-green-500 hover:text-green-600 font-medium transition-colors text-sm md:text-base"
           >
             Clear all
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Filters Content - Collapsible on Mobile */}
+        <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+          showMobileFilters 
+            ? 'max-h-screen opacity-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6' 
+            : 'max-h-0 opacity-0 md:max-h-screen md:opacity-100 md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-4 lg:gap-6'
+        }`}>
           {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
@@ -552,19 +576,19 @@ function BrowseContent() {
                 placeholder="Search items..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm md:text-base"
               />
             </div>
           </div>
 
           {/* Categories */}
           <div className="relative" ref={categoryDropdownRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Categories</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Categories</label>
             <button
               onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-left flex items-center justify-between text-sm md:text-base"
             >
-              <span className="text-gray-700">
+              <span className="text-gray-700 truncate">
                 {selectedCategories.length === 0 
                   ? 'Select categories...' 
                   : selectedCategories.length === 1 
@@ -572,7 +596,7 @@ function BrowseContent() {
                     : `${selectedCategories.length} categories selected`
                 }
               </span>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${showCategoryDropdown ? 'rotate-180' : ''}`} />
             </button>
             
             {showCategoryDropdown && (
@@ -589,11 +613,11 @@ function BrowseContent() {
                           setSelectedCategories(prev => prev.filter(cat => cat !== key));
                         }
                       }}
-                      className="mr-3 h-4 w-4 text-green-500 border-gray-300 rounded focus:ring-green-500"
+                      className="mr-3 h-4 w-4 text-green-500 border-gray-300 rounded focus:ring-green-500 flex-shrink-0"
                     />
-                    <span className="flex items-center text-sm text-gray-700">
+                    <span className="flex items-center text-xs md:text-sm text-gray-700">
                       <span className="mr-2">{category.icon}</span>
-                      {category.label}
+                      <span className="break-words">{category.label}</span>
                     </span>
                   </label>
                 ))}
@@ -603,32 +627,32 @@ function BrowseContent() {
 
           {/* Price Range */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Price Range (per day)</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Price Range (per day)</label>
             <div className="flex space-x-2">
               <input
                 type="number"
                 placeholder="Min"
                 value={priceRange.min}
                 onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm md:text-base"
               />
               <input
                 type="number"
                 placeholder="Max"
                 value={priceRange.max}
                 onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm md:text-base"
               />
             </div>
           </div>
 
           {/* State Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">State</label>
             <select
               value={selectedState}
               onChange={(e) => setSelectedState(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm md:text-base"
             >
               <option value="">All States</option>
               {australianStates.map(state => (
@@ -642,40 +666,40 @@ function BrowseContent() {
       </div>
 
       {/* Results Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4" data-results-section>
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4" data-results-section>
         <div className="max-w-screen-xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-semibold text-gray-900">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4">
+            <div className="flex items-center space-x-2 md:space-x-4">
+              <h1 className="text-lg md:text-xl font-semibold text-gray-900">
                 {filteredListings.length} Items Available
               </h1>
               {totalPages > 1 && (
-                <span className="text-sm text-gray-500">
+                <span className="text-xs md:text-sm text-gray-500">
                   Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredListings.length)} of {filteredListings.length}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 md:space-x-4">
               {/* Near Me button */}
               <button
                 onClick={handleNearMeClick}
                 disabled={sortBy === 'distance' && userLocation}
-                className={`px-3 py-2 border rounded-lg flex items-center space-x-2 transition-colors ${
+                className={`px-2 md:px-3 py-2 border rounded-lg flex items-center space-x-1 md:space-x-2 transition-colors text-xs md:text-sm ${
                   sortBy === 'distance' && userLocation
                     ? 'border-green-500 bg-green-50 text-green-700'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <MapPin className="w-4 h-4" />
-                <span>Near Me</span>
+                <MapPin className="w-3 h-3 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">Near Me</span>
               </button>
 
               {/* Sort dropdown */}
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-xs md:text-sm"
               >
                 {sortOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -688,15 +712,15 @@ function BrowseContent() {
               <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`p-1.5 md:p-2 ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 >
-                  <List className="w-4 h-4" />
+                  <List className="w-3 h-3 md:w-4 md:h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('map')}
-                  className={`p-2 ${viewMode === 'map' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`p-1.5 md:p-2 ${viewMode === 'map' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 >
-                  <Map className="w-4 h-4" />
+                  <Map className="w-3 h-3 md:w-4 md:h-4" />
                 </button>
               </div>
             </div>
@@ -705,114 +729,110 @@ function BrowseContent() {
       </div>
 
       {/* Results Grid */}
-      <div className="p-6">
+      <div className="px-2 py-4 md:px-4 md:py-6">
         <div className="max-w-screen-xl mx-auto">
-        {filteredListings.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg mb-4">No items found</p>
-            <p className="text-gray-400">Try adjusting your filters or search terms</p>
-          </div>
-        ) : viewMode === 'map' ? (
-          <div className="h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
-            <MapView
-              listings={filteredListings.map((listing) => {
-                const mockData = getMockListingData(listing.id);
-                return {
-                  ...listing,
-                  rating: mockData.rating,
-                  reviewCount: mockData.reviewCount,
-                  distance: mockData.distance,
-                };
-              })}
-              userLocation={userLocation}
-              onFavoriteToggle={toggleFavorite}
-              favorites={favorites}
-            />
-          </div>
-        ) : (
-          <>
-            <div className={`grid gap-6 ${
-              viewMode === 'grid' 
-                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-                : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-            }`}>
-              {paginatedListings.map((listing) => {
-                const mockData = getMockListingData(listing.id);
-                return (
-                  <ListingCard
-                    key={listing.id}
-                    id={listing.id}
-                    title={listing.title}
-                    images={listing.images}
-                    price={listing.price_per_day}
-                    period="day"
-                    category={listing.category}
-                    city={listing.city}
-                    state={listing.state}
-                    delivery_available={listing.delivery_available}
-                    pickup_available={listing.pickup_available}
-                    rating={mockData.rating}
-                    reviewCount={mockData.reviewCount}
-                    distance={mockData.distance}
-                    owner={{
-                      name: listing.profiles?.full_name || 'Anonymous',
-                      avatar: listing.profiles?.avatar_url || undefined
-                    }}
-                  />
-                );
-              })}
+          {filteredListings.length === 0 ? (
+            <div className="text-center py-8 md:py-12">
+              <p className="text-gray-500 text-base md:text-lg mb-4">No items found</p>
+              <p className="text-gray-400 text-sm md:text-base">Try adjusting your filters or search terms</p>
             </div>
-            
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center mt-8 space-x-2">
-                {/* Previous button */}
-                <button
-                  onClick={goToPrevPage}
-                  disabled={currentPage === 1}
-                  className={`px-3 py-2 rounded-lg border ${
-                    currentPage === 1
-                      ? 'border-gray-300 text-gray-400 cursor-not-allowed'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Previous
-                </button>
-                
-                {/* Page numbers */}
-                {getPageNumbers().map((pageNum, index) => (
+          ) : viewMode === 'map' ? (
+            <div className="h-[400px] md:h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
+              <MapView
+                listings={filteredListings.map((listing) => {
+                  const mockData = getMockListingData(listing.id);
+                  return {
+                    ...listing,
+                    rating: mockData.rating,
+                    reviewCount: mockData.reviewCount,
+                    distance: mockData.distance,
+                  };
+                })}
+                userLocation={userLocation}
+                onFavoriteToggle={toggleFavorite}
+                favorites={favorites}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                {paginatedListings.map((listing) => {
+                  const mockData = getMockListingData(listing.id);
+                  return (
+                    <ListingCard
+                      key={listing.id}
+                      id={listing.id}
+                      title={listing.title}
+                      images={listing.images}
+                      price={listing.price_per_day}
+                      period="day"
+                      category={listing.category}
+                      city={listing.city}
+                      state={listing.state}
+                      delivery_available={listing.delivery_available}
+                      pickup_available={listing.pickup_available}
+                      rating={mockData.rating}
+                      reviewCount={mockData.reviewCount}
+                      distance={mockData.distance}
+                      owner={{
+                        name: listing.profiles?.full_name || 'Anonymous',
+                        avatar: listing.profiles?.avatar_url || undefined
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center mt-6 md:mt-8 space-x-1 md:space-x-2">
+                  {/* Previous button */}
                   <button
-                    key={index}
-                    onClick={() => typeof pageNum === 'number' ? goToPage(pageNum) : undefined}
-                    disabled={pageNum === '...'}
-                    className={`px-3 py-2 rounded-lg border ${
-                      pageNum === currentPage
-                        ? 'border-green-500 bg-green-500 text-white'
-                        : pageNum === '...'
-                        ? 'border-transparent text-gray-400 cursor-default'
+                    onClick={goToPrevPage}
+                    disabled={currentPage === 1}
+                    className={`px-2 md:px-3 py-2 rounded-lg border text-xs md:text-sm ${
+                      currentPage === 1
+                        ? 'border-gray-300 text-gray-400 cursor-not-allowed'
                         : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    {pageNum}
+                    Previous
                   </button>
-                ))}
-                
-                {/* Next button */}
-                <button
-                  onClick={goToNextPage}
-                  disabled={currentPage === totalPages}
-                  className={`px-3 py-2 rounded-lg border ${
-                    currentPage === totalPages
-                      ? 'border-gray-300 text-gray-400 cursor-not-allowed'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </>
-        )}
+                  
+                  {/* Page numbers */}
+                  {getPageNumbers().map((pageNum, index) => (
+                    <button
+                      key={index}
+                      onClick={() => typeof pageNum === 'number' ? goToPage(pageNum) : undefined}
+                      disabled={pageNum === '...'}
+                      className={`px-2 md:px-3 py-2 rounded-lg border text-xs md:text-sm min-w-[32px] md:min-w-[40px] ${
+                        pageNum === currentPage
+                          ? 'border-green-500 bg-green-500 text-white'
+                          : pageNum === '...'
+                          ? 'border-transparent text-gray-400 cursor-default'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                  
+                  {/* Next button */}
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`px-2 md:px-3 py-2 rounded-lg border text-xs md:text-sm ${
+                      currentPage === totalPages
+                        ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </>

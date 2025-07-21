@@ -388,16 +388,16 @@ export default function MyListingsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Listings</h1>
-            <p className="text-gray-600">Manage your items and track bookings</p>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">My Listings</h1>
+            <p className="text-sm md:text-base text-gray-600">Manage your items and track bookings</p>
           </div>
           <Button
             onClick={() => router.push('/listings/create')}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-2 text-sm md:text-base"
           >
             <Plus className="w-4 h-4" />
             Add New Item
@@ -405,48 +405,48 @@ export default function MyListingsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Package className="w-5 h-5 text-blue-600" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <Card className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
+                <Package className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Items</p>
-                <p className="text-xl font-bold">{listings.length}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Calendar className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Bookings</p>
-                <p className="text-xl font-bold">{totalBookings}</p>
+              <div className="min-w-0">
+                <p className="text-xs md:text-sm text-gray-600">Total Items</p>
+                <p className="text-lg md:text-xl font-bold">{listings.length}</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-yellow-600" />
+          <Card className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-green-100 rounded-lg">
+                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Earnings</p>
-                <p className="text-xl font-bold">{formatPrice(totalEarnings)}</p>
+              <div className="min-w-0">
+                <p className="text-xs md:text-sm text-gray-600">Total Bookings</p>
+                <p className="text-lg md:text-xl font-bold">{totalBookings}</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Star className="w-5 h-5 text-purple-600" />
+          <Card className="p-3 md:p-4 col-span-2 lg:col-span-1">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-yellow-100 rounded-lg">
+                <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-yellow-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Avg Rating</p>
-                <p className="text-xl font-bold">
+              <div className="min-w-0">
+                <p className="text-xs md:text-sm text-gray-600">Total Earnings</p>
+                <p className="text-lg md:text-xl font-bold">{formatPrice(totalEarnings)}</p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-3 md:p-4 col-span-2 lg:col-span-1">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg">
+                <Star className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs md:text-sm text-gray-600">Avg Rating</p>
+                <p className="text-lg md:text-xl font-bold">
                   {averageRating > 0 ? averageRating.toFixed(1) : 'N/A'}
                 </p>
               </div>
@@ -456,7 +456,7 @@ export default function MyListingsPage() {
 
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8">
+          <nav className="flex space-x-4 md:space-x-8 overflow-x-auto">
             {[
               { key: 'items', label: 'My Items', count: listings.length },
               { key: 'bookings', label: 'Item Bookings', count: itemBookings.length },
@@ -465,7 +465,7 @@ export default function MyListingsPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-xs md:text-sm flex-shrink-0 ${
                   activeTab === tab.key
                     ? 'border-green-500 text-green-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -486,10 +486,10 @@ export default function MyListingsPage() {
         {activeTab === 'items' && (
           <div className="space-y-4">
             {listings.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No items listed yet</h3>
-                <p className="text-gray-500 mb-6">Start earning by listing your first item!</p>
+              <div className="text-center py-8 md:py-12">
+                <Package className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400 mb-4" />
+                <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">No items listed yet</h3>
+                <p className="text-gray-500 mb-4 md:mb-6 text-sm md:text-base">Start earning by listing your first item!</p>
                 <Button
                   onClick={() => router.push('/listings/create')}
                   className="btn-primary"
@@ -499,10 +499,10 @@ export default function MyListingsPage() {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {listings.map((listing) => (
                   <Card key={listing.id} className="overflow-hidden">
-                  <div className="relative h-48">
+                  <div className="relative h-40 md:h-48">
                     <Image
                       src={listing.images?.[0] || '/images/placeholder-item.jpg'}
                       alt={listing.title}
@@ -514,33 +514,33 @@ export default function MyListingsPage() {
                       {listing.status}
                     </div>
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 mb-2">{listing.title}</h3>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{listing.description}</p>
+                  <div className="p-3 md:p-4">
+                    <h3 className="font-semibold text-gray-900 mb-2 text-sm md:text-base line-clamp-1">{listing.title}</h3>
+                    <p className="text-xs md:text-sm text-gray-600 mb-3 line-clamp-2">{listing.description}</p>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-lg font-bold text-green-600">{formatPrice(listing.daily_rate)}/day</span>
-                      <span className="text-sm text-gray-500">{listing.category}</span>
+                      <span className="text-base md:text-lg font-bold text-green-600">{formatPrice(listing.daily_rate)}/day</span>
+                      <span className="text-xs md:text-sm text-gray-500 truncate">{listing.category}</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs text-gray-600 mb-4">
+                    <div className="grid grid-cols-3 gap-2 text-xs text-gray-600 mb-3 md:mb-4">
                       <div className="flex items-center gap-1">
                         <Eye className="w-3 h-3" />
-                        {listing.view_count}
+                        <span className="truncate">{listing.view_count}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        {listing.total_bookings}
+                        <span className="truncate">{listing.total_bookings}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <DollarSign className="w-3 h-3" />
-                        {formatPrice(listing.total_earnings)}
+                        <span className="truncate text-xs">{formatPrice(listing.total_earnings)}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 md:gap-2 mb-2">
                       <Button
                         onClick={() => router.push(`/listings/${listing.id}`)}
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 text-xs md:text-sm"
                       >
                         <Eye className="w-3 h-3 mr-1" />
                         View
@@ -549,30 +549,30 @@ export default function MyListingsPage() {
                         onClick={() => editListing(listing.id)}
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 text-xs md:text-sm"
                       >
                         <Edit className="w-3 h-3 mr-1" />
                         Edit
                       </Button>
                     </div>
                     
-                    <div className="flex gap-1 mt-2">
+                    <div className="flex gap-1 md:gap-2">
                       <Button
                         onClick={() => toggleListingStatus(listing.id, listing.status)}
                         disabled={updatingListings.has(listing.id)}
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 text-xs md:text-sm"
                       >
                         {listing.status === 'active' ? (
                           <>
                             <Pause className="w-3 h-3 mr-1" />
-                            Pause
+                            <span className="hidden sm:inline">Pause</span>
                           </>
                         ) : (
                           <>
                             <Play className="w-3 h-3 mr-1" />
-                            Activate
+                            <span className="hidden sm:inline">Activate</span>
                           </>
                         )}
                       </Button>
@@ -581,10 +581,10 @@ export default function MyListingsPage() {
                         disabled={updatingListings.has(listing.id)}
                         variant="outline"
                         size="sm"
-                        className="flex-1 text-red-600 hover:text-red-700 hover:border-red-300"
+                        className="flex-1 text-red-600 hover:text-red-700 hover:border-red-300 text-xs md:text-sm"
                       >
                         <Trash2 className="w-3 h-3 mr-1" />
-                        Delete
+                        <span className="hidden sm:inline">Delete</span>
                       </Button>
                     </div>
                   </div>
@@ -596,64 +596,70 @@ export default function MyListingsPage() {
         )}
 
         {activeTab === 'bookings' && (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {itemBookings.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings yet</h3>
-                <p className="text-gray-500 mb-6">Bookings for your items will appear here.</p>
+              <div className="text-center py-8 md:py-12">
+                <Calendar className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400 mb-4" />
+                <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">No bookings yet</h3>
+                <p className="text-gray-500 mb-4 md:mb-6 text-sm md:text-base">Bookings for your items will appear here.</p>
               </div>
             ) : (
               itemBookings.map((booking) => (
-                <Card key={booking.id} className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{booking.listing_title}</h3>
-                      <p className="text-sm text-gray-600">
+                <Card key={booking.id} className="p-3 md:p-4">
+                  <div className="flex items-center justify-between mb-3 md:mb-4">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-gray-900 text-sm md:text-base truncate">{booking.listing_title}</h3>
+                      <p className="text-xs md:text-sm text-gray-600">
                         {format(new Date(booking.start_date), 'MMM dd')} - {format(new Date(booking.end_date), 'MMM dd, yyyy')}
                       </p>
                     </div>
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 ${getStatusColor(booking.status)}`}>
+                    <div className={`px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2 flex-shrink-0 ${getStatusColor(booking.status)}`}>
                       {getStatusIcon(booking.status)}
                       {booking.status}
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                       <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm font-medium">{booking.renter.full_name}</span>
+                        <Users className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
+                        <span className="text-xs md:text-sm font-medium truncate">{booking.renter.full_name}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm font-medium">{formatPrice(booking.total_amount)}</span>
+                        <DollarSign className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
+                        <span className="text-xs md:text-sm font-medium">{formatPrice(booking.total_amount)}</span>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 md:gap-2">
                       <Button
                         onClick={() => window.open(`mailto:${booking.renter.email}`)}
                         variant="outline"
                         size="sm"
+                        className="text-xs md:text-sm"
                       >
                         <Mail className="w-3 h-3" />
+                        <span className="hidden sm:inline ml-1">Email</span>
                       </Button>
                       {booking.renter.phone && (
                         <Button
                           onClick={() => window.open(`tel:${booking.renter.phone}`)}
                           variant="outline"
                           size="sm"
+                          className="text-xs md:text-sm"
                         >
                           <Phone className="w-3 h-3" />
+                          <span className="hidden sm:inline ml-1">Phone</span>
                         </Button>
                       )}
                       <Button
                         onClick={() => router.push(`/messages?user=${booking.renter.id}`)}
                         variant="outline"
                         size="sm"
+                        className="text-xs md:text-sm"
                       >
                         <MessageCircle className="w-3 h-3" />
+                        <span className="hidden sm:inline ml-1">Message</span>
                       </Button>
                     </div>
                   </div>
@@ -664,68 +670,68 @@ export default function MyListingsPage() {
         )}
 
         {activeTab === 'earnings' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="p-6">
+          <div className="space-y-4 md:space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+              <Card className="p-4 md:p-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <DollarSign className="w-6 h-6 text-green-600" />
+                  <div className="p-2 md:p-3 bg-green-100 rounded-lg">
+                    <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Total Earnings</p>
-                    <p className="text-2xl font-bold text-gray-900">{formatPrice(totalEarnings)}</p>
-                    <p className="text-sm text-green-600">+12% from last month</p>
+                  <div className="min-w-0">
+                    <p className="text-xs md:text-sm text-gray-600">Total Earnings</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900">{formatPrice(totalEarnings)}</p>
+                    <p className="text-xs md:text-sm text-green-600">+12% from last month</p>
                   </div>
                 </div>
               </Card>
               
-              <Card className="p-6">
+              <Card className="p-4 md:p-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <TrendingUp className="w-6 h-6 text-blue-600" />
+                  <div className="p-2 md:p-3 bg-blue-100 rounded-lg">
+                    <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">This Month</p>
-                    <p className="text-2xl font-bold text-gray-900">{formatPrice(450)}</p>
-                    <p className="text-sm text-blue-600">3 completed rentals</p>
+                  <div className="min-w-0">
+                    <p className="text-xs md:text-sm text-gray-600">This Month</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900">{formatPrice(450)}</p>
+                    <p className="text-xs md:text-sm text-blue-600">3 completed rentals</p>
                   </div>
                 </div>
               </Card>
               
-              <Card className="p-6">
+              <Card className="p-4 md:p-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <Calendar className="w-6 h-6 text-purple-600" />
+                  <div className="p-2 md:p-3 bg-purple-100 rounded-lg">
+                    <Calendar className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Avg per Booking</p>
-                    <p className="text-2xl font-bold text-gray-900">{formatPrice(totalEarnings / totalBookings)}</p>
-                    <p className="text-sm text-purple-600">Across {totalBookings} bookings</p>
+                  <div className="min-w-0">
+                    <p className="text-xs md:text-sm text-gray-600">Avg per Booking</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900">{formatPrice(totalEarnings / totalBookings)}</p>
+                    <p className="text-xs md:text-sm text-purple-600">Across {totalBookings} bookings</p>
                   </div>
                 </div>
               </Card>
             </div>
 
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Items</h3>
-              <div className="space-y-4">
+            <Card className="p-4 md:p-6">
+              <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Top Performing Items</h3>
+              <div className="space-y-3 md:space-y-4">
                 {listings
                   .sort((a, b) => b.total_earnings - a.total_earnings)
                   .slice(0, 3)
                   .map((listing, index) => (
                     <div key={listing.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        <div className="w-6 h-6 md:w-8 md:h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm">
                           {index + 1}
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{listing.title}</p>
-                          <p className="text-sm text-gray-600">{listing.total_bookings} bookings</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-gray-900 text-sm md:text-base truncate">{listing.title}</p>
+                          <p className="text-xs md:text-sm text-gray-600">{listing.total_bookings} bookings</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">{formatPrice(listing.total_earnings)}</p>
-                        <p className="text-sm text-gray-600">{formatPrice(listing.daily_rate)}/day</p>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-semibold text-gray-900 text-sm md:text-base">{formatPrice(listing.total_earnings)}</p>
+                        <p className="text-xs md:text-sm text-gray-600">{formatPrice(listing.daily_rate)}/day</p>
                       </div>
                     </div>
                   ))}
