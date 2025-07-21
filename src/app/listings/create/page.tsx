@@ -476,28 +476,26 @@ function CreateListingContent() {
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + images.length > 10) {
       toast.error('Maximum 10 images allowed');
       return;
     }
 
-    // Validate file size and type with mobile-friendly error handling
+    // Validate file types first
     const validFiles = files.filter(file => {
-      // Check file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name} is too large. Maximum size is 10MB.`);
+      // Check original file size to prevent browser memory issues
+      if (file.size > 50 * 1024 * 1024) { // 50MB original limit
+        toast.error(`${file.name} is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please choose a smaller image.`);
         return false;
       }
       
-      // Check file type
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
       if (!validTypes.includes(file.type)) {
         toast.error(`${file.name} is not a supported format. Use JPEG, PNG, or WebP.`);
         return false;
       }
-      
       return true;
     });
 
@@ -505,27 +503,137 @@ function CreateListingContent() {
       return;
     }
 
-    setImages([...images, ...validFiles]);
+    // Show processing message for mobile users
+    const processingToast = toast.loading(`Processing ${validFiles.length} image${validFiles.length > 1 ? 's' : ''}...`);
 
-    // Create preview URLs with error handling for mobile
-    validFiles.forEach((file, index) => {
-      try {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          if (e.target?.result) {
-            const target = e.target;
-            setImagePreview(prev => [...prev, target.result as string]);
+    try {
+      // Compress and resize each image
+      const compressedFiles = await Promise.all(
+        validFiles.map(async (file) => {
+          try {
+            const compressedFile = await compressAndResizeImage(file);
+            
+            // Log compression results for debugging
+            console.log(`Compressed ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+            
+            // Final size check after compression
+            if (compressedFile.size > 5 * 1024 * 1024) { // 5MB limit after compression
+              toast.error(`${file.name} is still too large after compression. Try a different image.`);
+              return null;
+            }
+            
+            return compressedFile;
+          } catch (error) {
+            console.error(`Error compressing ${file.name}:`, error);
+            toast.error(`Failed to process ${file.name}. Please try again.`);
+            return null;
           }
-        };
-        reader.onerror = () => {
-          console.error(`Failed to read file: ${file.name}`);
-          toast.error(`Failed to process ${file.name}. Please try again.`);
-        };
-        reader.readAsDataURL(file);
-      } catch (error) {
-        console.error(`Error processing file ${file.name}:`, error);
-        toast.error(`Failed to process ${file.name}. Please try again.`);
+        })
+      );
+
+      // Filter out failed compressions
+      const successfullyCompressed = compressedFiles.filter(file => file !== null) as File[];
+      
+      if (successfullyCompressed.length === 0) {
+        toast.dismiss(processingToast);
+        toast.error('No images were successfully processed');
+        return;
       }
+
+      setImages([...images, ...successfullyCompressed]);
+
+      // Create preview URLs with error handling for mobile
+      successfullyCompressed.forEach((file, index) => {
+        try {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            if (e.target?.result) {
+              const target = e.target;
+              setImagePreview(prev => [...prev, target.result as string]);
+            }
+          };
+          reader.onerror = () => {
+            console.error(`Failed to read file: ${file.name}`);
+            toast.error(`Failed to preview ${file.name}.`);
+          };
+          reader.readAsDataURL(file);
+        } catch (error) {
+          console.error(`Error processing file ${file.name}:`, error);
+          toast.error(`Failed to process ${file.name}. Please try again.`);
+        }
+      });
+
+      toast.dismiss(processingToast);
+      toast.success(`${successfullyCompressed.length} image${successfullyCompressed.length > 1 ? 's' : ''} processed and optimized!`);
+      
+    } catch (error) {
+      toast.dismiss(processingToast);
+      console.error('Error processing images:', error);
+      toast.error('Failed to process images. Please try again.');
+    }
+
+    // Clear the input so the same files can be selected again if needed
+    e.target.value = '';
+  };
+
+  // Image compression and resizing function
+  const compressAndResizeImage = (file: File): Promise<File> => {
+    return new Promise<File>((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new (window.Image || Image)();
+      
+      img.onload = () => {
+        // Set maximum dimensions (good for listing photos)
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1080;
+        const QUALITY = 0.8; // 80% quality
+        
+        let { width, height } = img;
+        
+        // Calculate new dimensions while maintaining aspect ratio
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = (height * MAX_WIDTH) / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = (width * MAX_HEIGHT) / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        
+        // Set canvas dimensions
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress image
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              // Create a new file with compressed data
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg', // Convert all to JPEG for better compression
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file); // Fallback to original if compression fails
+            }
+          },
+          'image/jpeg',
+          QUALITY
+        );
+      };
+      
+      img.onerror = () => {
+        resolve(file); // Fallback to original if loading fails
+      };
+      
+      img.src = URL.createObjectURL(file);
     });
   };
 
@@ -540,20 +648,20 @@ function CreateListingContent() {
     try {
       const uploadPromises = images.map(async (image, index) => {
         try {
-          // Add mobile-friendly file size check
-          if (image.size > 10 * 1024 * 1024) {
-            throw new Error(`Image ${image.name} is too large (max 10MB)`);
+          // Final size check (should be unnecessary now due to compression, but good safeguard)
+          if (image.size > 5 * 1024 * 1024) {
+            throw new Error(`Image ${image.name} is too large (max 5MB after compression)`);
           }
 
           const fileName = `${Date.now()}-${index}-${image.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
           
-          // Use a timeout to handle mobile network issues
+          // Use a longer timeout for mobile network issues since images are now optimized
           const uploadPromise = supabase.storage
             .from('listing-images')
             .upload(fileName, image);
 
           const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Upload timeout - please check your connection')), 30000)
+            setTimeout(() => reject(new Error('Upload timeout - please check your connection')), 45000)
           );
 
           const { data, error } = await Promise.race([uploadPromise, timeoutPromise]) as any;
@@ -568,12 +676,14 @@ function CreateListingContent() {
                 platform: 'mobile',
                 file_name: image.name,
                 file_size: image.size,
+                compression_applied: true,
               },
               extra: {
                 fileName,
                 imageIndex: index,
                 totalImages: images.length,
                 userAgent: navigator.userAgent,
+                fileSizeMB: (image.size / 1024 / 1024).toFixed(2),
               },
             });
             
@@ -594,12 +704,14 @@ function CreateListingContent() {
               component: 'image_upload_individual',
               platform: 'mobile',
               image_index: index,
+              compression_applied: true,
             },
             extra: {
               imageName: image.name,
               imageSize: image.size,
               imageType: image.type,
               userAgent: navigator.userAgent,
+              fileSizeMB: (image.size / 1024 / 1024).toFixed(2),
             },
           });
           
@@ -616,11 +728,13 @@ function CreateListingContent() {
         tags: {
           component: 'image_upload_batch',
           platform: 'mobile',
+          compression_applied: true,
         },
         extra: {
           totalImages: images.length,
           userAgent: navigator.userAgent,
           connectionType: (navigator as any).connection?.effectiveType || 'unknown',
+          totalSizeMB: images.reduce((sum, img) => sum + img.size, 0) / 1024 / 1024,
         },
       });
       
@@ -1072,9 +1186,19 @@ function CreateListingContent() {
                     <ul className="list-disc pl-5 space-y-1">
                       <li>Upload 3-10 photos (JPEG, PNG, WebP up to 10MB each)</li>
                       <li>First photo will be your main listing photo</li>
+                      <li>📱 Images are automatically optimized for mobile users</li>
                     </ul>
                   </div>
                   
+                  <div className="mt-4 text-sm text-gray-600">
+                    <p><strong>✨ Automatic Optimization:</strong></p>
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      <li>Large images are automatically resized to 1920x1080</li>
+                      <li>File sizes are compressed to reduce upload time</li>
+                      <li>Perfect quality maintained for listing photos</li>
+                    </ul>
+                  </div>
+
                   <div className="mt-4 text-sm text-gray-600">
                     <p><strong>Tips for great photos:</strong></p>
                     <ul className="list-disc pl-5 mt-2 space-y-1">
