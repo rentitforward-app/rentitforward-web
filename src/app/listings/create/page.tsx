@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import Image from 'next/image';
+import * as Sentry from '@sentry/nextjs';
 
 const categories = {
   'appliances': { 
@@ -384,37 +385,64 @@ function CreateListingContent() {
     const currentSchema = stepSchemas[currentStep as keyof typeof stepSchemas];
     if (!currentSchema) return true;
 
-    const currentData = getValues();
-    
-    // Extract only the fields for the current step
-    const stepFields = getStepFields(currentStep);
-    const stepData: any = {};
-    stepFields.forEach(field => {
-      stepData[field] = currentData[field as keyof typeof currentData];
-    });
-    
-    // For step 2, handle NaN values in optional rate fields
-    if (currentStep === 2) {
-      if (isNaN(stepData.hourlyRate as number)) stepData.hourlyRate = undefined;
-      if (isNaN(stepData.weeklyRate as number)) stepData.weeklyRate = undefined;
-      if (isNaN(stepData.monthlyRate as number)) stepData.monthlyRate = undefined;
-    }
-    
-    const result = currentSchema.safeParse(stepData);
-    
-    // Additional validation for step 1: check minimum photos
-    if (currentStep === 1 && imagePreview.length < 3) {
-      toast.error('Please add at least 3 photos before continuing');
-      return false;
-    }
-    
-    if (result.success) {
-      setCompletedSteps(prev => new Set([...prev, currentStep]));
-      return true;
-    } else {
+    try {
+      const currentData = getValues();
       
-      // Trigger validation for current step fields to show inline errors
-      await trigger(stepFields as any);
+      // Extract only the fields for the current step
+      const stepFields = getStepFields(currentStep);
+      const stepData: any = {};
+      stepFields.forEach(field => {
+        stepData[field] = currentData[field as keyof typeof currentData];
+      });
+      
+      // For step 2, handle NaN values in optional rate fields
+      if (currentStep === 2) {
+        if (isNaN(stepData.hourlyRate as number)) stepData.hourlyRate = undefined;
+        if (isNaN(stepData.weeklyRate as number)) stepData.weeklyRate = undefined;
+        if (isNaN(stepData.monthlyRate as number)) stepData.monthlyRate = undefined;
+      }
+      
+      const result = currentSchema.safeParse(stepData);
+      
+      // Additional validation for step 1: check minimum photos
+      if (currentStep === 1 && imagePreview.length < 3) {
+        toast.error('Please add at least 3 photos before continuing');
+        return false;
+      }
+      
+      if (result.success) {
+        setCompletedSteps(prev => new Set([...prev, currentStep]));
+        return true;
+      } else {
+        console.log('Mobile validation error for step', currentStep, ':', result.error.issues);
+        
+        // Trigger validation for current step fields to show inline errors
+        // Add delay for mobile devices to handle keyboard hiding
+        setTimeout(async () => {
+          await trigger(stepFields as any);
+        }, 100);
+        
+        return false;
+      }
+    } catch (error) {
+      console.error('Error during step validation:', error);
+      
+      // Capture validation error with mobile context
+      Sentry.captureException(error, {
+        tags: {
+          component: 'form_validation',
+          platform: 'mobile',
+          current_step: currentStep,
+        },
+        extra: {
+          stepFields: getStepFields(currentStep),
+          imageCount: imagePreview.length,
+          userAgent: navigator.userAgent,
+          connectionType: (navigator as any).connection?.effectiveType || 'unknown',
+        },
+      });
+      
+      toast.error('Validation error. Please check your inputs and try again.');
       return false;
     }
   };
@@ -455,28 +483,49 @@ function CreateListingContent() {
       return;
     }
 
-    // Validate file size and type
+    // Validate file size and type with mobile-friendly error handling
     const validFiles = files.filter(file => {
-      if (file.size > 10 * 1024 * 1024) { // 10MB
-        toast.error(`File ${file.name} is too large. Maximum size is 10MB.`);
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name} is too large. Maximum size is 10MB.`);
         return false;
       }
-      if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
-        toast.error(`File ${file.name} is not a supported image format.`);
+      
+      // Check file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast.error(`${file.name} is not a supported format. Use JPEG, PNG, or WebP.`);
         return false;
       }
+      
       return true;
     });
 
+    if (validFiles.length === 0) {
+      return;
+    }
+
     setImages([...images, ...validFiles]);
 
-    // Create preview URLs
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(prev => [...prev, e.target?.result as string]);
-      };
-      reader.readAsDataURL(file);
+    // Create preview URLs with error handling for mobile
+    validFiles.forEach((file, index) => {
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            const target = e.target;
+            setImagePreview(prev => [...prev, target.result as string]);
+          }
+        };
+        reader.onerror = () => {
+          console.error(`Failed to read file: ${file.name}`);
+          toast.error(`Failed to process ${file.name}. Please try again.`);
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+        toast.error(`Failed to process ${file.name}. Please try again.`);
+      }
     });
   };
 
@@ -488,25 +537,95 @@ function CreateListingContent() {
   const uploadImages = async (): Promise<string[]> => {
     if (images.length === 0) return [];
 
-    const uploadPromises = images.map(async (image, index) => {
-      const fileName = `${Date.now()}-${index}-${image.name}`;
-      const { data, error } = await supabase.storage
-        .from('listing-images')
-        .upload(fileName, image);
+    try {
+      const uploadPromises = images.map(async (image, index) => {
+        try {
+          // Add mobile-friendly file size check
+          if (image.size > 10 * 1024 * 1024) {
+            throw new Error(`Image ${image.name} is too large (max 10MB)`);
+          }
 
-      if (error) {
-        console.error('Error uploading image:', error);
-        throw error;
-      }
+          const fileName = `${Date.now()}-${index}-${image.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          
+          // Use a timeout to handle mobile network issues
+          const uploadPromise = supabase.storage
+            .from('listing-images')
+            .upload(fileName, image);
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('listing-images')
-        .getPublicUrl(fileName);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Upload timeout - please check your connection')), 30000)
+          );
 
-      return publicUrl;
-    });
+          const { data, error } = await Promise.race([uploadPromise, timeoutPromise]) as any;
 
-    return Promise.all(uploadPromises);
+          if (error) {
+            console.error('Error uploading image:', error);
+            
+            // Capture detailed upload error for Sentry
+            Sentry.captureException(error, {
+              tags: {
+                component: 'image_upload',
+                platform: 'mobile',
+                file_name: image.name,
+                file_size: image.size,
+              },
+              extra: {
+                fileName,
+                imageIndex: index,
+                totalImages: images.length,
+                userAgent: navigator.userAgent,
+              },
+            });
+            
+            throw new Error(`Failed to upload ${image.name}: ${error.message}`);
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('listing-images')
+            .getPublicUrl(fileName);
+
+          return publicUrl;
+        } catch (imageError) {
+          console.error(`Error uploading image ${index}:`, imageError);
+          
+          // Capture specific image upload error
+          Sentry.captureException(imageError, {
+            tags: {
+              component: 'image_upload_individual',
+              platform: 'mobile',
+              image_index: index,
+            },
+            extra: {
+              imageName: image.name,
+              imageSize: image.size,
+              imageType: image.type,
+              userAgent: navigator.userAgent,
+            },
+          });
+          
+          throw imageError;
+        }
+      });
+
+      return Promise.all(uploadPromises);
+    } catch (error) {
+      console.error('Error in uploadImages:', error);
+      
+      // Capture general upload process error
+      Sentry.captureException(error, {
+        tags: {
+          component: 'image_upload_batch',
+          platform: 'mobile',
+        },
+        extra: {
+          totalImages: images.length,
+          userAgent: navigator.userAgent,
+          connectionType: (navigator as any).connection?.effectiveType || 'unknown',
+        },
+      });
+      
+      throw new Error('Failed to upload images. Please check your connection and try again.');
+    }
   };
 
   const handleDeliveryMethodChange = (method: string, checked: boolean) => {
@@ -523,6 +642,25 @@ function CreateListingContent() {
     
     setValue('deliveryMethods', newMethods);
     trigger('deliveryMethods');
+  };
+
+  // Debug function to test Sentry on mobile
+  const testMobileSentry = () => {
+    Sentry.captureMessage('Mobile listing creation test from user', {
+      tags: {
+        component: 'listing_creation_test',
+        platform: 'mobile',
+      },
+      extra: {
+        userAgent: navigator.userAgent,
+        connectionType: (navigator as any).connection?.effectiveType || 'unknown',
+        currentStep,
+        imageCount: imagePreview.length,
+        timestamp: new Date().toISOString(),
+      },
+    });
+    
+    toast.success('Test message sent to Sentry! Check your dashboard.');
   };
 
   // Handle whole number input (remove decimals)
@@ -617,115 +755,173 @@ function CreateListingContent() {
       }
 
       if (isEditMode && editingListing) {
-        // Default coordinates for Perth, WA (will be improved with geocoding later) 
-        const defaultLat = -31.9505;
-        const defaultLng = 115.8605;
-
-        // Update existing listing
-        const { error } = await supabase
-          .from('listings')
-          .update({
-            title: cleanedData.title,
-            description: fullDescription,
-            category: cleanedData.category,
-            price_per_day: cleanedData.dailyRate,
-            price_hourly: cleanedData.hourlyRate || null,
-            price_weekly: cleanedData.weeklyRate || null,
-            deposit: cleanedData.depositAmount,
-            images: finalImageUrls,
-            location: `POINT(${defaultLng} ${defaultLat})`,
-            address: `${cleanedData.unitNumber ? cleanedData.unitNumber + ' ' : ''}${cleanedData.streetNumber} ${cleanedData.streetName}, ${cleanedData.suburb}, ${cleanedData.state} ${cleanedData.postcode}`,
-            city: cleanedData.suburb,
-            state: cleanedData.state,
-            postal_code: cleanedData.postcode,
-            condition: cleanedData.condition,
-            brand: cleanedData.brand,
-            model: cleanedData.model,
-            year: cleanedData.year,
-            features: features,
-            available_from: availableFromDate?.toISOString() || null,
-            available_to: availableToDate?.toISOString() || null,
-            pickup_available: true,
-            delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
-            insurance_enabled: cleanedData.insuranceEnabled || false,
-          })
-          .eq('id', editingListing.id);
-
-        if (error) {
-          console.error('Error updating listing:', error);
-          toast.error(`Failed to update listing: ${error.message || 'Please try again.'}`);
-          return;
-        }
-
-        toast.success('Listing updated successfully!');
-        router.push(`/listings/${editingListing.id}`);
-      } else {
-        // Create new listing with error handling
-        console.log('Attempting to create listing with data:', {
-          owner_id: user.id,
+        // Prepare the listing data for API call
+        const listingPayload = {
           title: cleanedData.title,
           description: fullDescription,
           category: cleanedData.category,
           price_per_day: cleanedData.dailyRate,
+          price_hourly: cleanedData.hourlyRate || null,
+          price_weekly: cleanedData.weeklyRate || null,
           deposit: cleanedData.depositAmount,
-        });
-
-        // Default coordinates for Perth, WA (will be improved with geocoding later)
-        const defaultLat = -31.9505;
-        const defaultLng = 115.8605;
-
-        const { data: result, error } = await supabase
-          .from('listings')
-          .insert({
-            owner_id: user.id,
-            title: cleanedData.title,
-            description: fullDescription,
-            category: cleanedData.category,
-            price_per_day: cleanedData.dailyRate,
-            price_hourly: cleanedData.hourlyRate || null,
-            price_weekly: cleanedData.weeklyRate || null,
-            deposit: cleanedData.depositAmount,
-            currency: 'AUD',
-            images: finalImageUrls,
-            location: `POINT(${defaultLng} ${defaultLat})`,
-            address: `${cleanedData.unitNumber ? cleanedData.unitNumber + ' ' : ''}${cleanedData.streetNumber} ${cleanedData.streetName}, ${cleanedData.suburb}, ${cleanedData.state} ${cleanedData.postcode}`,
-            city: cleanedData.suburb,
+          images: finalImageUrls,
+          address: {
+            unitNumber: cleanedData.unitNumber || '',
+            streetNumber: cleanedData.streetNumber,
+            streetName: cleanedData.streetName,
+            suburb: cleanedData.suburb,
             state: cleanedData.state,
-            postal_code: cleanedData.postcode,
-            country: 'Australia',
-            condition: cleanedData.condition,
-            brand: cleanedData.brand,
-            model: cleanedData.model,
-            year: cleanedData.year,
-            features: features,
-            available_from: availableFromDate?.toISOString() || null,
-            available_to: availableToDate?.toISOString() || null,
-            pickup_available: true,
-            delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
-            insurance_enabled: cleanedData.insuranceEnabled || false,
-            is_active: false,
-            approval_status: 'pending',
-          })
-          .select()
-          .single();
+            postcode: cleanedData.postcode
+          },
+          city: cleanedData.suburb,
+          state: cleanedData.state,
+          postal_code: cleanedData.postcode,
+          condition: cleanedData.condition,
+          brand: cleanedData.brand,
+          model: cleanedData.model,
+          year: cleanedData.year,
+          features: features,
+          available_from: availableFromDate?.toISOString() || null,
+          available_to: availableToDate?.toISOString() || null,
+          pickup_available: true,
+          delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
+          insurance_enabled: cleanedData.insuranceEnabled || false,
+        };
 
-        if (error) {
-          console.error('Error creating listing:', error);
-          toast.error(`Failed to create listing: ${error.message || 'Please try again.'}`);
+        // Update existing listing via API
+        try {
+          const response = await fetch(`/api/listings/${editingListing.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(listingPayload),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            console.error('API error updating listing:', result);
+            throw new Error(result.error || result.details || 'Failed to update listing');
+          }
+
+          toast.success('Listing updated successfully!');
+          router.push(`/listings/${editingListing.id}`);
+        } catch (apiError) {
+          console.error('Error calling update API:', apiError);
+          toast.error(`Failed to update listing: ${apiError instanceof Error ? apiError.message : 'Please try again.'}`);
           return;
         }
+      } else {
+        // Prepare the listing data for API call
+        const listingPayload = {
+          title: cleanedData.title,
+          description: fullDescription,
+          category: cleanedData.category,
+          price_per_day: cleanedData.dailyRate,
+          price_hourly: cleanedData.hourlyRate || null,
+          price_weekly: cleanedData.weeklyRate || null,
+          deposit: cleanedData.depositAmount,
+          images: finalImageUrls,
+          address: {
+            unitNumber: cleanedData.unitNumber || '',
+            streetNumber: cleanedData.streetNumber,
+            streetName: cleanedData.streetName,
+            suburb: cleanedData.suburb,
+            state: cleanedData.state,
+            postcode: cleanedData.postcode
+          },
+          city: cleanedData.suburb,
+          state: cleanedData.state,
+          postal_code: cleanedData.postcode,
+          condition: cleanedData.condition,
+          brand: cleanedData.brand,
+          model: cleanedData.model,
+          year: cleanedData.year,
+          features: features,
+          available_from: availableFromDate?.toISOString() || null,
+          available_to: availableToDate?.toISOString() || null,
+          pickup_available: true,
+          delivery_available: cleanedData.deliveryMethods?.includes('delivery') || false,
+          insurance_enabled: cleanedData.insuranceEnabled || false,
+        };
 
-        if (!result?.id) {
-          console.error('No listing ID returned from database');
-          toast.error('Failed to create listing. Please try again.');
+        // Create new listing via API (mobile-friendly)
+        try {
+          console.log('Creating listing via API with payload:', listingPayload);
+
+          const response = await fetch('/api/listings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(listingPayload),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            console.error('API error creating listing:', result);
+            throw new Error(result.error || result.details || 'Failed to create listing');
+          }
+
+          if (!result?.listing?.id) {
+            console.error('No listing ID returned from API');
+            throw new Error('Invalid response from server');
+          }
+
+          toast.success('Listing created successfully! Your listing is awaiting admin approval.');
+          router.push(`/listings/${result.listing.id}`);
+        } catch (apiError) {
+          console.error('Error calling create API:', apiError);
+          
+          // Capture API creation error with context
+          Sentry.captureException(apiError, {
+            tags: {
+              component: 'listing_creation',
+              platform: 'mobile',
+              api_endpoint: '/api/listings',
+            },
+            extra: {
+              listingTitle: cleanedData.title,
+              category: cleanedData.category,
+              imageCount: finalImageUrls.length,
+              userAgent: navigator.userAgent,
+              connectionType: (navigator as any).connection?.effectiveType || 'unknown',
+              formData: {
+                // Safe data only for debugging
+                hasTitle: !!cleanedData.title,
+                hasDescription: !!cleanedData.description,
+                hasImages: finalImageUrls.length > 0,
+                categorySelected: !!cleanedData.category,
+                priceSet: !!cleanedData.dailyRate,
+              },
+            },
+          });
+          
+          toast.error(`Failed to create listing: ${apiError instanceof Error ? apiError.message : 'Please check your connection and try again.'}`);
           return;
         }
-
-        toast.success('Listing created successfully! Your listing is awaiting admin approval.');
-        router.push(`/listings/${result.id}`);
       }
     } catch (error) {
       console.error('Error creating/updating listing:', error);
+      
+      // Capture general listing creation error
+      Sentry.captureException(error, {
+        tags: {
+          component: 'listing_creation_general',
+          platform: 'mobile',
+          is_edit_mode: isEditMode,
+        },
+        extra: {
+          step: currentStep,
+          imageCount: imagePreview.length,
+          userAgent: navigator.userAgent,
+          connectionType: (navigator as any).connection?.effectiveType || 'unknown',
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+        },
+      });
+      
       if (error instanceof Error) {
         toast.error(`Failed to save listing: ${error.message}`);
       } else {
@@ -756,6 +952,19 @@ function CreateListingContent() {
           <p className="text-gray-600">
             {isEditMode ? 'Update your listing details' : 'Share your items with the community and earn money'}
           </p>
+          
+          {/* Debug section for development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800 mb-2">🧪 Development Debug</p>
+              <button
+                onClick={testMobileSentry}
+                className="text-xs bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+              >
+                Test Sentry on Mobile
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Progress Steps */}
