@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
           title,
           images,
           category,
-          daily_rate
+          price_per_day
         ),
         profiles:renter_id (
           full_name,
@@ -124,13 +124,13 @@ export async function POST(request: NextRequest) {
     if (totalDays >= 30 && listing.monthly_rate) {
       const months = Math.floor(totalDays / 30);
       const remainingDays = totalDays % 30;
-      subtotal = (months * listing.monthly_rate) + (remainingDays * listing.daily_rate);
-    } else if (totalDays >= 7 && listing.weekly_rate) {
+      subtotal = (months * listing.monthly_rate) + (remainingDays * listing.price_per_day);
+    } else if (totalDays >= 7 && listing.price_weekly) {
       const weeks = Math.floor(totalDays / 7);
       const remainingDays = totalDays % 7;
-      subtotal = (weeks * listing.weekly_rate) + (remainingDays * listing.daily_rate);
+      subtotal = (weeks * listing.price_weekly) + (remainingDays * listing.price_per_day);
     } else {
-      subtotal = totalDays * listing.daily_rate;
+      subtotal = totalDays * listing.price_per_day;
     }
 
     const serviceFee = subtotal * 0.05; // 5% service fee
@@ -140,22 +140,22 @@ export async function POST(request: NextRequest) {
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
-        listing_id: bookingData.listing_id,
+        listing_id: bookingData.listing_id, // ✅ Correct field name (not item_id)
         renter_id: user.id as string,
         owner_id: listing.owner_id,
         start_date: bookingData.start_date,
         end_date: bookingData.end_date,
-        total_days: totalDays,
-        daily_rate: listing.daily_rate,
+        price_per_day: listing.price_per_day, // ✅ Correct field name
         subtotal,
         service_fee: serviceFee,
         total_amount: totalAmount,
-        deposit_amount: listing.deposit_amount,
+        deposit_amount: listing.deposit, // ✅ Correct field name (deposit_amount not deposit)
         status: 'pending',
         delivery_method: bookingData.delivery_method,
         delivery_address: bookingData.delivery_address || null,
         pickup_location: bookingData.pickup_location || null,
-        special_instructions: bookingData.special_instructions || null,
+        pickup_instructions: bookingData.pickup_instructions || null,
+        renter_message: bookingData.renter_message || null,
       })
       .select()
       .single();
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
 
     // Create Stripe payment intent with Connect
     try {
-      const totalAmountCents = Math.round((totalAmount + listing.deposit_amount) * 100);
+      const totalAmountCents = Math.round((totalAmount + listing.deposit) * 100);
       const platformFeeCents = Math.round(serviceFee * 100); // Platform keeps service fee
 
       const paymentIntent = await stripe.paymentIntents.create({
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
           owner_id: listing.owner_id,
           total_amount: totalAmount.toString(),
           service_fee: serviceFee.toString(),
-          deposit_amount: listing.deposit_amount.toString(),
+          deposit_amount: listing.deposit.toString(),
         },
         description: `Rent It Forward: ${listing.title}`,
         on_behalf_of: ownerProfile.stripe_account_id,

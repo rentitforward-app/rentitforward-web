@@ -1,103 +1,69 @@
 // @ts-nocheck - Temporary TypeScript disable during refactoring
-import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import * as Sentry from '@sentry/nextjs';
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const category = searchParams.get('category');
-  const state = searchParams.get('state');
-  const minPrice = searchParams.get('minPrice');
-  const maxPrice = searchParams.get('maxPrice');
-  const condition = searchParams.get('condition');
-  const search = searchParams.get('search');
-  const sortBy = searchParams.get('sortBy') || 'newest';
-  const limit = parseInt(searchParams.get('limit') || '20');
-  const offset = parseInt(searchParams.get('offset') || '0');
-
+export async function GET() {
   const supabase = await createClient();
-
+  
   try {
-    let query = supabase
+    const { data: listings, error } = await supabase
       .from('listings')
-      .select(`
-        *,
-        profiles:owner_id (
-          full_name,
-          avatar_url
-        )
-      `)
-      .eq('is_active', true);
-
-    // Apply filters
-    if (category) query = query.eq('category', category);
-    if (state) query = query.eq('state', state);
-    if (minPrice) query = query.gte('price_per_day', parseFloat(minPrice));
-    if (maxPrice) query = query.lte('price_per_day', parseFloat(maxPrice));
-    if (condition) query = query.eq('condition', condition);
-    if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
-    }
-
-    // Apply sorting
-    switch (sortBy) {
-      case 'price_low':
-        query = query.order('price_per_day', { ascending: true });
-        break;
-      case 'price_high':
-        query = query.order('price_per_day', { ascending: false });
-        break;
-      case 'popular':
-        query = query.order('view_count', { ascending: false });
-        break;
-      case 'newest':
-      default:
-        query = query.order('created_at', { ascending: false });
-        break;
-    }
-
-    // Apply pagination
-    query = query.range(offset, offset + limit - 1);
-
-    const { data, error } = await query;
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching listings:', error);
-      return NextResponse.json({ error: 'Failed to fetch listings' }, { status: 500 });
+      console.error('Database error fetching listings:', error);
+      Sentry.captureException(error);
+      return NextResponse.json(
+        { error: 'Failed to fetch listings', details: error },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ listings: data || [] });
+    return NextResponse.json({ listings });
   } catch (error) {
-    console.error('Error in listings API:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Unexpected error in GET /api/listings:', error);
+    Sentry.captureException(error);
+    return NextResponse.json(
+      { error: 'Internal server error', details: error },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
-
+  
   try {
-    // Check authentication
+    const body = await request.json();
+    console.log('Received listing data:', JSON.stringify(body, null, 2));
+
+    // Validate required fields
+    if (!body.title || !body.description || !body.price_per_day) {
+      return NextResponse.json(
+        { error: 'Missing required fields: title, description, price_per_day' },
+        { status: 400 }
+      );
+    }
+
+    // Get current user (you'll need to implement this based on your auth)
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.error('Auth error:', authError);
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
     }
 
-    const listingData = await request.json();
-    console.log('Received listing data:', listingData);
-
-    // Validate required fields (based on actual database schema)
-    const requiredFields = ['title', 'description', 'category', 'price_per_day', 'condition'];
-    for (const field of requiredFields) {
-      if (!listingData[field]) {
-        return NextResponse.json({ error: `${field} is required` }, { status: 400 });
-      }
-    }
-
-    // Build address string if address object is provided
+    // Prepare the listing data with correct field names for your database
     let addressString = '';
-    if (listingData.address && typeof listingData.address === 'object') {
-      const addr = listingData.address;
+    if (body.address && typeof body.address === 'object') {
+      // Build address string from object
+      const addr = body.address;
       const parts = [
         addr.unitNumber,
         addr.streetNumber,
@@ -107,61 +73,79 @@ export async function POST(request: NextRequest) {
         addr.postcode
       ].filter(Boolean);
       addressString = parts.join(' ');
-    } else if (typeof listingData.address === 'string') {
-      addressString = listingData.address;
+    } else if (typeof body.address === 'string') {
+      addressString = body.address;
     }
 
-    // Create listing with EXACT database field names from schema
-    const insertData = {
-        owner_id: user.id,
-        title: listingData.title,
-        description: listingData.description,
-        category: listingData.category,
-        daily_rate: listingData.price_per_day || listingData.dailyRate,
-        weekly_rate: listingData.price_weekly || listingData.weeklyRate || null,
-        monthly_rate: listingData.price_monthly || listingData.monthlyRate || null,
-        deposit_amount: listingData.deposit || listingData.securityDeposit || 0,
-        condition: listingData.condition,
-        brand: listingData.brand || null,
-        model: listingData.model || null,
-        year: listingData.year || null,
-        features: listingData.features || [],
-        images: listingData.images || [],
-        location: addressString || 'Location not specified', // Required field from schema
-        state: listingData.state || (listingData.address?.state) || 'Unknown',
-        postcode: listingData.postal_code || listingData.postcode || (listingData.address?.postcode) || '0000',
-        latitude: null, // Could be added later with geocoding
-        longitude: null, // Could be added later with geocoding
-        is_available: true, // Changed to true so listings are immediately available
-        delivery_methods: listingData.delivery_available ? ['delivery', 'pickup'] : ['pickup'],
+    const listingData = {
+      title: body.title,
+      description: body.description,
+      category: body.category,
+      price_per_day: body.price_per_day, // ✅ Correct field name
+      price_weekly: body.price_weekly,
+      deposit: body.deposit || 0, // ✅ Correct field name (not deposit_amount)
+      images: body.images || [],
+      features: body.features || [],
+      condition: body.condition, // ✅ Required field
+      address: addressString || body.city || 'Address not specified', // ✅ Text field
+      city: body.city,
+      state: body.state,
+      country: body.country || 'Australia',
+      postal_code: body.postal_code,
+      brand: body.brand,
+      model: body.model,
+      year: body.year,
+      delivery_available: body.delivery_available || false,
+      pickup_available: body.pickup_available || true,
+      insurance_enabled: body.insurance_enabled || false,
+      owner_id: user.id, // ✅ Correct field name
+      is_active: false, // Start as inactive until approved
+      approval_status: 'pending'
     };
 
-    console.log('Inserting data with correct schema fields:', insertData);
+    // Handle location field (geography type) - REQUIRED field
+    if (body.latitude && body.longitude) {
+      listingData.location = `POINT(${body.longitude} ${body.latitude})`;
+    } else {
+      // Default location if coordinates not provided - use a default point (Sydney)
+      listingData.location = 'POINT(151.2093 -33.8688)';
+      console.warn('No coordinates provided, using default location (Sydney)');
+    }
 
-    // Create listing
-    const { data, error } = await supabase
+    console.log('Prepared listing data for database:', JSON.stringify(listingData, null, 2));
+
+    const { data: listing, error } = await supabase
       .from('listings')
-      .insert(insertData)
+      .insert(listingData)
       .select()
       .single();
 
     if (error) {
-      console.error('Supabase error creating listing:', error);
-      console.error('Failed insert data was:', insertData);
-      return NextResponse.json({ 
-        error: 'Failed to create listing', 
-        details: error.message,
-        code: error.code 
-      }, { status: 500 });
+      console.error('Database error creating listing:', error);
+      Sentry.captureException(error, {
+        extra: {
+          listingData,
+          errorCode: error.code,
+          errorDetails: error.details,
+          errorHint: error.hint,
+          errorMessage: error.message
+        }
+      });
+      return NextResponse.json(
+        { error: 'Failed to create listing', details: error },
+        { status: 400 }
+      );
     }
 
-    console.log('Successfully created listing:', data);
-    return NextResponse.json({ listing: data }, { status: 201 });
+    console.log('Successfully created listing:', listing);
+    return NextResponse.json({ listing }, { status: 201 });
+
   } catch (error) {
-    console.error('Error in create listing API:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: error.message 
-    }, { status: 500 });
+    console.error('Unexpected error in POST /api/listings:', error);
+    Sentry.captureException(error);
+    return NextResponse.json(
+      { error: 'Internal server error', details: error },
+      { status: 500 }
+    );
   }
 } 

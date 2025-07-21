@@ -1,44 +1,32 @@
 -- Add payment functionality to the database schema
 
--- First, add the payment_required status to the booking_status enum
-ALTER TYPE booking_status ADD VALUE 'payment_required';
+-- First, add the payment_required status to the booking_status enum (if not exists)
+DO $$ BEGIN
+    ALTER TYPE booking_status ADD VALUE 'payment_required';
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- Add payment status enum
-CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'succeeded', 'failed', 'refunded');
+-- Add payment status enum (if not exists)
+DO $$ BEGIN
+    CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'succeeded', 'failed', 'refunded');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- Add payment-related columns to the bookings table
+-- Add payment-related columns to the bookings table (if not exists)
 ALTER TABLE bookings 
-ADD COLUMN payment_status payment_status DEFAULT 'pending',
-ADD COLUMN stripe_session_id TEXT,
-ADD COLUMN payment_date TIMESTAMPTZ;
+ADD COLUMN IF NOT EXISTS payment_status payment_status DEFAULT 'pending',
+ADD COLUMN IF NOT EXISTS stripe_session_id TEXT,
+ADD COLUMN IF NOT EXISTS payment_date TIMESTAMPTZ;
 
--- Update the listings table to use consistent column names with the code
-ALTER TABLE listings 
-RENAME COLUMN daily_rate TO price_per_day;
+-- Note: The actual database schema already has the correct field names:
+-- LISTINGS table uses: price_per_day, price_weekly, deposit, location (geography), condition
+-- BOOKINGS table uses: listing_id, price_per_day, deposit_amount
 
-ALTER TABLE listings 
-RENAME COLUMN weekly_rate TO price_weekly;
+-- The previous migration incorrectly suggested renaming fields that don't need renaming
+-- The database already has the correct schema that matches the application code
 
-ALTER TABLE listings 
-RENAME COLUMN deposit_amount TO deposit;
-
--- Update the bookings table to use consistent column names with the code
-ALTER TABLE bookings 
-RENAME COLUMN listing_id TO item_id;
-
-ALTER TABLE bookings 
-RENAME COLUMN daily_rate TO price_per_day;
-
--- Add pickup/delivery related columns that the code expects
-ALTER TABLE bookings 
-ADD COLUMN IF NOT EXISTS pickup_location TEXT,
-ADD COLUMN IF NOT EXISTS pickup_instructions TEXT,
-ADD COLUMN IF NOT EXISTS renter_message TEXT;
-
--- Remove total_days column since it's computed in the application
-ALTER TABLE bookings 
-DROP COLUMN IF EXISTS total_days;
-
--- Create index for payment-related queries
+-- Create indexes for payment-related queries (if not exists)
 CREATE INDEX IF NOT EXISTS idx_bookings_payment_status ON bookings(payment_status);
 CREATE INDEX IF NOT EXISTS idx_bookings_stripe_session_id ON bookings(stripe_session_id); 
