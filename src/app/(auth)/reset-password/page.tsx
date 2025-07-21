@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Lock, CheckCircle } from 'lucide-react';
@@ -29,7 +29,6 @@ function ResetPasswordForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const {
@@ -41,22 +40,25 @@ function ResetPasswordForm() {
   });
 
   useEffect(() => {
-    // Check if we have the necessary tokens from the URL
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    
-    if (!accessToken || !refreshToken) {
-      toast.error('Invalid or expired reset link');
-      router.push('/forgot-password');
-      return;
-    }
+    // Check if user has a valid session for password reset
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error || !session) {
+          toast.error('Invalid or expired reset link. Please request a new password reset.');
+          router.push('/forgot-password');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+        toast.error('Invalid or expired reset link. Please request a new password reset.');
+        router.push('/forgot-password');
+      }
+    };
 
-    // Set the session with the tokens from the URL
-    supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-  }, [searchParams, router, supabase.auth]);
+    checkSession();
+  }, [router, supabase.auth]);
 
   const onSubmit = async (data: ResetPasswordForm) => {
     setIsLoading(true);
