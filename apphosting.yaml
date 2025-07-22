@@ -9,3 +9,13 @@ env:
     value: https://rentitforward-web--rent-it-forward.asia-east1.hosted.app
   - variable: NEXTAUTH_SECRET
     value: ${{ secrets.NEXTAUTH_SECRET }} 
+
+    ## Update the supabase url and key
+    ## Update the nextauth url and secret
+    ## Update the firebase url and key
+    ## Update the firebase storage url and key
+    ## Update the firebase auth url and key
+    ## Update the firebase database url and key
+    ## Update the firebase messaging url and key
+    ## Update the firebase storage url and key
+    ## Update the firebase auth url and key
