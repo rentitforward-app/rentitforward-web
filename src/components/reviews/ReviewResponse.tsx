@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { 
-  useCreateReviewResponse, 
-  useUpdateReviewResponse, 
-  useDeleteReviewResponse 
+import {
+  useCreateReviewResponse,
+  useUpdateReviewResponse,
+  useDeleteReviewResponse
 } from '@/hooks/use-reviews';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/hooks/use-auth';
 
 interface ReviewResponseProps {
@@ -30,11 +30,11 @@ const responseSchema = z.object({
 
 type ResponseFormData = z.infer<typeof responseSchema>;
 
-export function ReviewResponse({ 
-  reviewId, 
-  revieweeId, 
-  existingResponse, 
-  className = '' 
+export function ReviewResponse({
+  reviewId,
+  revieweeId,
+  existingResponse,
+  className = ''
 }: ReviewResponseProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showResponseForm, setShowResponseForm] = useState(false);
