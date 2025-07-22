@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AuthenticatedLayout from '@/components/AuthenticatedLayout'
+import { useRouter } from 'next/navigation'
 
 const categories = [
   { 
@@ -59,8 +60,20 @@ function DashboardOverview() {
     pendingBookings: 0,
     unreadMessages: 0
   })
-  const [recentActivity, setRecentActivity] = useState([])
-  const [recentBookings, setRecentBookings] = useState([])
+  const [recentActivity, setRecentActivity] = useState<Array<{
+    type: string;
+    message: string;
+    time: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }>>([])
+  const [recentBookings, setRecentBookings] = useState<Array<{
+    id: string;
+    item: string;
+    renter: string;
+    status: string;
+    amount: number;
+    period: string;
+  }>>([])
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
@@ -72,6 +85,8 @@ function DashboardOverview() {
   }, [user])
 
   const fetchDashboardData = async () => {
+    if (!user?.id) return;
+    
     try {
       // Fetch user listings
       const { data: listings } = await supabase
@@ -356,6 +371,24 @@ function DashboardOverview() {
 
 // Marketing Homepage Component for Non-authenticated Users
 function MarketingHomepage() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const router = useRouter()
+
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push(`/browse?search=${encodeURIComponent(searchQuery.trim())}`)
+    } else {
+      router.push('/browse')
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    }
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero Section with Background Image */}
@@ -380,17 +413,24 @@ function MarketingHomepage() {
           
           {/* Search Bar */}
           <div className="max-w-2xl mx-auto px-4">
-            <div className="relative bg-white rounded-full p-1 sm:p-2 shadow-lg">
+            <form onSubmit={handleSearch} className="relative bg-white rounded-full p-1 sm:p-2 shadow-lg">
               <input 
                 type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="What would you like to rent?"
                 className="w-full pl-4 sm:pl-6 pr-24 sm:pr-32 py-2 sm:py-3 text-base sm:text-lg rounded-full border-0 focus:outline-none focus:ring-0 text-gray-900 placeholder-gray-500"
               />
-              <button className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 bg-green-500 hover:bg-green-600 text-white px-4 sm:px-8 py-1.5 sm:py-2.5 rounded-full font-semibold transition-colors flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
+              <button 
+                type="button"
+                onClick={handleSearch}
+                className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 bg-green-500 hover:bg-green-600 text-white px-4 sm:px-8 py-1.5 sm:py-2.5 rounded-full font-semibold transition-colors flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
+              >
                 <Search className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="hidden sm:inline">Search</span>
               </button>
-            </div>
+            </form>
           </div>
         </div>
       </section>

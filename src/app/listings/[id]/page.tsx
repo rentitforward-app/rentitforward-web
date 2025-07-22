@@ -30,6 +30,8 @@ import { createClient } from '@/lib/supabase/client';
 import { format, addDays, differenceInDays, parseISO } from 'date-fns';
 import MessageModal from '@/components/MessageModal';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 interface Listing {
   id: string;
@@ -112,6 +114,29 @@ const bookingSchema = z.object({
 });
 
 type BookingForm = z.infer<typeof bookingSchema>;
+
+// Layout wrapper that chooses appropriate layout based on authentication
+function ConditionalLayout({ children }: { children: React.ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const supabaseClient = createClient();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      setIsAuthenticated(!!user);
+    };
+    checkAuth();
+  }, [supabaseClient]);
+
+  // If authenticated, use AuthenticatedLayout (which replaces the entire layout)
+  if (isAuthenticated) {
+    return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
+  }
+
+  // For non-authenticated users or while checking auth, just return children
+  // The root layout already handles Header/Footer
+  return <>{children}</>;
+}
 
 export default function ListingDetailPage() {
   const [listing, setListing] = useState<Listing | null>(null);
@@ -540,17 +565,17 @@ export default function ListingDetailPage() {
 
   if (isLoading) {
     return (
-      <AuthenticatedLayout>
+      <ConditionalLayout>
         <div className="flex items-center justify-center h-96">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
         </div>
-      </AuthenticatedLayout>
+      </ConditionalLayout>
     );
   }
 
   if (!listing) {
     return (
-      <AuthenticatedLayout>
+      <ConditionalLayout>
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Listing not found</h1>
@@ -562,7 +587,7 @@ export default function ListingDetailPage() {
             </Link>
           </div>
         </div>
-      </AuthenticatedLayout>
+      </ConditionalLayout>
     );
   }
 
@@ -570,7 +595,7 @@ export default function ListingDetailPage() {
   const displayImages = listing.images && listing.images.length > 0 ? listing.images : ['/images/placeholder-item.svg'];
 
   return (
-    <AuthenticatedLayout>
+    <ConditionalLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <div className="mb-6">
@@ -847,52 +872,12 @@ export default function ListingDetailPage() {
               </div>
             )}
 
-            {/* Related Listings */}
-            {relatedListings.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Related listings you might like</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {relatedListings.map((relatedListing) => (
-                    <Link 
-                      key={relatedListing.id}
-                      href={`/listings/${relatedListing.id}`}
-                      className="group"
-                    >
-                      <div className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                        <div className="aspect-w-4 aspect-h-3 relative h-32">
-                          <Image
-                            src={getDisplayImage(relatedListing.images)}
-                            alt={relatedListing.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform"
-                            onError={() => handleImageError(getDisplayImage(relatedListing.images))}
-                          />
-                        </div>
-                        <div className="p-3">
-                          <h3 className="font-medium text-gray-900 truncate">{relatedListing.title}</h3>
-                          <p className="text-sm text-gray-600 truncate">
-                            {relatedListing.location}, {relatedListing.state}
-                          </p>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-[#44D62C] font-semibold">
-                              {formatPrice(relatedListing.price_per_day)}/day
-                            </span>
-                            <span className="text-xs text-gray-500 capitalize">
-                              {relatedListing.condition}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+
           </div>
 
           {/* Booking Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-8">
+            <div className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto pb-8 scrollbar-hide">
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="mb-6">
                   <div className="flex items-baseline space-x-2">
@@ -1104,6 +1089,48 @@ export default function ListingDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Related Listings - Full Width */}
+        {relatedListings.length > 0 && (
+          <div className="mt-12 bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Related listings you might like</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+              {relatedListings.map((relatedListing) => (
+                <Link 
+                  key={relatedListing.id}
+                  href={`/listings/${relatedListing.id}`}
+                  className="group"
+                >
+                  <div className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    <div className="aspect-w-4 aspect-h-3 relative h-48">
+                      <Image
+                        src={getDisplayImage(relatedListing.images)}
+                        alt={relatedListing.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform"
+                        onError={() => handleImageError(getDisplayImage(relatedListing.images))}
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-medium text-gray-900 truncate mb-1">{relatedListing.title}</h3>
+                      <p className="text-sm text-gray-600 truncate mb-2">
+                        {relatedListing.location}, {relatedListing.state}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#44D62C] font-semibold">
+                          {formatPrice(relatedListing.price_per_day)}/day
+                        </span>
+                        <span className="text-xs text-gray-500 capitalize">
+                          {relatedListing.condition}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Message Modal */}
@@ -1117,6 +1144,6 @@ export default function ListingDetailPage() {
           }}
         />
       )}
-    </AuthenticatedLayout>
+    </ConditionalLayout>
   );
 } 
