@@ -154,6 +154,7 @@ export default function ListingDetailPage() {
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [bookedDates, setBookedDates] = useState<string[]>([]);
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
+  const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
 
   const params = useParams();
   const router = useRouter();
@@ -567,6 +568,21 @@ export default function ListingDetailPage() {
         prev === 0 ? listing.images.length - 1 : prev - 1
       );
     }
+  };
+
+  // Carousel navigation functions - Navigate by individual items
+  const nextCarouselSlide = () => {
+    setCurrentCarouselIndex((prev) => {
+      const maxIndex = relatedListings.length - 4; // Show max 4 items on desktop
+      return prev >= maxIndex ? 0 : prev + 1;
+    });
+  };
+
+  const prevCarouselSlide = () => {
+    setCurrentCarouselIndex((prev) => {
+      const maxIndex = relatedListings.length - 4;
+      return prev <= 0 ? maxIndex : prev - 1;
+    });
   };
 
   if (isLoading) {
@@ -1098,44 +1114,106 @@ export default function ListingDetailPage() {
           </div>
         </div>
 
-        {/* Related Listings - Full Width */}
+        {/* Related Listings - Carousel */}
         {relatedListings.length > 0 && (
           <div className="mt-12 bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Related listings you might like</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-              {relatedListings.map((relatedListing) => (
-                <Link 
-                  key={relatedListing.id}
-                  href={`/listings/${relatedListing.id}`}
-                  className="group"
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Related listings you might like</h2>
+              <Link
+                href="/browse"
+                className="hidden sm:block text-[#44D62C] hover:text-[#3AB827] font-medium text-sm"
+              >
+                View all
+              </Link>
+            </div>
+
+            <div className="relative">
+              {/* Carousel Container */}
+              <div className="overflow-hidden">
+                <div 
+                  className="flex transition-transform duration-300 ease-in-out"
+                  style={{
+                    transform: `translateX(-${currentCarouselIndex * 100}%)`
+                  }}
                 >
-                  <div className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                    <div className="aspect-w-4 aspect-h-3 relative h-48">
-                      <Image
-                        src={getDisplayImage(relatedListing.images)}
-                        alt={relatedListing.title}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform"
-                        onError={() => handleImageError(getDisplayImage(relatedListing.images))}
-                      />
+                  {/* Create slides - one item per slide for mobile, multiple for larger screens */}
+                  {relatedListings.map((relatedListing, index) => (
+                    <div 
+                      key={`slide-${index}`}
+                      className="w-full flex-shrink-0 md:w-1/3 lg:w-1/4"
+                    >
+                      <Link 
+                        href={`/listings/${relatedListing.id}`}
+                        className="group block"
+                      >
+                        <div className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow mx-2">
+                          <div className="aspect-w-4 aspect-h-3 relative h-48">
+                            <Image
+                              src={getDisplayImage(relatedListing.images)}
+                              alt={relatedListing.title}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform"
+                              onError={() => handleImageError(getDisplayImage(relatedListing.images))}
+                            />
+                          </div>
+                          <div className="p-4">
+                            <h3 className="font-medium text-gray-900 truncate mb-1">{relatedListing.title}</h3>
+                            <p className="text-sm text-gray-600 truncate mb-2">
+                              {relatedListing.city}, {relatedListing.state}
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[#44D62C] font-semibold">
+                                {formatPrice(relatedListing.price_per_day)}/day
+                              </span>
+                              <span className="text-xs text-gray-500 capitalize">
+                                {relatedListing.condition}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
                     </div>
-                    <div className="p-4">
-                      <h3 className="font-medium text-gray-900 truncate mb-1">{relatedListing.title}</h3>
-                      <p className="text-sm text-gray-600 truncate mb-2">
-                        {relatedListing.city}, {relatedListing.state}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#44D62C] font-semibold">
-                          {formatPrice(relatedListing.price_per_day)}/day
-                        </span>
-                        <span className="text-xs text-gray-500 capitalize">
-                          {relatedListing.condition}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  ))}
+                </div>
+              </div>
+
+              {/* Navigation Arrows */}
+              {relatedListings.length > 1 && (
+                <>
+                  <button
+                    onClick={prevCarouselSlide}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full shadow-lg hover:shadow-xl transition-all z-10"
+                    aria-label="Previous listings"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  <button
+                    onClick={nextCarouselSlide}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full shadow-lg hover:shadow-xl transition-all z-10"
+                    aria-label="Next listings"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                </>
+              )}
+
+              {/* Dot Indicators */}
+              {relatedListings.length > 4 && (
+                <div className="flex justify-center mt-6 space-x-2">
+                  {Array.from({ length: Math.ceil(relatedListings.length / 4) }, (_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentCarouselIndex(index * 4)}
+                      className={`w-3 h-3 rounded-full transition-colors ${
+                        Math.floor(currentCarouselIndex / 4) === index
+                          ? 'bg-[#44D62C]' 
+                          : 'bg-gray-300 hover:bg-gray-400'
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
