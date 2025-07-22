@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
               metadata: {
                 bookingId,
                 category: booking.listings.category,
-                location: `${booking.listings.location}, ${booking.listings.state}`,
+                location: `${booking.listings.city}, ${booking.listings.state}`,
               },
             },
             unit_amount: booking.subtotal * 100, // Subtotal in cents

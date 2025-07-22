@@ -213,7 +213,7 @@ export default function PaymentSuccessPage() {
             <div>
               <h3 className="font-medium text-gray-900">{booking.listing.title}</h3>
               <p className="text-gray-600">{booking.listing.category}</p>
-              <p className="text-gray-600">{booking.listing.location}, {booking.listing.state}</p>
+                              <p className="text-gray-600">{booking.listing.city}, {booking.listing.state}</p>
             </div>
 
             {/* Dates */}

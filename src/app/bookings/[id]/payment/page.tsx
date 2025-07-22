@@ -261,7 +261,7 @@ export default function PaymentPage() {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900">{booking.listing.title}</h3>
                   <p className="text-gray-600">{booking.listing.category}</p>
-                  <p className="text-gray-600">{booking.listing.location}, {booking.listing.state}</p>
+                  <p className="text-gray-600">{booking.listing.city}, {booking.listing.state}</p>
                   <p className="text-sm text-[#44D62C] font-medium mt-1">
                     {formatPrice(booking.listing.price_per_day)}/day
                   </p>

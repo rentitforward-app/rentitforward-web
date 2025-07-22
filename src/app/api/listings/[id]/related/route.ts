@@ -33,7 +33,7 @@ export async function GET(
         title,
         price_per_day,
         images,
-        location,
+        city,
         state,
         condition,
         brand,

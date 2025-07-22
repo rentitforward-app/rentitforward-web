@@ -44,11 +44,11 @@ interface Listing {
   price_hourly: number | null;
   deposit: number;
   images: string[];
-  location: string;
+  address: string;
+  city: string;
   state: string;
   postal_code: string;
-  address: string | null;
-  city: string | null;
+  country: string;
   condition: string;
   brand: string | null;
   model: string | null;
@@ -64,7 +64,10 @@ interface Listing {
     id: string;
     full_name: string;
     avatar_url: string | null;
-    location: string;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    postal_code: string | null;
     created_at: string;
   };
 }
@@ -87,7 +90,7 @@ interface RelatedListing {
   price_per_day: number;
   daily_rate?: number; // For compatibility with transformed data
   images: string[];
-  location: string;
+  city: string;
   state: string;
   condition: string;
   brand: string | null;
@@ -217,7 +220,10 @@ export default function ListingDetailPage() {
             id,
             full_name,
             avatar_url,
-            location,
+            address,
+            city,
+            state,
+            postal_code,
             created_at
           )
         `)
@@ -689,7 +695,7 @@ export default function ListingDetailPage() {
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">{listing.title}</h1>
                   <div className="flex items-center text-gray-600 mb-2">
                     <MapPin className="h-5 w-5 mr-2" />
-                    {listing.location}, {listing.state} {listing.postal_code}
+                    {listing.city}, {listing.state} {listing.postal_code}
                   </div>
                   <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
                     <span className="capitalize">{listing.condition}</span>
@@ -803,7 +809,9 @@ export default function ListingDetailPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900">{listing.profiles.full_name}</h3>
-                  <p className="text-gray-600">{listing.profiles.location}</p>
+                  <p className="text-gray-600">
+                    {[listing.profiles.city, listing.profiles.state].filter(Boolean).join(', ')}
+                  </p>
                   <p className="text-sm text-gray-500">
                     Host since {format(new Date(listing.profiles.created_at), 'MMMM yyyy')}
                   </p>
@@ -1114,7 +1122,7 @@ export default function ListingDetailPage() {
                     <div className="p-4">
                       <h3 className="font-medium text-gray-900 truncate mb-1">{relatedListing.title}</h3>
                       <p className="text-sm text-gray-600 truncate mb-2">
-                        {relatedListing.location}, {relatedListing.state}
+                        {relatedListing.city}, {relatedListing.state}
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-[#44D62C] font-semibold">
