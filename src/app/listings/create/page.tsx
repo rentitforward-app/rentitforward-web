@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  AlertCircle
+  AlertCircle,
+  HelpCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
@@ -24,7 +25,6 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import Image from 'next/image';
-import * as Sentry from '@sentry/nextjs';
 
 const categories = {
   'appliances': { 
@@ -203,6 +203,9 @@ function CreateListingContent() {
   const [editingListing, setEditingListing] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState<string[]>([]);
+  const [features, setFeatures] = useState<string[]>([]);
+  const [newFeature, setNewFeature] = useState('');
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -343,6 +346,15 @@ function CreateListingContent() {
       setValue('deliveryMethods', deliveryMethods);
       setSelectedDeliveryMethods(deliveryMethods);
 
+      // Load existing features (filter out delivery methods and subcategory info)
+      if (data.features && data.features.length > 0) {
+        const itemFeatures = data.features.filter((feature: string) => 
+          !['pickup', 'delivery', 'shipping'].includes(feature) && 
+          !feature.startsWith('Subcategory:')
+        );
+        setFeatures(itemFeatures);
+      }
+
       // Load existing images as preview URLs
       if (data.images && data.images.length > 0) {
         setImagePreview(data.images);
@@ -426,22 +438,6 @@ function CreateListingContent() {
       }
     } catch (error) {
       console.error('Error during step validation:', error);
-      
-      // Capture validation error with mobile context
-      Sentry.captureException(error, {
-        tags: {
-          component: 'form_validation',
-          platform: 'mobile',
-          current_step: currentStep,
-        },
-        extra: {
-          stepFields: getStepFields(currentStep),
-          imageCount: imagePreview.length,
-          userAgent: navigator.userAgent,
-          connectionType: (navigator as any).connection?.effectiveType || 'unknown',
-        },
-      });
-      
       toast.error('Validation error. Please check your inputs and try again.');
       return false;
     }
@@ -668,26 +664,7 @@ function CreateListingContent() {
 
       if (error) {
         console.error('Error uploading image:', error);
-            
-            // Capture detailed upload error for Sentry
-            Sentry.captureException(error, {
-              tags: {
-                component: 'image_upload',
-                platform: 'mobile',
-                file_name: image.name,
-                file_size: image.size,
-                compression_applied: true,
-              },
-              extra: {
-                fileName,
-                imageIndex: index,
-                totalImages: images.length,
-                userAgent: navigator.userAgent,
-                fileSizeMB: (image.size / 1024 / 1024).toFixed(2),
-              },
-            });
-            
-            throw new Error(`Failed to upload ${image.name}: ${error.message}`);
+        throw new Error(`Failed to upload ${image.name}: ${error.message}`);
       }
 
       const { data: { publicUrl } } = supabase.storage
@@ -697,24 +674,6 @@ function CreateListingContent() {
       return publicUrl;
         } catch (imageError) {
           console.error(`Error uploading image ${index}:`, imageError);
-          
-          // Capture specific image upload error
-          Sentry.captureException(imageError, {
-            tags: {
-              component: 'image_upload_individual',
-              platform: 'mobile',
-              image_index: index,
-              compression_applied: true,
-            },
-            extra: {
-              imageName: image.name,
-              imageSize: image.size,
-              imageType: image.type,
-              userAgent: navigator.userAgent,
-              fileSizeMB: (image.size / 1024 / 1024).toFixed(2),
-            },
-          });
-          
           throw imageError;
         }
     });
@@ -722,22 +681,6 @@ function CreateListingContent() {
     return Promise.all(uploadPromises);
     } catch (error) {
       console.error('Error in uploadImages:', error);
-      
-      // Capture general upload process error
-      Sentry.captureException(error, {
-        tags: {
-          component: 'image_upload_batch',
-          platform: 'mobile',
-          compression_applied: true,
-        },
-        extra: {
-          totalImages: images.length,
-          userAgent: navigator.userAgent,
-          connectionType: (navigator as any).connection?.effectiveType || 'unknown',
-          totalSizeMB: images.reduce((sum, img) => sum + img.size, 0) / 1024 / 1024,
-        },
-      });
-      
       throw new Error('Failed to upload images. Please check your connection and try again.');
     }
   };
@@ -758,24 +701,25 @@ function CreateListingContent() {
     trigger('deliveryMethods');
   };
 
-  // Debug function to test Sentry on mobile
-  const testMobileSentry = () => {
-    Sentry.captureMessage('Mobile listing creation test from user', {
-      tags: {
-        component: 'listing_creation_test',
-        platform: 'mobile',
-      },
-      extra: {
-        userAgent: navigator.userAgent,
-        connectionType: (navigator as any).connection?.effectiveType || 'unknown',
-        currentStep,
-        imageCount: imagePreview.length,
-        timestamp: new Date().toISOString(),
-      },
-    });
-    
-    toast.success('Test message sent to Sentry! Check your dashboard.');
+  const addFeature = () => {
+    if (newFeature.trim() && !features.includes(newFeature.trim())) {
+      setFeatures([...features, newFeature.trim()]);
+      setNewFeature('');
+    }
   };
+
+  const removeFeature = (index: number) => {
+    setFeatures(features.filter((_, i) => i !== index));
+  };
+
+  const handleFeatureKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addFeature();
+    }
+  };
+
+
 
   // Handle whole number input (remove decimals)
   const handleWholeNumberInput = (e: React.FormEvent<HTMLInputElement>, fieldName: string) => {
@@ -855,11 +799,11 @@ function CreateListingContent() {
       const defaultLat = -33.8688;
       const defaultLng = 151.2093;
 
-      // Prepare features array including delivery methods and subcategory
+      // Prepare features array including delivery methods, subcategory, and user-added features
       // Always include pickup, plus any additional delivery methods
-      const features = ['pickup', ...(cleanedData.deliveryMethods || [])];
+      const finalFeatures = ['pickup', ...(cleanedData.deliveryMethods || []), ...features];
       if (cleanedData.subcategory) {
-        features.push(`Subcategory: ${cleanedData.subcategory}`);
+        finalFeatures.push(`Subcategory: ${cleanedData.subcategory}`);
       }
 
       // Prepare description with subcategory if provided
@@ -894,7 +838,7 @@ function CreateListingContent() {
           city: cleanedData.suburb,
           state: cleanedData.state,
           postal_code: cleanedData.postcode,
-            features: features,
+            features: finalFeatures,
             available_from: availableFromDate?.toISOString() || null,
             available_to: availableToDate?.toISOString() || null,
             pickup_available: true,
@@ -952,7 +896,7 @@ function CreateListingContent() {
           city: cleanedData.suburb,
           state: cleanedData.state,
           postal_code: cleanedData.postcode,
-            features: features,
+            features: finalFeatures,
             available_from: availableFromDate?.toISOString() || null,
             available_to: availableToDate?.toISOString() || null,
             pickup_available: true,
@@ -988,31 +932,6 @@ function CreateListingContent() {
           router.push(`/listings/${result.listing.id}`);
         } catch (apiError) {
           console.error('Error calling create API:', apiError);
-          
-          // Capture API creation error with context
-          Sentry.captureException(apiError, {
-            tags: {
-              component: 'listing_creation',
-              platform: 'mobile',
-              api_endpoint: '/api/listings',
-            },
-            extra: {
-              listingTitle: cleanedData.title,
-              category: cleanedData.category,
-              imageCount: finalImageUrls.length,
-              userAgent: navigator.userAgent,
-              connectionType: (navigator as any).connection?.effectiveType || 'unknown',
-              formData: {
-                // Safe data only for debugging
-                hasTitle: !!cleanedData.title,
-                hasDescription: !!cleanedData.description,
-                hasImages: finalImageUrls.length > 0,
-                categorySelected: !!cleanedData.category,
-                priceSet: !!cleanedData.dailyRate,
-              },
-            },
-          });
-          
           toast.error(`Failed to create listing: ${apiError instanceof Error ? apiError.message : 'Please check your connection and try again.'}`);
           return;
         }
@@ -1020,30 +939,79 @@ function CreateListingContent() {
     } catch (error) {
       console.error('Error creating/updating listing:', error);
       
-      // Capture general listing creation error
-      Sentry.captureException(error, {
-        tags: {
-          component: 'listing_creation_general',
-          platform: 'mobile',
-          is_edit_mode: isEditMode,
-        },
-        extra: {
-          step: currentStep,
-          imageCount: imagePreview.length,
-          userAgent: navigator.userAgent,
-          connectionType: (navigator as any).connection?.effectiveType || 'unknown',
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
-      });
-      
       if (error instanceof Error) {
         toast.error(`Failed to save listing: ${error.message}`);
       } else {
-      toast.error('Something went wrong. Please try again.');
+        toast.error('Something went wrong. Please try again.');
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Photo Requirements Modal Component
+  const PhotoRequirementsModal = () => {
+    if (!showPhotoModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Photo Requirements & Tips</h3>
+              <button
+                onClick={() => setShowPhotoModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Photo Requirements */}
+              <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+                <h4 className="font-medium text-red-800 mb-3">Photo Requirements:</h4>
+                <ul className="list-disc pl-5 space-y-1 text-red-700 text-sm">
+                  <li>Upload 3-10 photos (JPEG, PNG, WebP up to 10MB each)</li>
+                  <li>First photo will be your main listing photo</li>
+                  <li>📱 Images are automatically optimized for mobile users</li>
+                </ul>
+              </div>
+
+              {/* Automatic Optimization */}
+              <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                <h4 className="font-medium text-blue-800 mb-3">✨ Automatic Optimization:</h4>
+                <ul className="list-disc pl-5 space-y-1 text-blue-700 text-sm">
+                  <li>Large images are automatically resized to 1920x1080</li>
+                  <li>File sizes are compressed to reduce upload time</li>
+                  <li>Perfect quality maintained for listing photos</li>
+                </ul>
+              </div>
+
+              {/* Tips for great photos */}
+              <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+                <h4 className="font-medium text-green-800 mb-3">Tips for great photos:</h4>
+                <ul className="list-disc pl-5 space-y-1 text-green-700 text-sm">
+                  <li>Take photos in good lighting</li>
+                  <li>Show the item from multiple angles</li>
+                  <li>Include any accessories or parts</li>
+                  <li>Highlight any wear or damage honestly</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowPhotoModal(false)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (!user) {
@@ -1067,18 +1035,7 @@ function CreateListingContent() {
             {isEditMode ? 'Update your listing details' : 'Share your items with the community and earn money'}
           </p>
           
-          {/* Debug section for development */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800 mb-2">🧪 Development Debug</p>
-              <button
-                onClick={testMobileSentry}
-                className="text-xs bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-              >
-                Test Sentry on Mobile
-              </button>
-            </div>
-          )}
+
         </div>
 
         {/* Progress Steps */}
@@ -1116,10 +1073,20 @@ function CreateListingContent() {
               <div className="space-y-6">
                 {/* Photos Section - Moved to Top */}
                 <div className="mb-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <Camera className="w-5 h-5 mr-2 text-green-500" />
-                    Add Photos *
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                      <Camera className="w-5 h-5 mr-2 text-green-500" />
+                      Add Photos *
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowPhotoModal(true)}
+                      className="flex items-center px-3 py-1 text-sm text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"
+                    >
+                      <HelpCircle className="w-4 h-4 mr-1" />
+                      Photo Tips
+                    </button>
+                  </div>
                   <p className="text-sm text-gray-600 mb-4">Add at least 3 photos to showcase your item</p>
 
                   {/* Photo Grid Upload */}
@@ -1181,33 +1148,7 @@ function CreateListingContent() {
                     className="hidden"
                   />
                   
-                  <div className="text-sm text-gray-600">
-                    <p className="mb-2"><strong>Photo Requirements:</strong></p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>Upload 3-10 photos (JPEG, PNG, WebP up to 10MB each)</li>
-                      <li>First photo will be your main listing photo</li>
-                      <li>📱 Images are automatically optimized for mobile users</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="mt-4 text-sm text-gray-600">
-                    <p><strong>✨ Automatic Optimization:</strong></p>
-                    <ul className="list-disc pl-5 mt-2 space-y-1">
-                      <li>Large images are automatically resized to 1920x1080</li>
-                      <li>File sizes are compressed to reduce upload time</li>
-                      <li>Perfect quality maintained for listing photos</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="mt-4 text-sm text-gray-600">
-                    <p><strong>Tips for great photos:</strong></p>
-                    <ul className="list-disc pl-5 mt-2 space-y-1">
-                      <li>Take photos in good lighting</li>
-                      <li>Show the item from multiple angles</li>
-                      <li>Include any accessories or parts</li>
-                      <li>Highlight any wear or damage honestly</li>
-                    </ul>
-                  </div>
+
 
                   {imagePreview.length < 3 && (
                     <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -1413,6 +1354,79 @@ function CreateListingContent() {
                         {errors.year.message}
                       </p>
                     )}
+                 </div>
+
+                 {/* Features Section */}
+                 <div className="border-t pt-6 mt-8">
+                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                     <Check className="w-5 h-5 mr-2 text-green-500" />
+                     Features
+                   </h3>
+                   <p className="text-sm text-gray-600 mb-4">
+                     Add specific features that make your item special (optional)
+                   </p>
+
+                   {/* Add Feature Input */}
+                   <div className="flex gap-2 mb-4">
+                     <input
+                       type="text"
+                       value={newFeature}
+                       onChange={(e) => setNewFeature(e.target.value)}
+                       onKeyPress={handleFeatureKeyPress}
+                       placeholder="e.g. Turbocharged engine, Premium audio, Digital display"
+                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                     />
+                     <Button
+                       type="button"
+                       onClick={addFeature}
+                       disabled={!newFeature.trim() || features.includes(newFeature.trim())}
+                       variant="outline"
+                       className="px-4"
+                     >
+                       Add
+                     </Button>
+                   </div>
+
+                   {/* Features List */}
+                   {features.length > 0 && (
+                     <div className="space-y-2">
+                       <p className="text-sm font-medium text-gray-700">Added Features:</p>
+                       <div className="flex flex-wrap gap-2">
+                         {features.map((feature, index) => (
+                           <div
+                             key={index}
+                             className="inline-flex items-center px-3 py-1 bg-green-50 border border-green-200 rounded-full text-sm text-green-800"
+                           >
+                             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                             {feature}
+                             <button
+                               type="button"
+                               onClick={() => removeFeature(index)}
+                               className="ml-2 w-4 h-4 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full"
+                             >
+                               <X className="w-3 h-3" />
+                             </button>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+
+                   {features.length === 0 && (
+                     <div className="text-sm text-gray-500 italic">
+                       No features added yet. Features help renters understand what makes your item special.
+                     </div>
+                   )}
+
+                   <div className="mt-4 text-sm text-gray-600">
+                     <p><strong>Examples of good features:</strong></p>
+                     <ul className="list-disc pl-5 mt-2 space-y-1">
+                       <li>Technical specifications (e.g., "4K recording", "Bluetooth enabled")</li>
+                       <li>Premium upgrades (e.g., "Premium leather seats", "Professional grade")</li>
+                       <li>Special capabilities (e.g., "Waterproof", "Noise cancelling")</li>
+                       <li>Included accessories (e.g., "Includes carrying case", "Extra batteries")</li>
+                     </ul>
+                   </div>
                  </div>
                 </div>
                 </div>
@@ -1856,6 +1870,9 @@ function CreateListingContent() {
         </Card>
         </div>
       </div>
+      
+      {/* Photo Requirements Modal */}
+      <PhotoRequirementsModal />
     </AuthenticatedLayout>
   );
 }
