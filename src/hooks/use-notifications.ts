@@ -128,9 +128,24 @@ export function useNotifications() {
   const refetch = async () => {
     if (!user?.id) return;
     
-    hasInitialized.current = false; // Reset to allow refetch
-    // Trigger useEffect to run again
-    setLoading(true);
+    try {
+      setLoading(true);
+      const response = await fetch('/api/notifications');
+      
+      if (response.ok) {
+        const data = await response.json();
+        const notifications = data.notifications || [];
+        setNotifications(notifications);
+        
+        // Count unread notifications
+        const unread = notifications.filter((n: Notification) => !n.is_read).length;
+        setUnreadCount(unread);
+      }
+    } catch (error) {
+      console.error('Error refetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return {

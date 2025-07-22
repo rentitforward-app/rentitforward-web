@@ -2,10 +2,12 @@
 export * from './types/user';
 export * from './types/listing';
 export * from './types/booking';
+export * from './types/review';
 
 // Utilities
 export * from './utils/formatting';
 export * from './utils/stripe';
+export * from './utils/reviews';
 
 // Constants
 export * from './constants';

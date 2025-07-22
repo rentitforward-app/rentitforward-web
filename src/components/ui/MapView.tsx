@@ -11,8 +11,8 @@ interface MapViewProps {
     title: string;
     images: string[];
     price_per_day: number;
-    rating?: number;
-    reviewCount?: number;
+    rating?: number | null;
+    review_count?: number | null;
     distance?: number;
     category?: string;
     address: string;
@@ -20,10 +20,10 @@ interface MapViewProps {
     state: string;
     profiles?: {
       full_name: string;
-      avatar_url?: string;
+      avatar_url?: string | null;
     };
   }>;
-  userLocation?: { lat: number; lng: number };
+  userLocation?: { lat: number; lng: number } | null;
   onFavoriteToggle?: (listingId: string) => void;
   favorites?: Set<string>;
 }

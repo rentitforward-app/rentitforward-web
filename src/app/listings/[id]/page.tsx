@@ -32,6 +32,7 @@ import MessageModal from '@/components/MessageModal';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { ReviewList, ReviewStats } from '@/components/reviews';
 
 interface Listing {
   id: string;
@@ -57,6 +58,8 @@ interface Listing {
   rules: string[];
   view_count: number;
   favorite_count: number;
+  rating?: number | null;
+  review_count?: number | null;
   delivery_available: boolean;
   pickup_available: boolean;
   created_at: string;
@@ -78,9 +81,14 @@ interface Review {
   comment: string;
   created_at: string;
   reviewer_id: string;
+  reviewee_id: string;
+  type: string;
   profiles: {
     full_name: string;
     avatar_url: string | null;
+  };
+  bookings?: {
+    listing_id: string;
   };
 }
 
@@ -180,11 +188,13 @@ export default function ListingDetailPage() {
   }, [listingId]);
 
   useEffect(() => {
-    if (listing) {
+    if (listingId) {
       fetchReviews();
+    }
+    if (listing) {
       fetchBookedDates();
     }
-  }, [listing]);
+  }, [listing, listingId]);
 
   useEffect(() => {
     if (user && listing) {
@@ -248,12 +258,13 @@ export default function ListingDetailPage() {
   };
 
   const fetchReviews = async () => {
-    if (!listing?.profiles?.id) {
-      console.log('No listing or profiles data available for reviews');
+    if (!listingId) {
+      console.log('No listing ID available for reviews');
       return;
     }
 
     try {
+      // Fetch reviews for this specific listing by joining with bookings
       const { data, error } = await supabase
         .from('reviews')
         .select(`
@@ -261,11 +272,14 @@ export default function ListingDetailPage() {
           profiles:reviewer_id (
             full_name,
             avatar_url
+          ),
+          bookings!inner (
+            listing_id
           )
         `)
-        .eq('reviewee_id', listing.profiles.id)
+        .eq('bookings.listing_id', listingId)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (error) {
         console.error('Error fetching reviews:', error);
@@ -719,16 +733,7 @@ export default function ListingDetailPage() {
                     {listing.model && <span>{listing.model}</span>}
                     {listing.year && <span>{listing.year}</span>}
                   </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <div className="flex items-center">
-                      <Eye className="h-4 w-4 mr-1" />
-                      {listing.view_count || 0} views
-                    </div>
-                    <div className="flex items-center">
-                      <Heart className="h-4 w-4 mr-1" />
-                      {listing.favorite_count || 0} favorites
-                    </div>
-                  </div>
+
                 </div>
                 
                 <button
@@ -845,54 +850,25 @@ export default function ListingDetailPage() {
               </div>
             </div>
 
-            {/* Reviews */}
-            {reviews.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Reviews</h2>
-                <div className="space-y-4">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="border-b border-gray-200 pb-4 last:border-b-0">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <div className="flex-shrink-0">
-                          {review.profiles.avatar_url ? (
-                            <Image
-                              src={review.profiles.avatar_url}
-                              alt={review.profiles.full_name}
-                              width={40}
-                              height={40}
-                              className="rounded-full"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                              <User className="h-5 w-5 text-gray-600" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-medium text-gray-900">{review.profiles.full_name}</h4>
-                            <div className="flex items-center">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-4 w-4 ${
-                                    i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            {format(new Date(review.created_at), 'MMMM d, yyyy')}
-                          </p>
-                        </div>
-                      </div>
-                      {review.comment && (
-                        <p className="text-gray-700 ml-12">{review.comment}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
+            {/* Reviews Section */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Reviews</h2>
+              
+              {/* Review Statistics */}
+              <ReviewStats 
+                reviews={reviews}
+                showDistribution={true}
+                className="mb-6"
+              />
+              
+              {/* Review List with Filters */}
+              <ReviewList
+                reviews={reviews}
+                currentUserId={user?.id}
+                showFilters={reviews.length > 5}
+                initialFilter={{ sortBy: 'newest' }}
+                emptyMessage="This listing doesn't have any reviews yet. Be the first to leave a review!"
+              />
               </div>
             )}
 
@@ -1112,6 +1088,50 @@ export default function ListingDetailPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="mt-12 bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Reviews</h2>
+            <div className="flex items-center gap-2">
+              {listing?.rating && (
+                <div className="flex items-center gap-1">
+                  <Star className="w-5 h-5 text-yellow-400 fill-current" />
+                  <span className="text-lg font-semibold">{listing.rating.toFixed(1)}</span>
+                  <span className="text-gray-500">({listing.review_count || 0} reviews)</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {reviews.length > 0 ? (
+            <div className="space-y-6">
+              {/* Review Statistics */}
+              <ReviewStats reviews={reviews} />
+              
+              {/* Review List */}
+              <div className="mt-8">
+                <ReviewList reviews={reviews} />
+              </div>
+              
+              {reviews.length >= 5 && (
+                <div className="text-center pt-4">
+                  <button className="text-[#44D62C] hover:text-[#3AB827] font-medium">
+                    View all reviews
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="text-gray-400 mb-4">
+                <Star className="w-12 h-12 mx-auto" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
+              <p className="text-gray-600">Be the first to rent this item and leave a review!</p>
+            </div>
+          )}
         </div>
 
         {/* Related Listings - Carousel */}

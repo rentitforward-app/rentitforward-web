@@ -108,7 +108,7 @@ export default function ListingCard({
           </h3>
 
           {/* Rating and Reviews */}
-          {rating && (
+          {rating && rating > 0 && reviewCount && reviewCount > 0 ? (
             <div className="flex items-center gap-1 mb-2">
               <div className="flex items-center">
                 {[...Array(5)].map((_, i) => (
@@ -123,9 +123,11 @@ export default function ListingCard({
                 ))}
               </div>
               <span className="text-sm font-medium text-gray-900">{rating.toFixed(1)}</span>
-              {reviewCount && (
-                <span className="text-sm text-gray-500">({reviewCount} reviews)</span>
-              )}
+              <span className="text-sm text-gray-500">({reviewCount} reviews)</span>
+            </div>
+          ) : (
+            <div className="mb-2">
+              <span className="text-sm text-green-600 font-medium">Be the first to rent this!</span>
             </div>
           )}
 

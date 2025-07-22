@@ -21,6 +21,7 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { ReviewsSection } from '@/components/profile/ReviewsSection';
 
 interface UserProfile {
   id: string;
@@ -507,6 +508,13 @@ export default function ProfilePage() {
             </div>
           </Card>
         </div>
+
+        {/* Reviews Section */}
+        {profile && (
+          <div className="mt-8">
+            <ReviewsSection userId={profile.id} />
+          </div>
+        )}
       </div>
     </AuthenticatedLayout>
   );

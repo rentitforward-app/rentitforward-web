@@ -36,9 +36,9 @@ interface Listing {
   brand: string | null;
   model: string | null;
   year: number | null;
-  view_count: number;
-  favorite_count: number;
   created_at: string;
+  rating?: number | null;
+  review_count?: number | null;
   profiles: {
     full_name: string;
     avatar_url: string | null;
@@ -205,9 +205,9 @@ function BrowseContent() {
           brand,
           model,
           year,
-          view_count,
-          favorite_count,
           created_at,
+          rating,
+          review_count,
           profiles!listings_owner_id_fkey (
             full_name,
             avatar_url
@@ -234,7 +234,7 @@ function BrowseContent() {
       }
 
       console.log('🎯 Setting listings:', data.length);
-      setListings(data as Listing[]);
+      setListings(data as unknown as Listing[]);
     } catch (error) {
       console.error('💥 Error in fetchListings:', error);
       
@@ -369,15 +369,14 @@ function BrowseContent() {
         filtered.sort((a, b) => b.price_per_day - a.price_per_day);
         break;
       case 'popular':
-        filtered.sort((a, b) => (b.favorite_count || 0) - (a.favorite_count || 0));
+        // Sort by review count instead of favorite count
+        filtered.sort((a, b) => (b.review_count || 0) - (a.review_count || 0));
         break;
       case 'distance':
         if (userLocation) {
-          filtered.sort((a, b) => {
-            const distanceA = getMockListingData(a.id).distance;
-            const distanceB = getMockListingData(b.id).distance;
-            return distanceA - distanceB;
-          });
+          // TODO: Implement real distance calculation based on user location
+          // For now, fallback to newest sorting
+          filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         } else {
           // Fallback to newest if no location
           filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -404,18 +403,10 @@ function BrowseContent() {
     return `$${price}`;
   };
 
-  // Helper function to generate consistent mock data based on listing ID
-  const getMockListingData = (listingId: string) => {
-    // Use listing ID to generate consistent but varied mock data
-    const hash = listingId.split('-').reduce((acc, part) => {
-      return acc + part.charCodeAt(0);
-    }, 0);
-    
-    return {
-      rating: Math.max(3.0, Math.min(5.0, 3.0 + (hash % 100) / 50)), // Rating between 3.0-5.0
-      reviewCount: Math.max(1, (hash % 50) + 1), // Reviews between 1-50
-      distance: Math.max(0.5, Math.min(25.0, (hash % 250) / 10)) // Distance between 0.5-25.0 km
-    };
+  // Distance calculation - to be implemented with proper geolocation
+  const calculateDistance = (listingId: string) => {
+    // For now, return 0 as distance calculation requires geolocation implementation
+    return 0;
   };
 
   // Pagination functions
@@ -739,15 +730,10 @@ function BrowseContent() {
           ) : viewMode === 'map' ? (
             <div className="h-[400px] md:h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
               <MapView
-                listings={filteredListings.map((listing) => {
-                  const mockData = getMockListingData(listing.id);
-                  return {
-                    ...listing,
-                    rating: mockData.rating,
-                    reviewCount: mockData.reviewCount,
-                    distance: mockData.distance,
-                  };
-                })}
+                listings={filteredListings.map((listing) => ({
+                  ...listing,
+                  distance: 0, // Distance calculation to be implemented later
+                }))}
                 userLocation={userLocation}
                 onFavoriteToggle={toggleFavorite}
                 favorites={favorites}
@@ -757,7 +743,6 @@ function BrowseContent() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                 {paginatedListings.map((listing) => {
-                  const mockData = getMockListingData(listing.id);
                   return (
                     <ListingCard
                       key={listing.id}
@@ -771,9 +756,9 @@ function BrowseContent() {
                       state={listing.state}
                       delivery_available={listing.delivery_available}
                       pickup_available={listing.pickup_available}
-                      rating={mockData.rating}
-                      reviewCount={mockData.reviewCount}
-                      distance={mockData.distance}
+                      rating={listing.rating || 0}
+                      reviewCount={listing.review_count || 0}
+                      distance={0} // Distance is not available in the current fetch, so set to 0
                       owner={{
                         name: listing.profiles?.full_name || 'Anonymous',
                         avatar: listing.profiles?.avatar_url || undefined
