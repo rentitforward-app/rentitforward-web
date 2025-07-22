@@ -16,7 +16,8 @@ import {
   Settings,
   HelpCircle,
   LogOut,
-  Search
+  Search,
+  Heart
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'react-hot-toast';
@@ -36,6 +37,7 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/browse', label: 'Browse Items', icon: Compass },
+  { href: '/favorites', label: 'Saved Items', icon: Heart },
   { href: '/bookings', label: 'My Bookings', icon: Package2 },
   { href: '/listings', label: 'My Listings', icon: Calendar },
   { href: '/messages', label: 'Messages', icon: MessageCircle },

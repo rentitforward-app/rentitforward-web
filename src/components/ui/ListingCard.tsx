@@ -24,6 +24,8 @@ interface ListingCardProps {
     avatar?: string;
   };
   className?: string;
+  isFavorited?: boolean;
+  onFavoriteToggle?: () => void;
 }
 
 export default function ListingCard({
@@ -42,6 +44,8 @@ export default function ListingCard({
   pickup_available,
   owner,
   className,
+  isFavorited = false,
+  onFavoriteToggle,
 }: ListingCardProps) {
   const mainImage = images[0] || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTA5Mzk2IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjUwMCI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pgo8L3N2Zz4K';
 
@@ -76,16 +80,24 @@ export default function ListingCard({
           </div>
 
           {/* Heart Icon */}
-          <button 
-            className="absolute bottom-3 right-3 p-2 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white transition-colors z-10"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              // Handle favorite toggle here
-            }}
-          >
-            <Heart className="w-4 h-4 text-gray-600 hover:text-red-500" />
-          </button>
+          {onFavoriteToggle && (
+            <button 
+              className="absolute bottom-3 right-3 p-2 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white transition-colors z-10"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onFavoriteToggle();
+              }}
+            >
+              <Heart 
+                className={`w-4 h-4 transition-colors ${
+                  isFavorited 
+                    ? 'text-red-500 fill-red-500' 
+                    : 'text-gray-600 hover:text-red-500'
+                }`} 
+              />
+            </button>
+          )}
         </div>
 
         {/* Card Content */}

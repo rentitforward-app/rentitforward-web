@@ -778,6 +778,8 @@ function BrowseContent() {
                         name: listing.profiles?.full_name || 'Anonymous',
                         avatar: listing.profiles?.avatar_url || undefined
                       }}
+                      isFavorited={favorites.has(listing.id)}
+                      onFavoriteToggle={() => toggleFavorite(listing.id)}
                     />
                   );
                 })}

@@ -461,7 +461,7 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
           <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <Link href="/listings/create" className="btn-primary p-3 md:p-4 rounded-lg text-center hover:bg-green-600 transition-colors">
               <Plus className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2" />
               <span className="text-sm md:text-base font-medium">Create Listing</span>
@@ -473,6 +473,10 @@ export default function DashboardPage() {
             <Link href="/browse" className="bg-blue-500 text-white p-3 md:p-4 rounded-lg text-center hover:bg-blue-600 transition-colors">
               <Search className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2" />
               <span className="text-sm md:text-base font-medium">Browse Items</span>
+            </Link>
+            <Link href="/favorites" className="bg-red-500 text-white p-3 md:p-4 rounded-lg text-center hover:bg-red-600 transition-colors">
+              <Heart className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2" />
+              <span className="text-sm md:text-base font-medium">Saved Items</span>
             </Link>
           </div>
         </div>
