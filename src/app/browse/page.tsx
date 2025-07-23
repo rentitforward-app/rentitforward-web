@@ -14,6 +14,15 @@ import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import MapView from '@/components/ui/MapView';
 import { useAuth } from '@/hooks/use-auth';
 
+// Import existing formatting utilities for distance calculation  
+import { calculateDistance as calculateDistanceUtil, formatDistance } from '@/shared/utils/formatting';
+
+// Define coordinate types locally until shared package is properly set up
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
 interface Listing {
   id: string;
   title: string;
@@ -39,6 +48,9 @@ interface Listing {
   created_at: string;
   rating?: number | null;
   review_count?: number | null;
+  location?: string; // PostGIS geography field
+  coordinates?: Coordinates; // Parsed coordinates
+  distance?: number; // Calculated distance from user
   profiles: {
     full_name: string;
     avatar_url: string | null;
@@ -180,41 +192,83 @@ function BrowseContent() {
       
       console.log('📊 Database connection test:', { count: testData, error: testError });
       
-      // Simplified query without joins for now - select only existing columns
-      const { data, error } = await supabase
-        .from('listings')
-        .select(`
-          id,
-          title,
-          description,
-          category,
-          price_per_day,
-          price_weekly,
-          price_hourly,
-          deposit,
-          images,
-          address,
-          city,
-          state,
-          country,
-          postal_code,
-          delivery_available,
-          pickup_available,
-          is_active,
-          condition,
-          brand,
-          model,
-          year,
-          created_at,
-          rating,
-          review_count,
-          profiles!listings_owner_id_fkey (
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+      // Query with location field - use optimized function for distance sorting if user location available
+      let data, error;
+      
+      if (userLocation && typeof userLocation === 'object' && 'lat' in userLocation && sortBy === 'distance') {
+        console.log('🗺️ Using optimized distance-based query');
+        
+        // Use the optimized database function for distance-based queries
+        const { data: functionData, error: functionError } = await supabase
+          .rpc('get_listings_sorted_by_distance', {
+            center_lat: userLocation.lat,
+            center_lng: userLocation.lng,
+            category_filter: null, // We'll filter on the client for now
+            min_price: null,
+            max_price: null,
+            max_results: 500
+          });
+        
+        data = functionData;
+        error = functionError;
+        
+        console.log('🎯 Distance query result:', { count: data?.length, error: error?.message });
+        
+        // Transform the function result to match expected format
+        if (data) {
+          data = data.map((item: any) => ({
+            ...item,
+            profiles: {
+              full_name: item.owner_name,
+              avatar_url: item.owner_avatar
+            },
+            // Add distance for display
+            distance_km: item.distance_km
+          }));
+        }
+      } else {
+        console.log('📋 Using standard query');
+        
+        // Standard query without distance optimization
+        const { data: standardData, error: standardError } = await supabase
+          .from('listings')
+          .select(`
+            id,
+            title,
+            description,
+            category,
+            price_per_day,
+            price_weekly,
+            price_hourly,
+            deposit,
+            images,
+            address,
+            city,
+            state,
+            country,
+            postal_code,
+            delivery_available,
+            pickup_available,
+            is_active,
+            condition,
+            brand,
+            model,
+            year,
+            created_at,
+            rating,
+            review_count,
+            location,
+            profiles!listings_owner_id_fkey (
+              full_name,
+              avatar_url
+            )
+          `)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+          
+        data = standardData;
+        error = standardError;
+      }
       
       console.log('✅ Raw Supabase response:', { 
         data: data?.length ? `${data.length} items` : 'No data', 
@@ -234,13 +288,31 @@ function BrowseContent() {
       }
 
       console.log('🎯 Setting listings:', data.length);
-      setListings(data as unknown as Listing[]);
+      
+      // Parse location coordinates from PostGIS format
+      const listingsWithCoordinates = (data as unknown as Listing[]).map(listing => {
+        if (listing.location) {
+          // Parse PostGIS POINT format: "POINT(longitude latitude)"
+          const match = listing.location.match(/POINT\s*\(\s*([+-]?\d+\.?\d*)\s+([+-]?\d+\.?\d*)\s*\)/i);
+          if (match) {
+            const longitude = parseFloat(match[1]);
+            const latitude = parseFloat(match[2]);
+            return {
+              ...listing,
+              coordinates: { latitude, longitude }
+            };
+          }
+        }
+        return listing;
+      });
+      
+      setListings(listingsWithCoordinates);
     } catch (error) {
       console.error('💥 Error in fetchListings:', error);
       
       // Capture error in Sentry with more context
-      if (typeof window !== 'undefined' && window.Sentry) {
-        window.Sentry.captureException(error, {
+      if (typeof window !== 'undefined' && (window as any).Sentry) {
+        (window as any).Sentry.captureException(error, {
           contexts: {
             fetchListings: {
               supabaseClient: !!supabase,
@@ -373,10 +445,22 @@ function BrowseContent() {
         filtered.sort((a, b) => (b.review_count || 0) - (a.review_count || 0));
         break;
       case 'distance':
-        if (userLocation) {
-          // TODO: Implement real distance calculation based on user location
-          // For now, fallback to newest sorting
-          filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        if (userLocation && typeof userLocation === 'object' && 'lat' in userLocation) {
+          // Calculate distance for each listing and sort by distance
+          const listingsWithDistance = filtered.map(listing => {
+            if (listing.coordinates) {
+              const distance = calculateDistanceUtil(
+                userLocation.lat,
+                userLocation.lng,
+                listing.coordinates.latitude,
+                listing.coordinates.longitude
+              );
+              return { ...listing, distance };
+            }
+            return { ...listing, distance: Infinity }; // Put listings without coordinates at the end
+          });
+          
+          filtered = listingsWithDistance.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
         } else {
           // Fallback to newest if no location
           filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -675,9 +759,9 @@ function BrowseContent() {
               {/* Near Me button */}
               <button
                 onClick={handleNearMeClick}
-                disabled={sortBy === 'distance' && userLocation}
-                className={`px-2 md:px-3 py-2 border rounded-lg flex items-center space-x-1 md:space-x-2 transition-colors text-xs md:text-sm ${
-                  sortBy === 'distance' && userLocation
+                disabled={sortBy === 'distance' && !!userLocation}
+                                  className={`px-2 md:px-3 py-2 border rounded-lg flex items-center space-x-1 md:space-x-2 transition-colors text-xs md:text-sm ${
+                  sortBy === 'distance' && !!userLocation
                     ? 'border-green-500 bg-green-50 text-green-700'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
