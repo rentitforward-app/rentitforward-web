@@ -333,7 +333,12 @@ function BrowseContent() {
   // Re-fetch listings when location changes to get fresh distance calculations
   useEffect(() => {
     if (appLocation) {
-      console.log('📍 Location changed, re-fetching listings with new center point:', appLocation);
+      console.log('📍 Location changed, re-fetching listings with new center point:', {
+        lat: appLocation.lat,
+        lng: appLocation.lng,
+        address: appLocation.address,
+        type: appLocation.type
+      });
       setIsLoading(true);
       fetchListings();
     }
@@ -431,6 +436,14 @@ function BrowseContent() {
           // Add distance for display
           distance_km: item.distance_km
         }));
+        
+        // Debug: Log distance values for first few listings
+        console.log('🔍 Distance values check:', data.slice(0, 3).map((item: any) => ({
+          title: item.title,
+          distance_km: item.distance_km,
+          latitude: item.latitude,
+          longitude: item.longitude
+        })));
       }
       
       console.log('✅ Raw Supabase response:', { 

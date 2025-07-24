@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { Star, MapPin, Heart, Package, Truck } from 'lucide-react';
 import { Card } from './Card';
 import { Button } from './Button';
@@ -48,6 +49,13 @@ export default function ListingCard({
   onFavoriteToggle,
 }: ListingCardProps) {
   const mainImage = images[0] || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTA5Mzk2IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjUwMCI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pgo8L3N2Zz4K';
+
+  // Debug logging for distance values
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔍 ListingCard "${title}": distance = ${distance}, type = ${typeof distance}`);
+    }
+  }, [title, distance]);
 
   return (
     <Link href={`/listings/${id}`} className="block">
