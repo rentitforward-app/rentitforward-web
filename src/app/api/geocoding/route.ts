@@ -18,6 +18,8 @@ interface GeocodingResult {
   success: boolean;
   location?: Location;
   coordinates?: Coordinates;
+  suggestions?: any[];
+  address?: any;
   error?: string;
 }
 
@@ -26,6 +28,81 @@ interface GeocodingConfig {
   provider: 'google' | 'mapbox' | 'nominatim';
   language?: string;
   region?: string;
+}
+
+/**
+ * Google Places Autocomplete for address suggestions
+ */
+async function getAddressSuggestions(input: string, config: GeocodingConfig): Promise<GeocodingResult> {
+  console.log('🔍 getAddressSuggestions called with:', { input, provider: config.provider, hasApiKey: !!config.apiKey });
+  
+  if (config.provider === 'google' && config.apiKey) {
+    const params = new URLSearchParams({
+      input: input,
+      key: config.apiKey,
+      components: `country:${config.region || 'au'}`,
+      language: config.language || 'en',
+      types: 'address',
+    });
+
+    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params}`;
+    console.log('📡 Making Google Places API call to:', url);
+
+    const response = await fetch(url);
+    console.log('📊 Google Places API response status:', response.status, response.statusText);
+
+    if (!response.ok) {
+      console.error('❌ Google Places API HTTP error:', response.status, response.statusText);
+      return { success: false, error: `Google Places API error: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    console.log('📋 Google Places API response data:', data);
+
+    if (data.status === 'OK') {
+      // Get place details for each suggestion to include coordinates
+      const detailedSuggestions = await Promise.all(
+        data.predictions.slice(0, 5).map(async (prediction: any) => {
+          const detailsParams = new URLSearchParams({
+            place_id: prediction.place_id,
+            key: config.apiKey,
+            fields: 'formatted_address,geometry,address_components',
+          });
+
+          const detailsResponse = await fetch(
+            `https://maps.googleapis.com/maps/api/place/details/json?${detailsParams}`
+          );
+
+          if (detailsResponse.ok) {
+            const detailsData = await detailsResponse.json();
+            if (detailsData.status === 'OK') {
+              return {
+                ...prediction,
+                ...detailsData.result,
+              };
+            }
+          }
+          return prediction;
+        })
+      );
+
+      return {
+        success: true,
+        suggestions: detailedSuggestions,
+      };
+    } else {
+      return { success: false, error: `Google Places API error: ${data.status}` };
+    }
+  }
+
+  // Fallback: return input as single suggestion
+  return {
+    success: true,
+    suggestions: [{
+      formatted_address: input,
+      description: input,
+    }],
+  };
 }
 
 /**
@@ -217,17 +294,123 @@ function isValidAustralianResult(result: GeocodingResult): boolean {
 }
 
 /**
+ * Handle reverse geocoding request
+ */
+async function handleReverseGeocode(lat: number, lng: number) {
+  try {
+    const provider = process.env.GEOCODING_PROVIDER as 'google' | 'mapbox' | 'nominatim' || 'nominatim';
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY || '';
+    
+    const config: GeocodingConfig = {
+      provider: apiKey ? provider : 'nominatim',
+      apiKey,
+      language: 'en',
+      region: 'au',
+    };
+
+    if (config.provider === 'google' && config.apiKey) {
+      const params = new URLSearchParams({
+        latlng: `${lat},${lng}`,
+        key: config.apiKey,
+        language: 'en',
+      });
+
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?${params}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'OK' && data.results.length > 0) {
+          return NextResponse.json({
+            success: true,
+            address: data.results[0],
+            coordinates: { lat, lng },
+          });
+        }
+      }
+    }
+
+    return NextResponse.json(
+      { error: 'Reverse geocoding failed' },
+      { status: 500 }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Reverse geocoding error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Handle address autocomplete request
+ */
+async function handleAddressAutocomplete(input: string) {
+  try {
+    console.log('🔍 Address autocomplete request for:', input);
+    
+    const provider = process.env.GEOCODING_PROVIDER as 'google' | 'mapbox' | 'nominatim' || 'nominatim';
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY || '';
+    
+    console.log('🔧 API Configuration:', { provider, hasApiKey: !!apiKey });
+    
+    const config: GeocodingConfig = {
+      provider: apiKey ? provider : 'nominatim',
+      apiKey,
+      language: 'en',
+      region: 'au',
+    };
+
+    console.log('🚀 Calling getAddressSuggestions with config:', config.provider);
+    const result = await getAddressSuggestions(input, config);
+    console.log('📝 Autocomplete result:', result);
+    
+    if (result.success) {
+      console.log('✅ Autocomplete successful, returning suggestions');
+      return NextResponse.json({
+        success: true,
+        suggestions: result.suggestions,
+      });
+    } else {
+      console.error('❌ Autocomplete failed:', result.error);
+      return NextResponse.json(
+        { error: result.error || 'Address autocomplete failed' },
+        { status: 500 }
+      );
+    }
+  } catch (error) {
+    console.error('🚨 Autocomplete exception:', error);
+    return NextResponse.json(
+      { error: 'Address autocomplete error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * POST /api/geocoding
- * Geocode an address to coordinates
+ * Geocode an address to coordinates, get address suggestions, or reverse geocode
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { address, city, state, country = 'Australia' } = body;
+    const { address, city, state, country = 'Australia', coordinates } = body;
 
+    // Handle reverse geocoding (coordinates to address)
+    if (coordinates && coordinates.lat && coordinates.lng) {
+      return await handleReverseGeocode(coordinates.lat, coordinates.lng);
+    }
+
+    // Handle address autocomplete (search suggestions)
+    if (address && !city && !state) {
+      return await handleAddressAutocomplete(address);
+    }
+
+    // Handle full geocoding (address to coordinates)
     if (!address || !city || !state) {
       return NextResponse.json(
-        { error: 'Address, city, and state are required' },
+        { error: 'Address, city, and state are required for geocoding, or just address for autocomplete' },
         { status: 400 }
       );
     }

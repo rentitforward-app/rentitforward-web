@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load environment variables
-require('dotenv').config();
+require('dotenv').config({ path: '.env.local' });
 
 async function runSpatialMigration() {
   console.log('🚀 Starting spatial indexing migration...');

@@ -104,12 +104,17 @@ export async function POST(request: NextRequest) {
     };
 
     // Handle location field (geography type) - REQUIRED field
-    if (body.latitude && body.longitude) {
-      listingData.location = `POINT(${body.longitude} ${body.latitude})`;
+    const latitude = body.coordinates?.latitude || body.latitude;
+    const longitude = body.coordinates?.longitude || body.longitude;
+    
+    if (latitude && longitude) {
+      listingData.location = `POINT(${longitude} ${latitude})`;
+      console.log(`✅ Using provided coordinates: ${latitude}, ${longitude}`);
     } else {
       // Default location if coordinates not provided - use a default point (Sydney)
       listingData.location = 'POINT(151.2093 -33.8688)';
       console.warn('No coordinates provided, using default location (Sydney)');
+      console.warn('Received coordinates data:', body.coordinates);
     }
 
     console.log('Prepared listing data for database:', JSON.stringify(listingData, null, 2));

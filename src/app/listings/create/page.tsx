@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { 
+import {
   Upload, 
   X, 
   DollarSign, 
@@ -16,7 +16,10 @@ import {
   ChevronRight,
   Check,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Map,
+  Search,
+  Navigation
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
@@ -25,6 +28,13 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import Image from 'next/image';
+
+// Declare Google Maps types
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 const categories = {
   'appliances': { 
@@ -206,6 +216,13 @@ function CreateListingContent() {
   const [features, setFeatures] = useState<string[]>([]);
   const [newFeature, setNewFeature] = useState('');
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [mapCenter, setMapCenter] = useState({ lat: -33.8688, lng: 151.2093 }); // Default to Sydney
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchAddress, setSearchAddress] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -719,6 +736,340 @@ function CreateListingContent() {
     }
   };
 
+  // Location and geocoding functions
+  const geocodeAddress = async (address: string) => {
+    try {
+      // Load Google Maps if not already loaded
+      if (!window.google || !window.google.maps) {
+        await loadGoogleMaps();
+      }
+
+      // Use frontend Google Places API for autocomplete
+      if (window.google && window.google.maps) {
+        console.log('🎯 Using frontend Google Places API for:', address);
+        return await getPlaceSuggestions(address);
+      } else {
+        console.log('⚠️ Google Maps not available, skipping autocomplete');
+        // Return empty suggestions if Google Maps isn't available
+        return { success: true, suggestions: [] };
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      // Return empty suggestions on error instead of throwing
+      return { success: true, suggestions: [] };
+    }
+  };
+
+  // Function to dynamically load Google Maps API
+  const loadGoogleMaps = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      // Check if already loaded
+      if (window.google && window.google.maps) {
+        resolve();
+        return;
+      }
+
+      // Check if script is already loading
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+      if (existingScript) {
+        existingScript.addEventListener('load', () => resolve());
+        existingScript.addEventListener('error', () => reject(new Error('Failed to load Google Maps')));
+        return;
+      }
+
+      // Create and load script
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      console.log('🔑 Google Maps API Key available:', !!apiKey);
+      
+      if (!apiKey) {
+        reject(new Error('Google Maps API key not found'));
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      
+      script.onload = () => {
+        console.log('✅ Google Maps API loaded successfully');
+        resolve();
+      };
+      
+      script.onerror = () => {
+        console.error('❌ Failed to load Google Maps API');
+        reject(new Error('Failed to load Google Maps'));
+      };
+
+      document.head.appendChild(script);
+    });
+  };
+
+  // Frontend Google Places autocomplete function
+  const getPlaceSuggestions = async (input: string): Promise<any> => {
+    return new Promise((resolve) => {
+      if (!window.google || !window.google.maps) {
+        resolve({ success: false, error: 'Google Maps not loaded' });
+        return;
+      }
+
+      const service = new window.google.maps.places.AutocompleteService();
+      
+      service.getPlacePredictions(
+        {
+          input: input,
+          types: ['address'],
+          componentRestrictions: { country: 'au' },
+        },
+        (predictions: any, status: any) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+            // Get detailed info for each prediction
+            const detailedSuggestions = predictions.slice(0, 5).map((prediction: any) => ({
+              description: prediction.description,
+              place_id: prediction.place_id,
+              structured_formatting: prediction.structured_formatting,
+              types: prediction.types,
+            }));
+            
+            resolve({
+              success: true,
+              suggestions: detailedSuggestions,
+            });
+          } else {
+            console.log('Places service status:', status);
+            resolve({
+              success: false,
+              error: `Places service error: ${status}`,
+            });
+          }
+        }
+      );
+    });
+  };
+
+  const handleAddressSearch = async (query: string) => {
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      setIsLoadingLocation(true);
+      console.log('🔍 Searching for address:', query);
+      
+      const response = await geocodeAddress(query);
+      console.log('📝 Search response:', response);
+      
+      if (response.success && response.suggestions && response.suggestions.length > 0) {
+        console.log('✅ Found suggestions:', response.suggestions.length);
+        setAddressSuggestions(response.suggestions);
+        setShowSuggestions(true);
+      } else {
+        console.log('ℹ️ No suggestions found');
+        setAddressSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Address search error:', error);
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
+
+  const selectAddressSuggestion = async (suggestion: any) => {
+    setSearchAddress(suggestion.description);
+    setShowSuggestions(false);
+    setIsLoadingLocation(true);
+    
+    try {
+      // Get detailed place information using place ID
+      if (window.google && window.google.maps && suggestion.place_id) {
+        const service = new window.google.maps.places.PlacesService(
+          document.createElement('div')
+        );
+        
+        service.getDetails(
+          {
+            placeId: suggestion.place_id,
+            fields: ['address_components', 'geometry', 'formatted_address'],
+          },
+          (place: any, status: any) => {
+            if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+              // Set coordinates
+              if (place.geometry && place.geometry.location) {
+                const lat = typeof place.geometry.location.lat === 'function' 
+                  ? place.geometry.location.lat() 
+                  : place.geometry.location.lat;
+                const lng = typeof place.geometry.location.lng === 'function' 
+                  ? place.geometry.location.lng() 
+                  : place.geometry.location.lng;
+                
+                setSelectedLocation({ lat, lng });
+                setMapCenter({ lat, lng });
+              }
+              
+              // Parse address components and fill form
+              const components = place.address_components || [];
+              fillAddressFields(components, place.formatted_address || suggestion.description);
+              
+              toast.success('Address selected and location set!');
+              setIsLoadingLocation(false);
+            } else {
+              console.error('Failed to get place details:', status);
+              toast.error('Failed to get address details');
+              setIsLoadingLocation(false);
+            }
+          }
+        );
+      } else {
+        // Fallback for suggestions that already have full data
+        const coords = suggestion.geometry?.location;
+        if (coords) {
+          setSelectedLocation({ lat: coords.lat, lng: coords.lng });
+          setMapCenter({ lat: coords.lat, lng: coords.lng });
+          
+          const components = suggestion.address_components || [];
+          fillAddressFields(components, suggestion.formatted_address || suggestion.description);
+          
+          toast.success('Address selected and location set!');
+        }
+        setIsLoadingLocation(false);
+      }
+    } catch (error) {
+      console.error('Error processing address selection:', error);
+      toast.error('Failed to process address selection');
+      setIsLoadingLocation(false);
+    }
+  };
+
+  const fillAddressFields = (components: any[], fullAddress: string) => {
+    // Parse Google Places address components
+    let streetNumber = '';
+    let streetName = '';
+    let suburb = '';
+    let state = '';
+    let postcode = '';
+
+    components.forEach((component: any) => {
+      const types = component.types;
+      
+      if (types.includes('street_number')) {
+        streetNumber = component.long_name;
+      } else if (types.includes('route')) {
+        streetName = component.long_name;
+      } else if (types.includes('locality') || types.includes('sublocality')) {
+        suburb = component.long_name;
+      } else if (types.includes('administrative_area_level_1')) {
+        // Convert state name to code
+        const stateMapping: { [key: string]: string } = {
+          'New South Wales': 'NSW',
+          'Victoria': 'VIC',
+          'Queensland': 'QLD',
+          'Western Australia': 'WA',
+          'South Australia': 'SA',
+          'Tasmania': 'TAS',
+          'Australian Capital Territory': 'ACT',
+          'Northern Territory': 'NT'
+        };
+        state = stateMapping[component.long_name] || component.short_name;
+      } else if (types.includes('postal_code')) {
+        postcode = component.long_name;
+      }
+    });
+
+    // Set form values
+    if (streetNumber) setValue('streetNumber', streetNumber);
+    if (streetName) setValue('streetName', streetName);
+    if (suburb) setValue('suburb', suburb);
+    if (state) setValue('state', state);
+    if (postcode) setValue('postcode', postcode);
+  };
+
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation not supported by this browser');
+      return;
+    }
+
+    setIsLoadingLocation(true);
+    toast.loading('Getting your location...');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setSelectedLocation({ lat: latitude, lng: longitude });
+        setMapCenter({ lat: latitude, lng: longitude });
+        setIsLoadingLocation(false);
+        toast.dismiss();
+        toast.success('Location found! You can adjust it on the map if needed.');
+      },
+      (error) => {
+        setIsLoadingLocation(false);
+        toast.dismiss();
+        console.error('Geolocation error:', error);
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            toast.error('Location access denied. Please enter address manually.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            toast.error('Location information unavailable.');
+            break;
+          case error.TIMEOUT:
+            toast.error('Location request timed out.');
+            break;
+          default:
+            toast.error('Unable to get location.');
+            break;
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000,
+      }
+    );
+  };
+
+  const handleMapClick = (event: any) => {
+    const lat = event.latLng.lat();
+    const lng = event.latLng.lng();
+    setSelectedLocation({ lat, lng });
+    
+    // Reverse geocode to get address
+    reverseGeocode(lat, lng);
+  };
+
+  const reverseGeocode = async (lat: number, lng: number) => {
+    try {
+      const response = await fetch('/api/geocoding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ coordinates: { lat, lng } }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Reverse geocoding failed');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.address) {
+        setSearchAddress(data.address.formatted_address);
+        fillAddressFields(data.address.address_components || [], data.address.formatted_address);
+        toast.success('Address updated from map location!');
+      }
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+      toast.error('Could not get address for this location');
+    }
+  };
+
 
 
   // Handle whole number input (remove decimals)
@@ -795,9 +1146,9 @@ function CreateListingContent() {
         ? new Date(cleanedData.availableTo) 
         : null;
 
-      // Default coordinates (Sydney)
-      const defaultLat = -33.8688;
-      const defaultLng = 151.2093;
+      // Use selected coordinates or default to Sydney
+      const finalLat = selectedLocation?.lat ?? -33.8688;
+      const finalLng = selectedLocation?.lng ?? 151.2093;
 
       // Prepare features array including delivery methods, subcategory, and user-added features
       // Always include pickup, plus any additional delivery methods
@@ -838,6 +1189,10 @@ function CreateListingContent() {
           city: cleanedData.suburb,
           state: cleanedData.state,
           postal_code: cleanedData.postcode,
+          coordinates: {
+            latitude: finalLat,
+            longitude: finalLng
+          },
             features: finalFeatures,
             available_from: availableFromDate?.toISOString() || null,
             available_to: availableToDate?.toISOString() || null,
@@ -896,6 +1251,10 @@ function CreateListingContent() {
           city: cleanedData.suburb,
           state: cleanedData.state,
           postal_code: cleanedData.postcode,
+          coordinates: {
+            latitude: finalLat,
+            longitude: finalLng
+          },
             features: finalFeatures,
             available_from: availableFromDate?.toISOString() || null,
             available_to: availableToDate?.toISOString() || null,
@@ -947,6 +1306,174 @@ function CreateListingContent() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Map Component for Location Picking
+  const LocationPickerMap = () => {
+    const [map, setMap] = useState<any>(null);
+    const [marker, setMarker] = useState<any>(null);
+
+    useEffect(() => {
+      // Load Google Maps API
+      if (typeof window !== 'undefined' && !(window as any).google) {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        script.onload = initializeMap;
+        document.head.appendChild(script);
+      } else if ((window as any).google) {
+        initializeMap();
+      }
+    }, []);
+
+    const initializeMap = () => {
+      const mapElement = document.getElementById('location-picker-map');
+      if (!mapElement || !(window as any).google) return;
+
+      const googleMap = new (window as any).google.maps.Map(mapElement, {
+        center: mapCenter,
+        zoom: 15,
+        mapTypeControl: false,
+        fullscreenControl: false,
+        streetViewControl: false,
+        styles: [
+          {
+            featureType: 'poi',
+            elementType: 'labels',
+            stylers: [{ visibility: 'off' }]
+          }
+        ]
+      });
+
+      setMap(googleMap);
+
+      // Add click listener
+      googleMap.addListener('click', (event: any) => {
+        const lat = event.latLng.lat();
+        const lng = event.latLng.lng();
+        
+        // Update marker position
+        if (marker) {
+          marker.setPosition({ lat, lng });
+        } else {
+          const newMarker = new (window as any).google.maps.Marker({
+            position: { lat, lng },
+            map: googleMap,
+            draggable: true,
+            title: 'Item Location'
+          });
+          
+          // Add drag listener
+          newMarker.addListener('dragend', (event: any) => {
+            const newLat = event.latLng.lat();
+            const newLng = event.latLng.lng();
+            setSelectedLocation({ lat: newLat, lng: newLng });
+            reverseGeocode(newLat, newLng);
+          });
+          
+          setMarker(newMarker);
+        }
+        
+        setSelectedLocation({ lat, lng });
+        reverseGeocode(lat, lng);
+      });
+
+      // Add existing location marker if available
+      if (selectedLocation) {
+        const existingMarker = new (window as any).google.maps.Marker({
+          position: selectedLocation,
+          map: googleMap,
+          draggable: true,
+          title: 'Item Location'
+        });
+        
+        existingMarker.addListener('dragend', (event: any) => {
+          const newLat = event.latLng.lat();
+          const newLng = event.latLng.lng();
+          setSelectedLocation({ lat: newLat, lng: newLng });
+          reverseGeocode(newLat, newLng);
+        });
+        
+        setMarker(existingMarker);
+      }
+    };
+
+    useEffect(() => {
+      if (map && selectedLocation) {
+        map.setCenter(selectedLocation);
+        
+        if (marker) {
+          marker.setPosition(selectedLocation);
+        } else {
+          const newMarker = new (window as any).google.maps.Marker({
+            position: selectedLocation,
+            map: map,
+            draggable: true,
+            title: 'Item Location'
+          });
+          
+          newMarker.addListener('dragend', (event: any) => {
+            const newLat = event.latLng.lat();
+            const newLng = event.latLng.lng();
+            setSelectedLocation({ lat: newLat, lng: newLng });
+            reverseGeocode(newLat, newLng);
+          });
+          
+          setMarker(newMarker);
+        }
+      }
+    }, [selectedLocation, map]);
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="font-medium text-gray-900">Pick Location on Map</h4>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={getCurrentLocation}
+              disabled={isLoadingLocation}
+              className="flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+            >
+              <Navigation className="w-4 h-4 mr-1" />
+              {isLoadingLocation ? 'Getting...' : 'My Location'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMap(false)}
+              className="flex items-center px-3 py-1 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Close Map
+            </button>
+          </div>
+        </div>
+        
+        <div className="relative">
+          <div 
+            id="location-picker-map" 
+            className="w-full h-96 rounded-lg border border-gray-300"
+          />
+          
+          {selectedLocation && (
+            <div className="absolute bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg border">
+              <p className="text-sm font-medium text-gray-900">Selected Location:</p>
+              <p className="text-xs text-gray-600">
+                {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+              </p>
+              <p className="text-xs text-green-600 mt-1">
+                ✓ Click or drag marker to adjust
+              </p>
+            </div>
+          )}
+        </div>
+        
+        <p className="text-sm text-gray-600">
+          Click anywhere on the map to set the location, or drag the marker to adjust it.
+        </p>
+      </div>
+    );
   };
 
   // Photo Requirements Modal Component
@@ -1651,10 +2178,102 @@ function CreateListingContent() {
              {/* Step 3: Location & Delivery */}
              {currentStep === 3 && (
                <div className="space-y-6">
+                 {/* Enhanced Address Search */}
+                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                   <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
+                     <MapPin className="w-5 h-5 mr-2 text-green-500" />
+                     Find Your Address
+                   </h3>
+                   <p className="text-sm text-gray-600 mb-4">
+                     Search for your address to auto-fill location details, or pick it on the map.
+                   </p>
+                   
+                   {/* Address Search Input */}
+                   <div className="relative mb-4">
+                     <div className="relative">
+                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                       <input
+                         type="text"
+                         value={searchAddress}
+                         onChange={(e) => {
+                           setSearchAddress(e.target.value);
+                           handleAddressSearch(e.target.value);
+                         }}
+                         placeholder="Start typing your address... e.g. 123 Collins Street, Melbourne"
+                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       />
+                       {isLoadingLocation && (
+                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                           <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                         </div>
+                       )}
+                     </div>
+                     
+                     {/* Address Suggestions */}
+                     {showSuggestions && addressSuggestions.length > 0 && (
+                       <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                         {addressSuggestions.map((suggestion, index) => (
+                           <button
+                             key={index}
+                             type="button"
+                             onClick={() => selectAddressSuggestion(suggestion)}
+                             className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                           >
+                             <div className="font-medium text-gray-900">{suggestion.formatted_address}</div>
+                             {suggestion.description && (
+                               <div className="text-sm text-gray-600">{suggestion.description}</div>
+                             )}
+                           </button>
+                         ))}
+                       </div>
+                     )}
+                   </div>
+                   
+                   {/* Location Action Buttons */}
+                   <div className="flex flex-wrap gap-3">
+                     <button
+                       type="button"
+                       onClick={() => setShowMap(!showMap)}
+                       className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                     >
+                       <Map className="w-4 h-4 mr-2" />
+                       {showMap ? 'Hide Map' : 'Show Map'}
+                     </button>
+                     
+                     <button
+                       type="button"
+                       onClick={getCurrentLocation}
+                       disabled={isLoadingLocation}
+                       className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                     >
+                       <Navigation className="w-4 h-4 mr-2" />
+                       {isLoadingLocation ? 'Getting Location...' : 'Use My Location'}
+                     </button>
+                     
+                     {selectedLocation && (
+                       <div className="flex items-center px-3 py-2 bg-green-100 text-green-800 rounded-lg">
+                         <Check className="w-4 h-4 mr-2" />
+                         Location Set
+                       </div>
+                     )}
+                   </div>
+                 </div>
+                 
+                 {/* Map Component */}
+                 {showMap && (
+                   <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                     <LocationPickerMap />
+                   </div>
+                 )}
+
                  {/* Item Location for Pickup */}
                  <div>
-                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Item Location for Pickup</h3>
-                   <p className="text-sm text-gray-600 mb-4">Where will renters pick up this item? This is required for all rentals.</p>
+                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Address Details</h3>
+                   <p className="text-sm text-gray-600 mb-4">
+                     {selectedLocation 
+                       ? "Confirm your address details below (auto-filled from your selection):" 
+                       : "Enter your address manually if you prefer:"}
+                   </p>
                    
                    {/* Unit Number and Street Number */}
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

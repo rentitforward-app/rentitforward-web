@@ -9,7 +9,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-// Load environment variables
+// Load environment variables  
 require('dotenv').config({ path: '.env.local' });
 
 async function testGeocodingSystem() {

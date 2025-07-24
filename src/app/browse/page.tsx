@@ -1,5 +1,12 @@
 'use client';
 
+// Google Maps types declaration
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, Filter, MapPin, Heart, Star, Calendar, Grid, List, X, ChevronDown, Map } from 'lucide-react';
@@ -108,7 +115,142 @@ function BrowseContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  
+  // Location search states
+  const [appLocation, setAppLocation] = useState<{
+    lat: number;
+    lng: number;
+    address: string;
+    type: 'default' | 'manual' | 'real';
+    timestamp?: number;
+  }>(() => {
+    if (typeof window !== 'undefined') {
+      const savedLocation = localStorage.getItem('rentitforward-app-location');
+      if (savedLocation) {
+        return JSON.parse(savedLocation);
+      }
+    }
+    return {
+      lat: -33.8688, // Default Sydney coordinates
+      lng: 151.2093,
+      address: 'Sydney, NSW, Australia',
+      type: 'default'
+    };
+  });
+  const [locationSearchTerm, setLocationSearchTerm] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Location search functions
+  const handleLocationSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setLocationSearchTerm(value);
+    
+    if (value.length > 2) {
+      getLocationSuggestions(value);
+    } else {
+      setLocationSuggestions([]);
+      setShowLocationSuggestions(false);
+    }
+  };
+
+  const getLocationSuggestions = async (input: string) => {
+    setIsSearchingLocation(true);
+    try {
+      // Load Google Maps API if not already loaded
+      await loadGoogleMaps();
+      
+      if (window.google && window.google.maps && window.google.maps.places) {
+        const service = new window.google.maps.places.AutocompleteService();
+        
+        service.getPlacePredictions({
+          input: input,
+          componentRestrictions: { country: 'au' },
+          types: ['(cities)']
+        }, (predictions, status) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+            setLocationSuggestions(predictions);
+            setShowLocationSuggestions(true);
+          } else {
+            setLocationSuggestions([]);
+            setShowLocationSuggestions(false);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error getting location suggestions:', error);
+      setLocationSuggestions([]);
+      setShowLocationSuggestions(false);
+    } finally {
+      setIsSearchingLocation(false);
+    }
+  };
+
+  const selectLocationSuggestion = async (suggestion: any) => {
+    setLocationSearchTerm(suggestion.description);
+    setLocationSuggestions([]);
+    setShowLocationSuggestions(false);
+    
+    try {
+      const coordinates = await getPlaceCoordinates(suggestion.place_id);
+      if (coordinates) {
+        const newLocation = {
+          lat: coordinates.lat,
+          lng: coordinates.lng,
+          address: suggestion.description,
+          type: 'manual' as const,
+          timestamp: Date.now()
+        };
+        setAppLocation(newLocation);
+      }
+    } catch (error) {
+      console.error('Error getting coordinates for suggestion:', error);
+    }
+  };
+
+  const loadGoogleMaps = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (window.google && window.google.maps) {
+        resolve();
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Google Maps API'));
+      document.head.appendChild(script);
+    });
+  };
+
+  const getPlaceCoordinates = (placeId: string): Promise<{ lat: number; lng: number } | null> => {
+    return new Promise((resolve) => {
+      if (!window.google?.maps?.places) {
+        resolve(null);
+        return;
+      }
+      
+      const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+      service.getDetails({
+        placeId: placeId,
+        fields: ['geometry']
+      }, (place, status) => {
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
+          resolve({
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng()
+          });
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  };
 
   // Pagination constants
   const ITEMS_PER_PAGE = 24;
@@ -583,12 +725,78 @@ function BrowseContent() {
   };
 
   const handleNearMeClick = () => {
-    if (locationPermission === 'granted' && userLocation) {
-      // Already have location, just sort by distance
-      setSortBy('distance');
+    if ('geolocation' in navigator) {
+      setIsSearchingLocation(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          
+          // Get reverse geocoded address
+          getReverseGeocodedAddress(coords.lat, coords.lng).then((friendlyAddress) => {
+            const realLocation = {
+              lat: coords.lat,
+              lng: coords.lng,
+              address: friendlyAddress || `Your Current Location (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`,
+              type: 'real' as const,
+              timestamp: Date.now()
+            };
+            setAppLocation(realLocation);
+            setLocationSearchTerm(''); // Clear search input when using real location
+            setSortBy('distance'); // Set sort to distance when real location is used
+            toast.success('Using your current location');
+          }).catch(() => {
+            const realLocation = {
+              lat: coords.lat,
+              lng: coords.lng,
+              address: `Your Current Location (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`,
+              type: 'real' as const,
+              timestamp: Date.now()
+            };
+            setAppLocation(realLocation);
+            setLocationSearchTerm('');
+            setSortBy('distance');
+            toast.success('Using your current location');
+          });
+          
+          setIsSearchingLocation(false);
+        },
+        (error) => {
+          setIsSearchingLocation(false);
+          console.error('Error getting location:', error);
+          toast.error('Unable to get your location. Please check permissions.');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 minutes
+        }
+      );
     } else {
-      // Request location permission
-      requestUserLocation();
+      toast.error('Geolocation is not supported by this browser');
+    }
+  };
+
+  const getReverseGeocodedAddress = async (lat: number, lng: number): Promise<string | null> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+      );
+      const data = await response.json();
+      
+      if (data && data.address) {
+        const { suburb, city, town, state, postcode } = data.address;
+        const location = suburb || city || town || 'Unknown Location';
+        const stateCode = state || '';
+        return `${location}${stateCode ? `, ${stateCode}` : ''}`;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      return null;
     }
   };
 
@@ -656,6 +864,84 @@ function BrowseContent() {
             </div>
           </div>
 
+          {/* Location */}
+          <div className="relative">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
+              Location (Search)
+            </label>
+            <div className="relative">
+              <button
+                onClick={handleNearMeClick}
+                disabled={isSearchingLocation}
+                className={`absolute left-3 top-1/2 transform -translate-y-1/2 p-0 transition-colors z-10 ${
+                  appLocation?.type === 'real'
+                    ? 'text-green-600 hover:text-green-700'
+                    : 'text-gray-400 hover:text-blue-600'
+                } disabled:text-gray-400 disabled:cursor-not-allowed`}
+                title={
+                  appLocation?.type === 'real'
+                    ? 'Using your real location - click to refresh'
+                    : 'Click to use your current location'
+                }
+                type="button"
+              >
+                <MapPin className={`w-4 h-4 ${appLocation?.type === 'real' ? 'fill-current' : ''}`} />
+              </button>
+              <input
+                type="text"
+                placeholder="Search city or address..."
+                value={locationSearchTerm || ''}
+                onChange={handleLocationSearch}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (locationSuggestions.length > 0) {
+                      selectLocationSuggestion(locationSuggestions[0]);
+                    }
+                  }
+                }}
+                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm md:text-base"
+                disabled={isSearchingLocation}
+              />
+              <button
+                onClick={() => {
+                  setLocationSearchTerm('');
+                  setLocationSuggestions([]);
+                  setShowLocationSuggestions(false);
+                }}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {isSearchingLocation ? (
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            
+            {/* Location Suggestions Dropdown */}
+            {showLocationSuggestions && locationSuggestions.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {locationSuggestions.map((suggestion, index) => (
+                  <div
+                    key={suggestion.place_id || index}
+                    className="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    onClick={() => selectLocationSuggestion(suggestion)}
+                  >
+                    <div className="text-sm text-gray-900">{suggestion.description}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Current Location Display */}
+            {appLocation && (
+              <div className="mt-2 text-xs text-gray-600">
+                Current: {appLocation.address}
+              </div>
+            )}
+          </div>
+
           {/* Categories */}
           <div className="relative" ref={categoryDropdownRef}>
             <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Categories</label>
@@ -721,22 +1007,7 @@ function BrowseContent() {
             </div>
           </div>
 
-          {/* State Filter */}
-          <div>
-            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">State</label>
-            <select
-              value={selectedState}
-              onChange={(e) => setSelectedState(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm md:text-base"
-            >
-              <option value="">All States</option>
-              {australianStates.map(state => (
-                <option key={state.code} value={state.code}>
-                  {state.name}
-                </option>
-              ))}
-            </select>
-          </div>
+
         </div>
       </div>
 
@@ -756,20 +1027,6 @@ function BrowseContent() {
             </div>
 
             <div className="flex items-center space-x-2 md:space-x-4">
-              {/* Near Me button */}
-              <button
-                onClick={handleNearMeClick}
-                disabled={sortBy === 'distance' && !!userLocation}
-                                  className={`px-2 md:px-3 py-2 border rounded-lg flex items-center space-x-1 md:space-x-2 transition-colors text-xs md:text-sm ${
-                  sortBy === 'distance' && !!userLocation
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <MapPin className="w-3 h-3 md:w-4 md:h-4" />
-                <span className="hidden sm:inline">Near Me</span>
-              </button>
-
               {/* Sort dropdown */}
               <select
                 value={sortBy}

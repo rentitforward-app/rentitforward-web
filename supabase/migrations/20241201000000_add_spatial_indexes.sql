@@ -106,6 +106,8 @@ RETURNS TABLE (
   state text,
   location geography,
   distance_km double precision,
+  longitude double precision,
+  latitude double precision,
   owner_name text,
   owner_avatar text
 ) AS $$
@@ -126,6 +128,8 @@ BEGIN
       l.location, 
       ST_GeogFromText('POINT(' || center_lng || ' ' || center_lat || ')')
     ) as distance_km,
+    ST_X(l.location::geometry) as longitude,
+    ST_Y(l.location::geometry) as latitude,
     p.full_name as owner_name,
     p.avatar_url as owner_avatar
   FROM listings l
