@@ -103,7 +103,7 @@ function BrowseContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedState, setSelectedState] = useState('');
+
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
@@ -170,7 +170,7 @@ function BrowseContent() {
           input: input,
           componentRestrictions: { country: 'au' },
           types: ['(cities)']
-        }, (predictions, status) => {
+        }, (predictions: any, status: any) => {
           if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
             setLocationSuggestions(predictions);
             setShowLocationSuggestions(true);
@@ -239,7 +239,7 @@ function BrowseContent() {
       service.getDetails({
         placeId: placeId,
         fields: ['geometry']
-      }, (place, status) => {
+      }, (place: any, status: any) => {
         if (status === window.google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
           resolve({
             lat: place.geometry.location.lat(),
@@ -278,7 +278,7 @@ function BrowseContent() {
     
     if (category) setSelectedCategories([category]);
     if (search) setSearchTerm(search);
-    if (state) setSelectedState(state);
+
   }, [searchParams]);
 
   // Handle clicking outside dropdown to close it
@@ -297,7 +297,7 @@ function BrowseContent() {
 
   useEffect(() => {
     filterAndSortListings();
-  }, [listings, searchTerm, selectedCategories, selectedState, priceRange, sortBy]);
+  }, [listings, searchTerm, selectedCategories, priceRange, sortBy, appLocation]);
 
   useEffect(() => {
     if (user) {
@@ -315,7 +315,14 @@ function BrowseContent() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategories, selectedState, priceRange, sortBy]);
+  }, [searchTerm, selectedCategories, priceRange, sortBy, appLocation]);
+
+  // Save appLocation to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('rentitforward-app-location', JSON.stringify(appLocation));
+    }
+  }, [appLocation]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -554,12 +561,7 @@ function BrowseContent() {
       );
     }
 
-    // Apply state filter
-    if (selectedState) {
-      filtered = filtered.filter(listing =>
-        listing.state === selectedState
-      );
-    }
+
 
     // Apply price range filter
     if (priceRange.min) {
@@ -620,7 +622,6 @@ function BrowseContent() {
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCategories([]);
-    setSelectedState('');
     setPriceRange({ min: '', max: '' });
     setSortBy('newest');
   };
@@ -830,7 +831,7 @@ function BrowseContent() {
               </span>
               <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform ${showMobileFilters ? 'rotate-180' : ''}`} />
               {/* Active filters indicator */}
-              {(searchTerm || selectedCategories.length > 0 || selectedState || priceRange.min || priceRange.max) && (
+              {(searchTerm || selectedCategories.length > 0 || priceRange.min || priceRange.max) && (
                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></div>
               )}
             </button>
