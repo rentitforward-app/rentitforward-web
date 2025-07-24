@@ -393,14 +393,14 @@ function BrowseContent() {
       // Query with location field - use optimized function for distance sorting if user location available
       let data, error;
       
-      if (userLocation && typeof userLocation === 'object' && 'lat' in userLocation && sortBy === 'distance') {
-        console.log('🗺️ Using optimized distance-based query');
+      if (appLocation && typeof appLocation === 'object' && 'lat' in appLocation && sortBy === 'distance') {
+        console.log('🗺️ Using optimized distance-based query with appLocation:', appLocation);
         
         // Use the optimized database function for distance-based queries
         const { data: functionData, error: functionError } = await supabase
           .rpc('get_listings_sorted_by_distance', {
-            center_lat: userLocation.lat,
-            center_lng: userLocation.lng,
+            center_lat: appLocation.lat,
+            center_lng: appLocation.lng,
             category_filter: null, // We'll filter on the client for now
             min_price: null,
             max_price: null,
@@ -497,35 +497,9 @@ function BrowseContent() {
 
       console.log('🎯 Setting listings:', data.length);
       
-      // Parse location coordinates from PostGIS format
-      console.log('🔍 Starting coordinate parsing for', data.length, 'listings');
-      const listingsWithCoordinates = (data as unknown as Listing[]).map(listing => {
-        console.log(`🔍 Processing listing "${listing.title}":`, {
-          hasLocation: !!listing.location,
-          locationValue: listing.location
-        });
-        
-        if (listing.location) {
-          // Parse PostGIS POINT format: "POINT(longitude latitude)"
-          const match = listing.location.match(/POINT\s*\(\s*([+-]?\d+\.?\d*)\s+([+-]?\d+\.?\d*)\s*\)/i);
-          if (match) {
-            const longitude = parseFloat(match[1]);
-            const latitude = parseFloat(match[2]);
-            console.log(`📍 Parsed coordinates for ${listing.title}: lat=${latitude}, lng=${longitude}`);
-            return {
-              ...listing,
-              coordinates: { latitude, longitude },
-              latitude, // Add direct properties for distance calculation
-              longitude
-            };
-          } else {
-            console.log(`❌ No coordinate match for ${listing.title}, location format:`, listing.location);
-          }
-        } else {
-          console.log(`❌ No location data for ${listing.title}`);
-        }
-        return listing;
-      });
+      // Note: When using RPC function, coordinates are already included as latitude/longitude
+      // For standard queries, we could parse PostGIS format but RPC is preferred for distance calculations
+      const listingsWithCoordinates = data as unknown as Listing[];
       
       setListings(listingsWithCoordinates);
     } catch (error) {
@@ -1159,7 +1133,7 @@ function BrowseContent() {
                   ...listing,
                   distance: listing.distance_km || 0, // Use calculated distance
                 }))}
-                userLocation={userLocation}
+                userLocation={appLocation ? { lat: appLocation.lat, lng: appLocation.lng } : null}
                 onFavoriteToggle={toggleFavorite}
                 favorites={favorites}
               />
