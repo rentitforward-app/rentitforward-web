@@ -57,7 +57,10 @@ interface Listing {
   review_count?: number | null;
   location?: string; // PostGIS geography field
   coordinates?: Coordinates; // Parsed coordinates
+  latitude?: number; // Direct latitude from RPC
+  longitude?: number; // Direct longitude from RPC
   distance?: number; // Calculated distance from user
+  distance_km?: number; // Distance in kilometers
   profiles: {
     full_name: string;
     avatar_url: string | null;
@@ -589,22 +592,30 @@ function BrowseContent() {
         filtered.sort((a, b) => (b.review_count || 0) - (a.review_count || 0));
         break;
       case 'distance':
-        if (userLocation && typeof userLocation === 'object' && 'lat' in userLocation) {
+        if (appLocation && typeof appLocation === 'object' && 'lat' in appLocation) {
           // Calculate distance for each listing and sort by distance
           const listingsWithDistance = filtered.map(listing => {
-            if (listing.coordinates) {
-              const distance = calculateDistanceUtil(
-                userLocation.lat,
-                userLocation.lng,
-                listing.coordinates.latitude,
-                listing.coordinates.longitude
-              );
-              return { ...listing, distance };
+            if (listing.latitude && listing.longitude) {
+              // Simple distance calculation using Haversine formula
+              const toRad = (x: number) => x * Math.PI / 180;
+              const lat1 = appLocation.lat;
+              const lng1 = appLocation.lng;
+              const lat2 = listing.latitude;
+              const lng2 = listing.longitude;
+              const R = 6371; // Earth radius in km
+              const dLat = toRad(lat2 - lat1);
+              const dLng = toRad(lng2 - lng1);
+              const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+              const distance = R * c;
+              return { ...listing, distance_km: distance };
             }
-            return { ...listing, distance: Infinity }; // Put listings without coordinates at the end
+            return { ...listing, distance_km: Infinity }; // Put listings without coordinates at the end
           });
           
-          filtered = listingsWithDistance.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+          filtered = listingsWithDistance.sort((a, b) => (a.distance_km || Infinity) - (b.distance_km || Infinity));
         } else {
           // Fallback to newest if no location
           filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
