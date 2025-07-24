@@ -66,7 +66,7 @@ export default function ListingCard({
             src={mainImage}
             alt={title}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className="object-contain bg-gray-50 group-hover:scale-105 transition-transform duration-300"
           />
           
           {/* Category Badge */}

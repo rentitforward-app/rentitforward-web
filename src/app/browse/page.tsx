@@ -1159,7 +1159,7 @@ function BrowseContent() {
                                   src={listing.images[0] || '/images/placeholder-item.jpg'}
                                   alt={listing.title}
                                   fill
-                                  className="object-cover"
+                                  className="object-contain bg-gray-50"
                                 />
                               </div>
                             </Link>

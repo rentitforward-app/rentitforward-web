@@ -653,7 +653,7 @@ export default function ListingDetailPage() {
                   src={getDisplayImage(displayImages, currentImageIndex)}
                   alt={listing.title}
                   fill
-                  className="object-cover"
+                  className="object-contain bg-gray-50"
                   priority
                   onError={() => handleImageError(displayImages[currentImageIndex])}
                 />
@@ -708,7 +708,7 @@ export default function ListingDetailPage() {
                           alt={`${listing.title} ${index + 1}`}
                           width={80}
                           height={80}
-                          className="object-cover w-full h-full"
+                          className="object-contain bg-gray-50 w-full h-full"
                           onError={() => handleImageError(displayImages[index])}
                         />
                       </button>
@@ -869,8 +869,7 @@ export default function ListingDetailPage() {
                 initialFilter={{ sortBy: 'newest' }}
                 emptyMessage="This listing doesn't have any reviews yet. Be the first to leave a review!"
               />
-              </div>
-            )}
+            </div>
 
 
           </div>
@@ -1172,7 +1171,7 @@ export default function ListingDetailPage() {
                               src={getDisplayImage(relatedListing.images)}
                               alt={relatedListing.title}
                               fill
-                              className="object-cover group-hover:scale-105 transition-transform"
+                              className="object-contain bg-gray-50 group-hover:scale-105 transition-transform"
                               onError={() => handleImageError(getDisplayImage(relatedListing.images))}
                             />
                           </div>
