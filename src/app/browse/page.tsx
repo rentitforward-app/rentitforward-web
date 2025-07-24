@@ -163,7 +163,7 @@ function BrowseContent() {
   const getLocationSuggestions = async (input: string) => {
     setIsSearchingLocation(true);
     try {
-      // Load Google Maps API if not already loaded
+      // Try Google Maps API first
       await loadGoogleMaps();
       
       if (window.google && window.google.maps && window.google.maps.places) {
@@ -178,18 +178,51 @@ function BrowseContent() {
             setLocationSuggestions(predictions);
             setShowLocationSuggestions(true);
           } else {
-            setLocationSuggestions([]);
-            setShowLocationSuggestions(false);
+            console.log('No Google predictions found, trying Nominatim fallback');
+            // Fallback to Nominatim
+            getNominatimSuggestions(input);
           }
+          setIsSearchingLocation(false);
         });
+      } else {
+        console.log('Google Maps Places service not available, using Nominatim fallback');
+        // Fallback to Nominatim
+        getNominatimSuggestions(input);
       }
     } catch (error) {
-      console.error('Error getting location suggestions:', error);
+      console.error('Error loading Google Maps API, using Nominatim fallback:', error);
+      // Fallback to Nominatim
+      getNominatimSuggestions(input);
+    }
+  };
+
+  const getNominatimSuggestions = async (input: string) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}&countrycodes=au&limit=5&addressdetails=1`
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const suggestions = data.map((item: any, index: number) => ({
+          place_id: `nominatim_${index}`,
+          description: item.display_name,
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon)
+        }));
+        
+        setLocationSuggestions(suggestions);
+        setShowLocationSuggestions(true);
+      } else {
+        setLocationSuggestions([]);
+        setShowLocationSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Nominatim search failed:', error);
       setLocationSuggestions([]);
       setShowLocationSuggestions(false);
-    } finally {
-      setIsSearchingLocation(false);
     }
+    setIsSearchingLocation(false);
   };
 
   const selectLocationSuggestion = async (suggestion: any) => {
@@ -198,7 +231,19 @@ function BrowseContent() {
     setShowLocationSuggestions(false);
     
     try {
-      const coordinates = await getPlaceCoordinates(suggestion.place_id);
+      let coordinates = null;
+      
+      // Check if this is a Nominatim suggestion (has lat/lng directly)
+      if (suggestion.place_id?.startsWith('nominatim_') && suggestion.lat && suggestion.lng) {
+        coordinates = {
+          lat: suggestion.lat,
+          lng: suggestion.lng
+        };
+      } else {
+        // Try Google Places for place_id
+        coordinates = await getPlaceCoordinates(suggestion.place_id);
+      }
+      
       if (coordinates) {
         const newLocation = {
           lat: coordinates.lat,
@@ -208,6 +253,7 @@ function BrowseContent() {
           timestamp: Date.now()
         };
         setAppLocation(newLocation);
+        setSortBy('distance'); // Automatically sort by distance when location is selected
       }
     } catch (error) {
       console.error('Error getting coordinates for suggestion:', error);
@@ -427,6 +473,16 @@ function BrowseContent() {
         error: error ? error.message : 'No error',
         sampleData: data?.[0]
       });
+      
+      // Check if listings have location data
+      if (data && data.length > 0) {
+        console.log('🗺️ Sample listing location data:', {
+          title: data[0].title,
+          hasLocation: !!data[0].location,
+          locationValue: data[0].location,
+          address: data[0].address
+        });
+      }
 
       if (error) {
         console.error('❌ Supabase error:', error);
@@ -442,7 +498,13 @@ function BrowseContent() {
       console.log('🎯 Setting listings:', data.length);
       
       // Parse location coordinates from PostGIS format
+      console.log('🔍 Starting coordinate parsing for', data.length, 'listings');
       const listingsWithCoordinates = (data as unknown as Listing[]).map(listing => {
+        console.log(`🔍 Processing listing "${listing.title}":`, {
+          hasLocation: !!listing.location,
+          locationValue: listing.location
+        });
+        
         if (listing.location) {
           // Parse PostGIS POINT format: "POINT(longitude latitude)"
           const match = listing.location.match(/POINT\s*\(\s*([+-]?\d+\.?\d*)\s+([+-]?\d+\.?\d*)\s*\)/i);
@@ -456,7 +518,11 @@ function BrowseContent() {
               latitude, // Add direct properties for distance calculation
               longitude
             };
+          } else {
+            console.log(`❌ No coordinate match for ${listing.title}, location format:`, listing.location);
           }
+        } else {
+          console.log(`❌ No location data for ${listing.title}`);
         }
         return listing;
       });
