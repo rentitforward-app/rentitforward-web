@@ -122,15 +122,18 @@
   display: none;  /* Chrome, Safari and Opera */
 }
 
+
+
 /* Category dropdown styling */
 .category-dropdown {
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: white;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   max-height: 240px;
   overflow-y: auto;
-  z-index: 50;
+}
+
+/* Location dropdown styling */
+.location-dropdown {
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .category-dropdown::-webkit-scrollbar {
@@ -165,6 +168,32 @@
 .category-dropdown-item input[type="checkbox"]:focus {
   outline: 2px solid #44D62C;
   outline-offset: 2px;
+}
+
+/* Location dropdown scrollbar and item styling */
+.location-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.location-dropdown::-webkit-scrollbar-track {
+  background: #f9fafb;
+}
+
+.location-dropdown::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.location-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.location-dropdown-item {
+  transition: all 0.15s ease;
+}
+
+.location-dropdown-item:hover {
+  background-color: #f3f4f6;
 }
 
 /* Focus states for accessibility */
