@@ -449,9 +449,12 @@ function BrowseContent() {
           if (match) {
             const longitude = parseFloat(match[1]);
             const latitude = parseFloat(match[2]);
+            console.log(`📍 Parsed coordinates for ${listing.title}: lat=${latitude}, lng=${longitude}`);
             return {
               ...listing,
-              coordinates: { latitude, longitude }
+              coordinates: { latitude, longitude },
+              latitude, // Add direct properties for distance calculation
+              longitude
             };
           }
         }
@@ -594,6 +597,7 @@ function BrowseContent() {
       case 'distance':
         if (appLocation && typeof appLocation === 'object' && 'lat' in appLocation) {
           // Calculate distance for each listing and sort by distance
+          console.log(`🎯 Calculating distances from appLocation: lat=${appLocation.lat}, lng=${appLocation.lng}`);
           const listingsWithDistance = filtered.map(listing => {
             if (listing.latitude && listing.longitude) {
               // Simple distance calculation using Haversine formula
@@ -610,8 +614,10 @@ function BrowseContent() {
                 Math.sin(dLng/2) * Math.sin(dLng/2);
               const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
               const distance = R * c;
+              console.log(`📏 Distance to ${listing.title}: ${distance.toFixed(1)} km`);
               return { ...listing, distance_km: distance };
             }
+            console.log(`❌ No coordinates for ${listing.title}`);
             return { ...listing, distance_km: Infinity }; // Put listings without coordinates at the end
           });
           
@@ -1085,7 +1091,7 @@ function BrowseContent() {
               <MapView
                 listings={filteredListings.map((listing) => ({
                   ...listing,
-                  distance: 0, // Distance calculation to be implemented later
+                  distance: listing.distance_km || 0, // Use calculated distance
                 }))}
                 userLocation={userLocation}
                 onFavoriteToggle={toggleFavorite}
@@ -1111,7 +1117,7 @@ function BrowseContent() {
                       pickup_available={listing.pickup_available}
                       rating={listing.rating || 0}
                       reviewCount={listing.review_count || 0}
-                      distance={0} // Distance is not available in the current fetch, so set to 0
+                      distance={listing.distance_km || 0} // Use calculated distance
                       owner={{
                         name: listing.profiles?.full_name || 'Anonymous',
                         avatar: listing.profiles?.avatar_url || undefined
