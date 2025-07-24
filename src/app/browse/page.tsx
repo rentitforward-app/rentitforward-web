@@ -9,7 +9,7 @@ declare global {
 
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Filter, MapPin, Heart, Star, Calendar, Grid, List, X, ChevronDown, Map } from 'lucide-react';
+import { Search, Filter, MapPin, Heart, Star, Calendar, Grid, List, X, ChevronDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -111,7 +111,7 @@ function BrowseContent() {
   const [sortBy, setSortBy] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -1089,16 +1089,16 @@ function BrowseContent() {
               {/* View mode toggle */}
               <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                 <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-1.5 md:p-2 ${viewMode === 'grid' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <Grid className="w-3 h-3 md:w-4 md:h-4" />
+                </button>
+                <button
                   onClick={() => setViewMode('list')}
                   className={`p-1.5 md:p-2 ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 >
                   <List className="w-3 h-3 md:w-4 md:h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('map')}
-                  className={`p-1.5 md:p-2 ${viewMode === 'map' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
-                  <Map className="w-3 h-3 md:w-4 md:h-4" />
                 </button>
               </div>
             </div>
@@ -1114,48 +1114,126 @@ function BrowseContent() {
               <p className="text-gray-500 text-base md:text-lg mb-4">No items found</p>
               <p className="text-gray-400 text-sm md:text-base">Try adjusting your filters or search terms</p>
             </div>
-          ) : viewMode === 'map' ? (
-            <div className="h-[400px] md:h-[600px] w-full rounded-lg overflow-hidden border border-gray-200">
-              <MapView
-                listings={filteredListings.map((listing) => ({
-                  ...listing,
-                  distance: listing.distance_km || 0, // Use calculated distance, default to 0 for map
-                }))}
-                userLocation={appLocation ? { lat: appLocation.lat, lng: appLocation.lng } : null}
-                onFavoriteToggle={toggleFavorite}
-                favorites={favorites}
-              />
-            </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                {paginatedListings.map((listing) => {
-                  return (
-                    <ListingCard
-                      key={listing.id}
-                      id={listing.id}
-                      title={listing.title}
-                      images={listing.images}
-                      price={listing.price_per_day}
-                      period="day"
-                      category={listing.category}
-                      city={listing.city}
-                      state={listing.state}
-                      delivery_available={listing.delivery_available}
-                      pickup_available={listing.pickup_available}
-                      rating={listing.rating || 0}
-                      reviewCount={listing.review_count || 0}
-                      distance={listing.distance_km} // Use calculated distance
-                      owner={{
-                        name: listing.profiles?.full_name || 'Anonymous',
-                        avatar: listing.profiles?.avatar_url || undefined
-                      }}
-                      isFavorited={favorites.has(listing.id)}
-                      onFavoriteToggle={() => toggleFavorite(listing.id)}
-                    />
-                  );
-                })}
-              </div>
+              {viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                  {paginatedListings.map((listing) => {
+                    return (
+                      <ListingCard
+                        key={listing.id}
+                        id={listing.id}
+                        title={listing.title}
+                        images={listing.images}
+                        price={listing.price_per_day}
+                        period="day"
+                        category={listing.category}
+                        city={listing.city}
+                        state={listing.state}
+                        delivery_available={listing.delivery_available}
+                        pickup_available={listing.pickup_available}
+                        rating={listing.rating || 0}
+                        reviewCount={listing.review_count || 0}
+                        distance={listing.distance_km} // Use calculated distance
+                        owner={{
+                          name: listing.profiles?.full_name || 'Anonymous',
+                          avatar: listing.profiles?.avatar_url || undefined
+                        }}
+                        isFavorited={favorites.has(listing.id)}
+                        onFavoriteToggle={() => toggleFavorite(listing.id)}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {paginatedListings.map((listing) => {
+                    return (
+                      <div key={listing.id} className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                        <div className="flex flex-col sm:flex-row gap-4 p-4">
+                          {/* Image section */}
+                          <div className="w-full sm:w-48 h-48 flex-shrink-0">
+                            <Link href={`/listings/${listing.id}`}>
+                              <div className="relative w-full h-full rounded-lg overflow-hidden">
+                                <Image
+                                  src={listing.images[0] || '/images/placeholder-item.jpg'}
+                                  alt={listing.title}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            </Link>
+                          </div>
+                          
+                          {/* Content section */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-2">
+                              <Link href={`/listings/${listing.id}`}>
+                                <h3 className="text-lg font-semibold text-gray-900 hover:text-green-600 transition-colors line-clamp-2">
+                                  {listing.title}
+                                </h3>
+                              </Link>
+                              <button
+                                onClick={() => toggleFavorite(listing.id)}
+                                className="flex-shrink-0 ml-2 p-1"
+                              >
+                                <Heart 
+                                  className={`w-5 h-5 ${
+                                    favorites.has(listing.id) 
+                                      ? 'fill-red-500 text-red-500' 
+                                      : 'text-gray-400 hover:text-red-500'
+                                  } transition-colors`}
+                                />
+                              </button>
+                            </div>
+                            
+                            <p className="text-gray-600 text-sm mb-3 line-clamp-2">{listing.description}</p>
+                            
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-3">
+                              <span className="bg-gray-100 px-2 py-1 rounded">{listing.category}</span>
+                              <span className="flex items-center">
+                                <MapPin className="w-4 h-4 mr-1" />
+                                {listing.city}, {listing.state}
+                              </span>
+                              {listing.distance_km && (
+                                <span>{listing.distance_km.toFixed(1)} km away</span>
+                              )}
+                              {(listing.rating || 0) > 0 && (
+                                <span className="flex items-center">
+                                  <Star className="w-4 h-4 mr-1 fill-yellow-400 text-yellow-400" />
+                                  {listing.rating?.toFixed(1)} ({listing.review_count})
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="text-2xl font-bold text-gray-900">
+                                  ${listing.price_per_day}
+                                </span>
+                                <span className="text-gray-600 ml-1">/day</span>
+                              </div>
+                              
+                              <div className="flex items-center space-x-2">
+                                {listing.delivery_available && (
+                                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                    Delivery
+                                  </span>
+                                )}
+                                {listing.pickup_available && (
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                    Pickup
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               
               {/* Pagination */}
               {totalPages > 1 && (
