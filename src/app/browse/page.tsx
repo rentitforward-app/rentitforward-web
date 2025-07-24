@@ -330,6 +330,15 @@ function BrowseContent() {
 
   }, [searchParams]);
 
+  // Re-fetch listings when location changes to get fresh distance calculations
+  useEffect(() => {
+    if (appLocation) {
+      console.log('📍 Location changed, re-fetching listings with new center point:', appLocation);
+      setIsLoading(true);
+      fetchListings();
+    }
+  }, [appLocation]);
+
   // Handle clicking outside dropdown to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -393,79 +402,35 @@ function BrowseContent() {
       // Query with location field - use optimized function for distance sorting if user location available
       let data, error;
       
-      if (appLocation && typeof appLocation === 'object' && 'lat' in appLocation && sortBy === 'distance') {
-        console.log('🗺️ Using optimized distance-based query with appLocation:', appLocation);
-        
-        // Use the optimized database function for distance-based queries
-        const { data: functionData, error: functionError } = await supabase
-          .rpc('get_listings_sorted_by_distance', {
-            center_lat: appLocation.lat,
-            center_lng: appLocation.lng,
-            category_filter: null, // We'll filter on the client for now
-            min_price: null,
-            max_price: null,
-            max_results: 500
-          });
-        
-        data = functionData;
-        error = functionError;
-        
-        console.log('🎯 Distance query result:', { count: data?.length, error: error?.message });
-        
-        // Transform the function result to match expected format
-        if (data) {
-          data = data.map((item: any) => ({
-            ...item,
-            profiles: {
-              full_name: item.owner_name,
-              avatar_url: item.owner_avatar
-            },
-            // Add distance for display
-            distance_km: item.distance_km
-          }));
-        }
-      } else {
-        console.log('📋 Using standard query');
-        
-        // Standard query without distance optimization
-        const { data: standardData, error: standardError } = await supabase
-          .from('listings')
-          .select(`
-            id,
-            title,
-            description,
-            category,
-            price_per_day,
-            price_weekly,
-            price_hourly,
-            deposit,
-            images,
-            address,
-            city,
-            state,
-            country,
-            postal_code,
-            delivery_available,
-            pickup_available,
-            is_active,
-            condition,
-            brand,
-            model,
-            year,
-            created_at,
-            rating,
-            review_count,
-            location,
-            profiles!listings_owner_id_fkey (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
-          
-        data = standardData;
-        error = standardError;
+      // Always use the distance function to get coordinates and distance calculations
+      console.log('🗺️ Using distance-based query with center point:', appLocation);
+      
+      const { data: functionData, error: functionError } = await supabase
+        .rpc('get_listings_sorted_by_distance', {
+          center_lat: appLocation?.lat || -33.8688, // Default to Sydney
+          center_lng: appLocation?.lng || 151.2093,
+          category_filter: null,
+          min_price: null,
+          max_price: null,
+          max_results: 500
+        });
+      
+      data = functionData;
+      error = functionError;
+      
+      console.log('🎯 Distance query result:', { count: data?.length, error: error?.message });
+      
+      // Transform the function result to match expected format
+      if (data) {
+        data = data.map((item: any) => ({
+          ...item,
+          profiles: {
+            full_name: item.owner_name,
+            avatar_url: item.owner_avatar
+          },
+          // Add distance for display
+          distance_km: item.distance_km
+        }));
       }
       
       console.log('✅ Raw Supabase response:', { 
@@ -497,9 +462,13 @@ function BrowseContent() {
 
       console.log('🎯 Setting listings:', data.length);
       
-      // Note: When using RPC function, coordinates are already included as latitude/longitude
-      // For standard queries, we could parse PostGIS format but RPC is preferred for distance calculations
-      const listingsWithCoordinates = data as unknown as Listing[];
+      // Data is already transformed above, just need to handle sorting
+      let listingsWithCoordinates = data as Listing[];
+      
+      // If not using distance sorting, sort by created_at instead
+      if (sortBy !== 'distance') {
+        listingsWithCoordinates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      }
       
       setListings(listingsWithCoordinates);
     } catch (error) {
@@ -658,10 +627,16 @@ function BrowseContent() {
               return { ...listing, distance_km: distance };
             }
             console.log(`❌ No coordinates for ${listing.title}`);
-            return { ...listing, distance_km: Infinity }; // Put listings without coordinates at the end
+            return { ...listing, distance_km: undefined }; // No distance for listings without coordinates
           });
           
-          filtered = listingsWithDistance.sort((a, b) => (a.distance_km || Infinity) - (b.distance_km || Infinity));
+          filtered = listingsWithDistance.sort((a, b) => {
+            // Handle undefined distances - put them at the end
+            if (a.distance_km === undefined && b.distance_km === undefined) return 0;
+            if (a.distance_km === undefined) return 1;
+            if (b.distance_km === undefined) return -1;
+            return a.distance_km! - b.distance_km!;
+          });
         } else {
           // Fallback to newest if no location
           filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -1131,7 +1106,7 @@ function BrowseContent() {
               <MapView
                 listings={filteredListings.map((listing) => ({
                   ...listing,
-                  distance: listing.distance_km || 0, // Use calculated distance
+                  distance: listing.distance_km || 0, // Use calculated distance, default to 0 for map
                 }))}
                 userLocation={appLocation ? { lat: appLocation.lat, lng: appLocation.lng } : null}
                 onFavoriteToggle={toggleFavorite}
@@ -1157,7 +1132,7 @@ function BrowseContent() {
                       pickup_available={listing.pickup_available}
                       rating={listing.rating || 0}
                       reviewCount={listing.review_count || 0}
-                      distance={listing.distance_km || 0} // Use calculated distance
+                      distance={listing.distance_km} // Use calculated distance
                       owner={{
                         name: listing.profiles?.full_name || 'Anonymous',
                         avatar: listing.profiles?.avatar_url || undefined

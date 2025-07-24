@@ -142,7 +142,7 @@ export default function ListingCard({
           )}
 
           {/* Distance */}
-          {distance && (
+          {distance && distance !== Infinity && isFinite(distance) && (
             <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
               <span>{distance.toFixed(1)} km away</span>
             </div>
