@@ -1,5 +1,16 @@
--- Update the get_listings_sorted_by_distance function to only show approved, active, and available listings
-CREATE OR REPLACE FUNCTION get_listings_sorted_by_distance(
+-- Create listing_condition enum type if it doesn't exist
+DO $$ BEGIN
+    CREATE TYPE listing_condition AS ENUM ('new', 'like_new', 'good', 'fair', 'poor');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Drop the existing function first (to handle return type changes)
+DROP FUNCTION IF EXISTS get_listings_sorted_by_distance(double precision, double precision, text, decimal, decimal, integer);
+DROP FUNCTION IF EXISTS get_listings_sorted_by_distance(double precision, double precision, text, numeric, numeric, integer);
+
+-- Create the get_listings_sorted_by_distance function to only show approved, active, and available listings
+CREATE FUNCTION get_listings_sorted_by_distance(
   center_lat double precision,
   center_lng double precision,
   category_filter text DEFAULT NULL,

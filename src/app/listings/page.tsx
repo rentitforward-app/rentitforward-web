@@ -40,7 +40,7 @@ interface Listing {
   daily_rate: number;
   category: string;
   images: string[];
-  status: 'active' | 'paused' | 'draft';
+  status: 'active' | 'paused' | 'draft' | 'pending_approval' | 'rejected';
   created_at: string;
   view_count: number;
   total_bookings: number;
@@ -182,13 +182,20 @@ export default function MyListingsPage() {
         const totalEarnings = completedBookings.reduce((sum, booking) => sum + (booking.total_amount || 0), 0);
 
         // Determine status based on is_active and approval_status
-        let status: 'active' | 'paused' | 'draft';
-        if (listing.approval_status === 'pending' || listing.approval_status === 'rejected') {
-          status = 'draft';
-        } else if (listing.is_active) {
-          status = 'active';
+        let status: 'active' | 'paused' | 'draft' | 'pending_approval' | 'rejected';
+        if (listing.approval_status === 'pending') {
+          status = 'pending_approval';
+        } else if (listing.approval_status === 'rejected') {
+          status = 'rejected';
+        } else if (listing.approval_status === 'approved') {
+          if (listing.is_active) {
+            status = 'active';
+          } else {
+            status = 'paused';
+          }
         } else {
-          status = 'paused';
+          // For new listings that haven't been submitted for approval yet
+          status = 'draft';
         }
 
         // Determine availability
@@ -248,6 +255,8 @@ export default function MyListingsPage() {
       case 'active': return 'text-green-600 bg-green-100';
       case 'paused': return 'text-yellow-600 bg-yellow-100';
       case 'draft': return 'text-gray-600 bg-gray-100';
+      case 'pending_approval': return 'text-orange-600 bg-orange-100';
+      case 'rejected': return 'text-red-600 bg-red-100';
       case 'confirmed': return 'text-green-600 bg-green-100';
       case 'pending': return 'text-yellow-600 bg-yellow-100';
       case 'completed': return 'text-blue-600 bg-blue-100';
@@ -263,10 +272,12 @@ export default function MyListingsPage() {
       case 'completed':
         return <CheckCircle className="w-4 h-4" />;
       case 'pending':
+      case 'pending_approval':
         return <Clock className="w-4 h-4" />;
       case 'paused':
         return <AlertCircle className="w-4 h-4" />;
       case 'cancelled':
+      case 'rejected':
         return <XCircle className="w-4 h-4" />;
       default:
         return <AlertCircle className="w-4 h-4" />;
@@ -290,6 +301,12 @@ export default function MyListingsPage() {
     : 0;
 
   const toggleListingStatus = async (listingId: string, currentStatus: string) => {
+    // Don't allow status changes for pending approval or rejected listings
+    if (currentStatus === 'pending_approval' || currentStatus === 'rejected') {
+      toast.error('Cannot change status while listing is pending approval or rejected');
+      return;
+    }
+
     setUpdatingListings(prev => new Set(prev).add(listingId));
     
     try {
@@ -311,7 +328,7 @@ export default function MyListingsPage() {
         listing.id === listingId 
           ? { 
               ...listing, 
-              status: newIsActive ? 'active' : 'paused' as 'active' | 'paused' | 'draft'
+              status: newIsActive ? 'active' : 'paused' as 'active' | 'paused' | 'draft' | 'pending_approval' | 'rejected'
             }
           : listing
       ));
@@ -511,7 +528,7 @@ export default function MyListingsPage() {
                     />
                     <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(listing.status)}`}>
                       {getStatusIcon(listing.status)}
-                      {listing.status}
+                      {listing.status === 'pending_approval' ? 'Pending Approval' : listing.status}
                     </div>
                   </div>
                   <div className="p-3 md:p-4">
@@ -559,12 +576,22 @@ export default function MyListingsPage() {
                     <div className="flex gap-1 md:gap-2">
                       <Button
                         onClick={() => toggleListingStatus(listing.id, listing.status)}
-                        disabled={updatingListings.has(listing.id)}
+                        disabled={updatingListings.has(listing.id) || listing.status === 'pending_approval' || listing.status === 'rejected'}
                         variant="outline"
                         size="sm"
                         className="flex-1 text-xs md:text-sm"
                       >
-                        {listing.status === 'active' ? (
+                        {listing.status === 'pending_approval' ? (
+                          <>
+                            <Clock className="w-3 h-3 mr-1" />
+                            <span className="hidden sm:inline">Pending</span>
+                          </>
+                        ) : listing.status === 'rejected' ? (
+                          <>
+                            <XCircle className="w-3 h-3 mr-1" />
+                            <span className="hidden sm:inline">Rejected</span>
+                          </>
+                        ) : listing.status === 'active' ? (
                           <>
                             <Pause className="w-3 h-3 mr-1" />
                             <span className="hidden sm:inline">Pause</span>
