@@ -3,6 +3,7 @@ import { Inter, Poppins, Roboto } from "next/font/google";
 import "./globals.css";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import Providers from "../components/Providers";
 import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({ subsets: ["latin"] });
@@ -90,33 +91,35 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} ${roboto.variable}`}>
       <body className={`${inter.className} antialiased min-h-screen bg-gray-50`}>
-        <div id="root" className="relative flex flex-col min-h-screen">
-          <Header />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-        </div>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
+        <Providers>
+          <div id="root" className="relative flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </div>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
               style: {
-                background: '#44D62C',
+                background: '#363636',
+                color: '#fff',
               },
-            },
-            error: {
-              style: {
-                background: '#f87171',
+              success: {
+                style: {
+                  background: '#44D62C',
+                },
               },
-            },
-          }}
-        />
+              error: {
+                style: {
+                  background: '#f87171',
+                },
+              },
+            }}
+          />
+        </Providers>
       </body>
     </html>
   );
