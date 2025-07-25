@@ -100,6 +100,12 @@ const sortOptions = [
 ];
 
 function BrowseContent() {
+  // IMPORTANT: This browse page only displays listings that meet ALL of these criteria:
+  // 1. approval_status = 'approved' (approved by admin)
+  // 2. is_available = true (available for rent, not currently rented)
+  // 3. is_active = true (active listing by owner, not paused)
+  // 4. location IS NOT NULL (must have valid location data)
+  
   const [listings, setListings] = useState<Listing[]>([]);
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
   const [paginatedListings, setPaginatedListings] = useState<Listing[]>([]);
@@ -475,6 +481,39 @@ function BrowseContent() {
       
       data = functionData;
       error = functionError;
+
+      // If the function fails, fall back to regular query with same filtering
+      if (error || !data) {
+        console.log('🔄 Function failed, using fallback query with proper filtering...');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('listings')
+          .select(`
+            *,
+            profiles!owner_id (
+              full_name,
+              avatar_url
+            )
+          `)
+          .eq('approval_status', 'approved')  // Only approved listings
+          .eq('is_available', true)           // Only available listings
+          .eq('is_active', true)              // Only active listings
+          .not('location', 'is', null)       // Must have location data
+          .order('created_at', { ascending: false })
+          .limit(500);
+        
+        data = fallbackData;
+        error = fallbackError;
+        
+        // Transform fallback data to match function result format
+        if (data) {
+          data = data.map((item: any) => ({
+            ...item,
+            owner_name: item.profiles?.full_name,
+            owner_avatar: item.profiles?.avatar_url,
+            distance_km: null // No distance calculation in fallback
+          }));
+        }
+      }
       
       console.log('🎯 Distance query result:', { count: data?.length, error: error?.message });
       
