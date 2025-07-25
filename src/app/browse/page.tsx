@@ -508,11 +508,11 @@ function BrowseContent() {
                 data = [];
                 error = candidateError;
               } else {
-                // Get all active bookings to filter out rented items
-                const { data: activeBookings } = await supabase
-                  .from('bookings')
-                  .select('listing_id, start_date, end_date')
-                  .in('status', ['active', 'confirmed']);
+                            // Get all active bookings to filter out rented items
+            const { data: activeBookings } = await supabase
+              .from('bookings')
+              .select('listing_id, start_date, end_date')
+              .in('status', ['confirmed', 'in_progress']);
 
                 // Filter out listings that are currently being rented
                 const now = new Date();

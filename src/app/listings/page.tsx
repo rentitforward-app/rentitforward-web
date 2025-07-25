@@ -55,7 +55,7 @@ interface ItemBooking {
   start_date: string;
   end_date: string;
   total_amount: number;
-  status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'disputed' | 'payment_required' | 'return_pending';
   created_at: string;
   listing_id: string;
   listing_title: string;
@@ -185,7 +185,7 @@ export default function MyListingsPage() {
         const currentDate = new Date();
         const activeBookings = itemBookingsData.filter(booking => {
           if (booking.listing_id !== listing.id) return false;
-          if (booking.status !== 'active' && booking.status !== 'confirmed') return false;
+          if (booking.status !== 'in_progress' && booking.status !== 'confirmed') return false;
           
           const startDate = new Date(booking.start_date);
           const endDate = new Date(booking.end_date);
@@ -273,9 +273,13 @@ export default function MyListingsPage() {
       case 'rejected': return 'text-red-600 bg-red-100';
       case 'rented': return 'text-blue-600 bg-blue-100';
       case 'confirmed': return 'text-green-600 bg-green-100';
+      case 'in_progress': return 'text-blue-600 bg-blue-100';
       case 'pending': return 'text-yellow-600 bg-yellow-100';
       case 'completed': return 'text-blue-600 bg-blue-100';
       case 'cancelled': return 'text-red-600 bg-red-100';
+      case 'disputed': return 'text-red-600 bg-red-100';
+      case 'payment_required': return 'text-orange-600 bg-orange-100';
+      case 'return_pending': return 'text-yellow-600 bg-yellow-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -286,8 +290,12 @@ export default function MyListingsPage() {
       case 'confirmed':
       case 'completed':
         return <CheckCircle className="w-4 h-4" />;
+      case 'in_progress':
+        return <Users className="w-4 h-4" />;
       case 'pending':
       case 'pending_approval':
+      case 'payment_required':
+      case 'return_pending':
         return <Clock className="w-4 h-4" />;
       case 'paused':
         return <AlertCircle className="w-4 h-4" />;
@@ -295,6 +303,7 @@ export default function MyListingsPage() {
         return <Users className="w-4 h-4" />;
       case 'cancelled':
       case 'rejected':
+      case 'disputed':
         return <XCircle className="w-4 h-4" />;
       default:
         return <AlertCircle className="w-4 h-4" />;
