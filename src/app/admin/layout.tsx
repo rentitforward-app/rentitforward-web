@@ -25,6 +25,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { useAdmin } from '@/hooks/use-admin';
+import { useAuth } from '@/hooks/use-auth';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -102,6 +103,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+  const { signOut } = useAuth();
 
   useEffect(() => {
     console.log('AdminLayout: loading:', loading, 'isAdmin:', isAdmin, 'hasCheckedAccess:', hasCheckedAccess);
@@ -127,9 +129,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }, [shouldRedirect, router]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-    toast.success('Logged out successfully');
+    try {
+      await signOut();
+    } catch (error) {
+      toast.error('Failed to sign out');
+    }
   };
 
   if (loading) {

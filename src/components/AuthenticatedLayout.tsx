@@ -59,7 +59,6 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     try {
       await signOut();
       router.push('/');
-      toast.success('Logged out successfully');
     } catch (error) {
       toast.error('Failed to sign out');
     }

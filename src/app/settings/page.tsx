@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { VerificationDashboard } from '@/components/VerificationDashboard';
+import { useAuth } from '@/hooks/use-auth';
 
 interface NotificationSettings {
   email_bookings: boolean;
@@ -68,6 +69,7 @@ export default function SettingsPage() {
   
   const router = useRouter();
   const supabase = createClient();
+  const { signOut } = useAuth();
 
   useEffect(() => {
     loadProfile();
@@ -120,9 +122,11 @@ export default function SettingsPage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-    toast.success('Logged out successfully');
+    try {
+      await signOut();
+    } catch (error) {
+      toast.error('Failed to sign out');
+    }
   };
 
   const handleDeleteAccount = async () => {
