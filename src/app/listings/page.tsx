@@ -40,7 +40,7 @@ interface Listing {
   daily_rate: number;
   category: string;
   images: string[];
-  status: 'active' | 'paused' | 'draft' | 'pending_approval' | 'rejected';
+  status: 'active' | 'paused' | 'draft' | 'pending_approval' | 'rejected' | 'rented';
   created_at: string;
   view_count: number;
   total_bookings: number;
@@ -181,12 +181,26 @@ export default function MyListingsPage() {
         const completedBookings = listingBookings.filter(booking => booking.status === 'completed');
         const totalEarnings = completedBookings.reduce((sum, booking) => sum + (booking.total_amount || 0), 0);
 
-        // Determine status based on is_active and approval_status
-        let status: 'active' | 'paused' | 'draft' | 'pending_approval' | 'rejected';
+        // Check if listing is currently rented (has active booking)
+        const currentDate = new Date();
+        const activeBookings = itemBookingsData.filter(booking => {
+          if (booking.listing_id !== listing.id) return false;
+          if (booking.status !== 'active' && booking.status !== 'confirmed') return false;
+          
+          const startDate = new Date(booking.start_date);
+          const endDate = new Date(booking.end_date);
+          return currentDate >= startDate && currentDate <= endDate;
+        });
+
+        // Determine status based on is_active, approval_status, and current bookings
+        let status: 'active' | 'paused' | 'draft' | 'pending_approval' | 'rejected' | 'rented';
         if (listing.approval_status === 'pending') {
           status = 'pending_approval';
         } else if (listing.approval_status === 'rejected') {
           status = 'rejected';
+        } else if (activeBookings.length > 0) {
+          // Item is currently being rented
+          status = 'rented';
         } else if (listing.approval_status === 'approved') {
           if (listing.is_active) {
             status = 'active';
@@ -257,6 +271,7 @@ export default function MyListingsPage() {
       case 'draft': return 'text-gray-600 bg-gray-100';
       case 'pending_approval': return 'text-orange-600 bg-orange-100';
       case 'rejected': return 'text-red-600 bg-red-100';
+      case 'rented': return 'text-blue-600 bg-blue-100';
       case 'confirmed': return 'text-green-600 bg-green-100';
       case 'pending': return 'text-yellow-600 bg-yellow-100';
       case 'completed': return 'text-blue-600 bg-blue-100';
@@ -276,6 +291,8 @@ export default function MyListingsPage() {
         return <Clock className="w-4 h-4" />;
       case 'paused':
         return <AlertCircle className="w-4 h-4" />;
+      case 'rented':
+        return <Users className="w-4 h-4" />;
       case 'cancelled':
       case 'rejected':
         return <XCircle className="w-4 h-4" />;
@@ -301,9 +318,13 @@ export default function MyListingsPage() {
     : 0;
 
   const toggleListingStatus = async (listingId: string, currentStatus: string) => {
-    // Don't allow status changes for pending approval or rejected listings
-    if (currentStatus === 'pending_approval' || currentStatus === 'rejected') {
-      toast.error('Cannot change status while listing is pending approval or rejected');
+    // Don't allow status changes for pending approval, rejected, or rented listings
+    if (currentStatus === 'pending_approval' || currentStatus === 'rejected' || currentStatus === 'rented') {
+      if (currentStatus === 'rented') {
+        toast.error('Cannot change status while item is currently being rented');
+      } else {
+        toast.error('Cannot change status while listing is pending approval or rejected');
+      }
       return;
     }
 
@@ -328,7 +349,7 @@ export default function MyListingsPage() {
         listing.id === listingId 
           ? { 
               ...listing, 
-              status: newIsActive ? 'active' : 'paused' as 'active' | 'paused' | 'draft' | 'pending_approval' | 'rejected'
+              status: newIsActive ? 'active' : 'paused' as 'active' | 'paused' | 'draft' | 'pending_approval' | 'rejected' | 'rented'
             }
           : listing
       ));
@@ -528,7 +549,9 @@ export default function MyListingsPage() {
                     />
                     <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(listing.status)}`}>
                       {getStatusIcon(listing.status)}
-                      {listing.status === 'pending_approval' ? 'Pending Approval' : listing.status}
+                      {listing.status === 'pending_approval' ? 'Pending Approval' : 
+                       listing.status === 'rented' ? 'Rented' : 
+                       listing.status}
                     </div>
                   </div>
                   <div className="p-3 md:p-4">
@@ -576,7 +599,7 @@ export default function MyListingsPage() {
                     <div className="flex gap-1 md:gap-2">
                       <Button
                         onClick={() => toggleListingStatus(listing.id, listing.status)}
-                        disabled={updatingListings.has(listing.id) || listing.status === 'pending_approval' || listing.status === 'rejected'}
+                        disabled={updatingListings.has(listing.id) || listing.status === 'pending_approval' || listing.status === 'rejected' || listing.status === 'rented'}
                         variant="outline"
                         size="sm"
                         className="flex-1 text-xs md:text-sm"
@@ -590,6 +613,11 @@ export default function MyListingsPage() {
                           <>
                             <XCircle className="w-3 h-3 mr-1" />
                             <span className="hidden sm:inline">Rejected</span>
+                          </>
+                        ) : listing.status === 'rented' ? (
+                          <>
+                            <Users className="w-3 h-3 mr-1" />
+                            <span className="hidden sm:inline">In Use</span>
                           </>
                         ) : listing.status === 'active' ? (
                           <>

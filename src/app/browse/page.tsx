@@ -101,10 +101,11 @@ const sortOptions = [
 
 function BrowseContent() {
   // IMPORTANT: This browse page only displays listings that meet ALL of these criteria:
-  // 1. approval_status = 'approved' (approved by admin)
-  // 2. is_available = true (available for rent, not currently rented)
-  // 3. is_active = true (active listing by owner, not paused)
-  // 4. location IS NOT NULL (must have valid location data)
+// 1. approval_status = 'approved' (approved by admin)
+// 2. is_available = true (available for rent, not currently rented)
+// 3. is_active = true (active listing by owner, not paused)
+// 4. location IS NOT NULL (must have valid location data)
+// 5. NOT currently being rented (no active bookings covering current date)
   
   const [listings, setListings] = useState<Listing[]>([]);
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
@@ -482,27 +483,56 @@ function BrowseContent() {
       data = functionData;
       error = functionError;
 
-      // If the function fails, fall back to regular query with same filtering
-      if (error || !data) {
-        console.log('🔄 Function failed, using fallback query with proper filtering...');
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('listings')
-          .select(`
-            *,
-            profiles!owner_id (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq('approval_status', 'approved')  // Only approved listings
-          .eq('is_available', true)           // Only available listings
-          .eq('is_active', true)              // Only active listings
-          .not('location', 'is', null)       // Must have location data
-          .order('created_at', { ascending: false })
-          .limit(500);
-        
-        data = fallbackData;
-        error = fallbackError;
+                  // If the function fails, fall back to regular query with same filtering
+            if (error || !data) {
+              console.log('🔄 Function failed, using fallback query with proper filtering...');
+              
+              // First, get listings that meet basic criteria
+              const { data: candidateListings, error: candidateError } = await supabase
+                .from('listings')
+                .select(`
+                  *,
+                  profiles!owner_id (
+                    full_name,
+                    avatar_url
+                  )
+                `)
+                .eq('approval_status', 'approved')  // Only approved listings
+                .eq('is_available', true)           // Only available listings
+                .eq('is_active', true)              // Only active listings
+                .not('location', 'is', null)       // Must have location data
+                .order('created_at', { ascending: false })
+                .limit(500);
+
+              if (candidateError || !candidateListings) {
+                data = [];
+                error = candidateError;
+              } else {
+                // Get all active bookings to filter out rented items
+                const { data: activeBookings } = await supabase
+                  .from('bookings')
+                  .select('listing_id, start_date, end_date')
+                  .in('status', ['active', 'confirmed']);
+
+                // Filter out listings that are currently being rented
+                const now = new Date();
+                const rentedListingIds = new Set(
+                  (activeBookings || [])
+                    .filter(booking => {
+                      const startDate = new Date(booking.start_date);
+                      const endDate = new Date(booking.end_date);
+                      return now >= startDate && now <= endDate;
+                    })
+                    .map(booking => booking.listing_id)
+                );
+
+                const availableListings = candidateListings.filter(
+                  listing => !rentedListingIds.has(listing.id)
+                );
+
+                                data = availableListings;
+                error = null;
+              }
         
         // Transform fallback data to match function result format
         if (data) {
