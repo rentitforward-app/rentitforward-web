@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { useAdmin } from '@/hooks/use-admin';
@@ -44,6 +45,7 @@ type SortOption = 'created_at' | 'price_per_day' | 'title';
 type FilterOption = 'all' | 'pending' | 'approved' | 'rejected';
 
 export default function AdminListingsPage() {
+  const router = useRouter();
   const [listings, setListings] = useState<Listing[]>([]);
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -329,105 +331,105 @@ export default function AdminListingsPage() {
       </Card>
 
       {/* Listings */}
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
           <div className="w-8 h-8 border-3 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
+          </div>
       ) : filteredListings.length === 0 ? (
-        <Card className="p-8 text-center">
+          <Card className="p-8 text-center">
           <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-sm font-medium text-gray-900 mb-1">No listings found</h3>
           <p className="text-sm text-gray-500">Try adjusting your search or filter criteria</p>
-        </Card>
-      ) : (
-        <div className="grid gap-6">
+          </Card>
+        ) : (
+          <div className="grid gap-6">
           {filteredListings.map((listing) => (
-            <Card key={listing.id} className="p-6">
-              <div className="flex gap-6">
-                {/* Image */}
-                <div className="w-32 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                  {listing.images && listing.images.length > 0 ? (
-                    <Image
-                      src={listing.images[0]}
-                      alt={listing.title}
-                      width={128}
-                      height={128}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                      <span className="text-gray-400 text-sm">No image</span>
-                    </div>
-                  )}
-                </div>
+              <Card key={listing.id} className="p-6">
+                <div className="flex gap-6">
+                  {/* Image */}
+                  <div className="w-32 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                    {listing.images && listing.images.length > 0 ? (
+                      <Image
+                        src={listing.images[0]}
+                        alt={listing.title}
+                        width={128}
+                        height={128}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                        <span className="text-gray-400 text-sm">No image</span>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Content */}
-                <div className="flex-1">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{listing.title}</h3>
+                  {/* Content */}
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">{listing.title}</h3>
                     <div className="flex items-center space-x-3">
                       <span className="text-lg font-bold text-green-600">
                         {formatCurrency(listing.price_per_day)}/day
                       </span>
                       {getStatusBadge(listing.approval_status)}
                     </div>
-                  </div>
-                  
-                  <p className="text-gray-600 mb-3 line-clamp-2">{listing.description}</p>
-                  
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                      {listing.category}
-                    </span>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                      {format(new Date(listing.created_at), 'MMM d, yyyy')}
-                    </span>
-                  </div>
-
-                  <div className="text-sm text-gray-500 mb-3">
-                    <strong>Owner:</strong> {listing.owner_profile?.full_name} ({listing.owner_profile?.email})
-                  </div>
-
-                  {listing.rejection_reason && (
-                    <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded">
-                      <p className="text-sm text-red-800">
-                        <strong>Rejection Reason:</strong> {listing.rejection_reason}
-                      </p>
                     </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => window.open(`/listings/${listing.id}`, '_blank')}
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View Details
-                    </Button>
                     
-                    {listing.approval_status === 'pending' && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => handleApproval(listing.id, 'approve')}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleReject(listing.id)}
-                          className="text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Reject
-                        </Button>
-                      </>
+                    <p className="text-gray-600 mb-3 line-clamp-2">{listing.description}</p>
+                    
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        {listing.category}
+                      </span>
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                      {format(new Date(listing.created_at), 'MMM d, yyyy')}
+                      </span>
+                    </div>
+
+                    <div className="text-sm text-gray-500 mb-3">
+                      <strong>Owner:</strong> {listing.owner_profile?.full_name} ({listing.owner_profile?.email})
+                    </div>
+
+                    {listing.rejection_reason && (
+                      <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-800">
+                          <strong>Rejection Reason:</strong> {listing.rejection_reason}
+                        </p>
+                      </div>
                     )}
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                      onClick={() => router.push(`/admin/listings/${listing.id}`)}
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        View Details
+                      </Button>
+                      
+                    {listing.approval_status === 'pending' && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproval(listing.id, 'approve')}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleReject(listing.id)}
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
 
                     {listing.approval_status === 'approved' && (
                       <Button
@@ -450,12 +452,12 @@ export default function AdminListingsPage() {
                       Edit
                     </Button>
                   </div>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+              </Card>
+            ))}
+          </div>
+        )}
     </div>
   );
 } 
