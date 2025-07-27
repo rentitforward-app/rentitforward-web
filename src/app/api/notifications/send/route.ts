@@ -7,7 +7,7 @@ import {
   NotificationType,
   NotificationContext,
   PushNotification 
-} from 'rentitforward-shared';
+} from '@rentitforward/shared/src';
 
 interface SendNotificationRequest {
   user_id: string;

@@ -3,7 +3,7 @@ import {
   createPushNotification, 
   shouldSendNotification,
   NotificationPreferences 
-} from 'rentitforward-shared';
+} from '@rentitforward/shared/src';
 
 export interface OneSignalConfig {
   appId: string;
