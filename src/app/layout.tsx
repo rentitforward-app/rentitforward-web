@@ -90,6 +90,26 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${poppins.variable} ${roboto.variable}`}>
+      <head>
+        {/* OneSignal Web Push SDK */}
+        <script 
+          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" 
+          defer 
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.OneSignalDeferred = window.OneSignalDeferred || [];
+              OneSignalDeferred.push(async function(OneSignal) {
+                await OneSignal.init({
+                  appId: "${process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID}",
+                  allowLocalhostAsSecureOrigin: true,
+                });
+              });
+            `,
+          }}
+        />
+      </head>
       <body className={`${inter.className} antialiased min-h-screen bg-gray-50`}>
         <Providers>
           <div id="root" className="relative flex flex-col min-h-screen">
