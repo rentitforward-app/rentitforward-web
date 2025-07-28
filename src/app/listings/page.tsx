@@ -24,7 +24,13 @@ import {
   Play,
   Trash2,
   Settings,
-  MoreVertical
+  MoreVertical,
+  Search,
+  Zap,
+  CheckSquare,
+  Camera,
+  MapPin,
+  X
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { format } from 'date-fns';
@@ -71,10 +77,29 @@ interface ItemBooking {
 export default function MyListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [itemBookings, setItemBookings] = useState<ItemBooking[]>([]);
+  const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
+  const [paginatedListings, setPaginatedListings] = useState<Listing[]>([]);
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'items' | 'bookings' | 'earnings'>('items');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateSort, setDateSort] = useState<'newest' | 'oldest'>('newest');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingListings, setUpdatingListings] = useState<Set<string>>(new Set());
+  const [selectedBooking, setSelectedBooking] = useState<ItemBooking | null>(null);
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean;
+    type: 'pickup' | 'return';
+    booking: ItemBooking | null;
+  }>({ isOpen: false, type: 'pickup', booking: null });
+  const [ownerReceiptModal, setOwnerReceiptModal] = useState<{
+    isOpen: boolean;
+    booking: ItemBooking | null;
+  }>({ isOpen: false, booking: null });
+  const itemsPerPage = 12;
   
   const router = useRouter();
   const supabase = createClient();
@@ -82,6 +107,304 @@ export default function MyListingsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'items') {
+      filterListings();
+    }
+  }, [listings, statusFilter, categoryFilter, searchTerm, dateSort]);
+
+  useEffect(() => {
+    if (activeTab === 'items') {
+      paginateListings();
+    }
+  }, [filteredListings, currentPage]);
+
+  const filterListings = () => {
+    let filtered = [...listings];
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(listing => listing.status === statusFilter);
+    }
+
+    // Filter by category
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(listing => listing.category === categoryFilter);
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(listing =>
+        listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        listing.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        listing.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Sort by date
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      
+      if (dateSort === 'newest') {
+        return dateB - dateA; // Newest first
+      } else {
+        return dateA - dateB; // Oldest first
+      }
+    });
+
+    setFilteredListings(filtered);
+    
+    // Calculate total pages
+    const totalPagesCount = Math.ceil(filtered.length / itemsPerPage);
+    setTotalPages(totalPagesCount);
+    
+    // Reset to first page if current page exceeds total pages
+    if (currentPage > totalPagesCount && totalPagesCount > 0) {
+      setCurrentPage(1);
+    }
+  };
+
+  const paginateListings = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginated = filteredListings.slice(startIndex, endIndex);
+    setPaginatedListings(paginated);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
+  // Booking management functions
+  const updateBookingStatus = async (bookingId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: newStatus })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      // Update local state
+      setItemBookings(prev => prev.map(booking => 
+        booking.id === bookingId ? { ...booking, status: newStatus as any } : booking
+      ));
+
+      toast.success(`Booking ${newStatus === 'payment_required' ? 'accepted' : newStatus}!`);
+    } catch (error) {
+      console.error('Failed to update booking status:', error);
+      toast.error('Failed to update booking status');
+    }
+  };
+
+  const handlePickupConfirmation = async (data: { notes: string; condition: string }) => {
+    if (!confirmationModal.booking) return;
+
+    try {
+      const updateData = {
+        pickup_confirmed_by_renter: true,
+        pickup_confirmed_at: new Date().toISOString(),
+        pickup_notes: data.notes,
+        condition_before: data.condition,
+        status: 'in_progress' as const
+      };
+
+      const { error } = await supabase
+        .from('bookings')
+        .update(updateData)
+        .eq('id', confirmationModal.booking.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setItemBookings(prev => prev.map(booking => 
+        booking.id === confirmationModal.booking!.id 
+          ? { ...booking, ...updateData } 
+          : booking
+      ));
+
+      toast.success('Pickup confirmed! Booking is now active.');
+    } catch (error) {
+      console.error('Failed to confirm pickup:', error);
+      throw error;
+    }
+  };
+
+  const handleOwnerReceiptConfirmation = async (data: { notes: string; condition: string; hasIssues: boolean }) => {
+    if (!ownerReceiptModal.booking) return;
+
+    try {
+      const updateData = {
+        return_confirmed_by_owner: true,
+        owner_receipt_confirmed_at: new Date().toISOString(),
+        owner_receipt_notes: data.notes,
+        final_condition: data.condition,
+        has_issues: data.hasIssues,
+        status: 'completed' as const
+      };
+
+      const { error } = await supabase
+        .from('bookings')
+        .update(updateData)
+        .eq('id', ownerReceiptModal.booking.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setItemBookings(prev => prev.map(booking => 
+        booking.id === ownerReceiptModal.booking!.id 
+          ? { ...booking, ...updateData } 
+          : booking
+      ));
+
+      toast.success('Receipt confirmed! Booking completed.');
+    } catch (error) {
+      console.error('Failed to confirm receipt:', error);
+      throw error;
+    }
+  };
+
+  const handleReturnConfirmation = async (data: { notes: string; condition: string }) => {
+    if (!confirmationModal.booking) return;
+
+    try {
+      const updateData = {
+        return_confirmed_by_renter: true,
+        return_confirmed_at: new Date().toISOString(),
+        return_notes: data.notes,
+        condition_after: data.condition,
+        status: 'return_pending' as const
+      };
+
+      const { error } = await supabase
+        .from('bookings')
+        .update(updateData)
+        .eq('id', confirmationModal.booking.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setItemBookings(prev => prev.map(booking => 
+        booking.id === confirmationModal.booking!.id 
+          ? { ...booking, ...updateData } 
+          : booking
+      ));
+
+      toast.success('Return confirmed! Awaiting owner confirmation.');
+    } catch (error) {
+      console.error('Failed to confirm return:', error);
+      throw error;
+    }
+  };
+
+  const openConfirmationModal = (type: 'pickup' | 'return', booking: ItemBooking) => {
+    setConfirmationModal({ isOpen: true, type, booking });
+  };
+
+  const closeConfirmationModal = () => {
+    setConfirmationModal({ isOpen: false, type: 'pickup', booking: null });
+  };
+
+  const openOwnerReceiptModal = (booking: ItemBooking) => {
+    setOwnerReceiptModal({ isOpen: true, booking });
+  };
+
+  const closeOwnerReceiptModal = () => {
+    setOwnerReceiptModal({ isOpen: false, booking: null });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'text-yellow-600 bg-yellow-100';
+      case 'payment_required': return 'text-purple-600 bg-purple-100';
+      case 'confirmed': return 'text-green-600 bg-green-100';
+      case 'in_progress': return 'text-blue-600 bg-blue-100';
+      case 'return_pending': return 'text-orange-600 bg-orange-100';
+      case 'completed': return 'text-gray-600 bg-gray-100';
+      case 'cancelled': return 'text-red-600 bg-red-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending': return <Clock className="w-4 h-4" />;
+      case 'payment_required': return <DollarSign className="w-4 h-4" />;
+      case 'confirmed': return <CheckCircle className="w-4 h-4" />;
+      case 'in_progress': return <Zap className="w-4 h-4" />;
+      case 'return_pending': return <Clock className="w-4 h-4" />;
+      case 'completed': return <CheckSquare className="w-4 h-4" />;
+      case 'cancelled': return <XCircle className="w-4 h-4" />;
+      default: return <AlertCircle className="w-4 h-4" />;
+    }
+  };
+
+  const getListingStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'text-green-600 bg-green-100';
+      case 'paused': return 'text-yellow-600 bg-yellow-100';
+      case 'draft': return 'text-gray-600 bg-gray-100';
+      case 'pending_approval': return 'text-orange-600 bg-orange-100';
+      case 'rejected': return 'text-red-600 bg-red-100';
+      case 'rented': return 'text-blue-600 bg-blue-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getListingStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'pending_approval':
+        return <Clock className="w-4 h-4" />;
+      case 'paused':
+        return <AlertCircle className="w-4 h-4" />;
+      case 'rented':
+        return <Users className="w-4 h-4" />;
+      case 'rejected':
+        return <XCircle className="w-4 h-4" />;
+      default:
+        return <AlertCircle className="w-4 h-4" />;
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -264,52 +587,6 @@ export default function MyListingsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'text-green-600 bg-green-100';
-      case 'paused': return 'text-yellow-600 bg-yellow-100';
-      case 'draft': return 'text-gray-600 bg-gray-100';
-      case 'pending_approval': return 'text-orange-600 bg-orange-100';
-      case 'rejected': return 'text-red-600 bg-red-100';
-      case 'rented': return 'text-blue-600 bg-blue-100';
-      case 'confirmed': return 'text-green-600 bg-green-100';
-      case 'in_progress': return 'text-blue-600 bg-blue-100';
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      case 'completed': return 'text-blue-600 bg-blue-100';
-      case 'cancelled': return 'text-red-600 bg-red-100';
-      case 'disputed': return 'text-red-600 bg-red-100';
-      case 'payment_required': return 'text-orange-600 bg-orange-100';
-      case 'return_pending': return 'text-yellow-600 bg-yellow-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-      case 'confirmed':
-      case 'completed':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'in_progress':
-        return <Users className="w-4 h-4" />;
-      case 'pending':
-      case 'pending_approval':
-      case 'payment_required':
-      case 'return_pending':
-        return <Clock className="w-4 h-4" />;
-      case 'paused':
-        return <AlertCircle className="w-4 h-4" />;
-      case 'rented':
-        return <Users className="w-4 h-4" />;
-      case 'cancelled':
-      case 'rejected':
-      case 'disputed':
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return <AlertCircle className="w-4 h-4" />;
-    }
-  };
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
@@ -435,75 +712,25 @@ export default function MyListingsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-4">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">My Listings</h1>
-            <p className="text-sm md:text-base text-gray-600">Manage your items and track bookings</p>
+            <h1 className="text-2xl font-bold text-gray-900">My Listings</h1>
+            <p className="text-gray-600">Manage your items and track bookings</p>
           </div>
           <Button
             onClick={() => router.push('/listings/create')}
-            className="btn-primary flex items-center gap-2 text-sm md:text-base"
+            className="btn-primary flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Add New Item
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          <Card className="p-3 md:p-4">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
-                <Package className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs md:text-sm text-gray-600">Total Items</p>
-                <p className="text-lg md:text-xl font-bold">{listings.length}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="p-3 md:p-4">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-green-100 rounded-lg">
-                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs md:text-sm text-gray-600">Total Bookings</p>
-                <p className="text-lg md:text-xl font-bold">{totalBookings}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="p-3 md:p-4 col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-yellow-100 rounded-lg">
-                <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-yellow-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs md:text-sm text-gray-600">Total Earnings</p>
-                <p className="text-lg md:text-xl font-bold">{formatPrice(totalEarnings)}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="p-3 md:p-4 col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg">
-                <Star className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs md:text-sm text-gray-600">Avg Rating</p>
-                <p className="text-lg md:text-xl font-bold">
-                  {averageRating > 0 ? averageRating.toFixed(1) : 'N/A'}
-                </p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-4 md:space-x-8 overflow-x-auto">
+          <nav className="-mb-px flex space-x-8">
             {[
               { key: 'items', label: 'My Items', count: listings.length },
               { key: 'bookings', label: 'Item Bookings', count: itemBookings.length },
@@ -511,8 +738,11 @@ export default function MyListingsPage() {
             ].map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key as any)}
-                className={`py-2 px-1 border-b-2 font-medium text-xs md:text-sm flex-shrink-0 ${
+                onClick={() => {
+                  setActiveTab(tab.key as any);
+                  setCurrentPage(1);
+                }}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.key
                     ? 'border-green-500 text-green-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -529,14 +759,206 @@ export default function MyListingsPage() {
           </nav>
         </div>
 
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Items</p>
+                <p className="text-2xl font-bold text-gray-900">{listings.length}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Package className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Bookings</p>
+                <p className="text-2xl font-bold text-gray-900">{totalBookings}</p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Earnings</p>
+                <p className="text-2xl font-bold text-gray-900">{formatPrice(totalEarnings)}</p>
+              </div>
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Avg Rating</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {averageRating > 0 ? averageRating.toFixed(1) : 'N/A'}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Star className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </Card>
+        </div>
+
         {/* Tab Content */}
         {activeTab === 'items' && (
-          <div className="space-y-4">
-            {listings.length === 0 ? (
-              <div className="text-center py-8 md:py-12">
-                <Package className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400 mb-4" />
-                <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">No items listed yet</h3>
-                <p className="text-gray-500 mb-4 md:mb-6 text-sm md:text-base">Start earning by listing your first item!</p>
+          <>
+            {/* Filters and Search */}
+            <Card className="p-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search listings by title, description, or category..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="paused">Paused</option>
+                    <option value="draft">Draft</option>
+                    <option value="pending_approval">Pending Approval</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="rented">Currently Rented</option>
+                  </select>
+
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => {
+                      setCategoryFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="Automotive">Automotive</option>
+                    <option value="Appliances">Appliances</option>
+                    <option value="Event & Party">Event & Party</option>
+                    <option value="Instruments">Instruments</option>
+                    <option value="Cameras">Cameras</option>
+                    <option value="Electronics">Electronics</option>
+                    <option value="Home & Garden">Home & Garden</option>
+                    <option value="Sports & Outdoors">Sports & Outdoors</option>
+                    <option value="Tools & DIY">Tools & DIY</option>
+                    <option value="Books & Learning">Books & Learning</option>
+                    <option value="Crafts & Creative">Crafts & Creative</option>
+                    <option value="Moving & Storage">Moving & Storage</option>
+                    <option value="Travel & Camping">Travel & Camping</option>
+                    <option value="Other">Other</option>
+                  </select>
+
+                  <select
+                    value={dateSort}
+                    onChange={(e) => {
+                      setDateSort(e.target.value as 'newest' | 'oldest');
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Results Summary */}
+              {filteredListings.length > 0 && (
+                <div className="mt-4 text-sm text-gray-600">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredListings.length)} of {filteredListings.length} listings
+                </div>
+              )}
+            </Card>
+
+            {/* Top Pagination */}
+            {totalPages > 1 && (
+              <Card className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredListings.length)} to {Math.min(currentPage * itemsPerPage, filteredListings.length)} of {filteredListings.length} listings
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      size="sm"
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center space-x-1">
+                      {generatePageNumbers().map((page, index) => (
+                        <button
+                          key={index}
+                          onClick={() => typeof page === 'number' && handlePageChange(page)}
+                          disabled={typeof page !== 'number'}
+                          className={`px-3 py-1 text-sm rounded ${
+                            typeof page === 'number'
+                              ? page === currentPage
+                                ? 'bg-green-600 text-white'
+                                : 'text-gray-600 hover:bg-gray-100'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      size="sm"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Listings Grid */}
+            {paginatedListings.length === 0 ? (
+              <Card className="p-8 text-center">
+                <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-sm font-medium text-gray-900 mb-1">No listings found</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  {filteredListings.length === 0 && listings.length > 0 
+                    ? "No listings match your current filters. Try adjusting the filters above."
+                    : "You haven't listed any items yet. Start earning by listing your first item!"
+                  }
+                </p>
                 <Button
                   onClick={() => router.push('/listings/create')}
                   className="btn-primary"
@@ -544,263 +966,552 @@ export default function MyListingsPage() {
                   <Plus className="w-4 h-4 mr-2" />
                   List Your First Item
                 </Button>
-              </div>
+              </Card>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {listings.map((listing) => (
-                  <Card key={listing.id} className="overflow-hidden">
-                  <div className="relative h-40 md:h-48">
-                    <Image
-                      src={listing.images?.[0] || '/images/placeholder-item.jpg'}
-                      alt={listing.title}
-                      fill
-                      className="object-cover"
-                    />
-                    <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(listing.status)}`}>
-                      {getStatusIcon(listing.status)}
-                      {listing.status === 'pending_approval' ? 'Pending Approval' : 
-                       listing.status === 'rented' ? 'Rented' : 
-                       listing.status}
+              <div className="grid gap-6">
+                {paginatedListings.map((listing) => (
+                  <Card key={listing.id} className="p-6">
+                    <div className="flex gap-6">
+                      {/* Image */}
+                      <div className="w-32 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                        <Image
+                          src={listing.images?.[0] || '/images/placeholder-item.jpg'}
+                          alt={listing.title}
+                          width={128}
+                          height={128}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">{listing.title}</h3>
+                          <div className="flex items-center space-x-3">
+                            <span className="text-lg font-bold text-green-600">
+                              {formatPrice(listing.daily_rate)}/day
+                            </span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getListingStatusColor(listing.status)}`}>
+                              {getListingStatusIcon(listing.status)}
+                              <span className="ml-1">{listing.status === 'pending_approval' ? 'Pending Approval' : 
+                                listing.status === 'rented' ? 'Currently Rented' : 
+                                listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}</span>
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <p className="text-gray-600 mb-3 line-clamp-2">{listing.description}</p>
+                        
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                            {listing.category}
+                          </span>
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                            {format(new Date(listing.created_at), 'MMM d, yyyy')}
+                          </span>
+                          {listing.availability && (
+                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                              Available
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 text-sm text-gray-500 mb-3">
+                          <div>
+                            <strong>{listing.view_count}</strong> views
+                          </div>
+                          <div>
+                            <strong>{listing.total_bookings}</strong> bookings
+                          </div>
+                          <div>
+                            <strong>{formatPrice(listing.total_earnings)}</strong> earned
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            onClick={() => router.push(`/listings/${listing.id}`)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            onClick={() => editListing(listing.id)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            onClick={() => toggleListingStatus(listing.id, listing.status)}
+                            disabled={updatingListings.has(listing.id) || listing.status === 'pending_approval' || listing.status === 'rejected' || listing.status === 'rented'}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {listing.status === 'pending_approval' ? (
+                              <>
+                                <Clock className="w-4 h-4 mr-1" />
+                                Pending
+                              </>
+                            ) : listing.status === 'rejected' ? (
+                              <>
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Rejected
+                              </>
+                            ) : listing.status === 'rented' ? (
+                              <>
+                                <Users className="w-4 h-4 mr-1" />
+                                In Use
+                              </>
+                            ) : listing.status === 'active' ? (
+                              <>
+                                <Pause className="w-4 h-4 mr-1" />
+                                Pause
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-4 h-4 mr-1" />
+                                Activate
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => deleteListing(listing.id, listing.title)}
+                            disabled={updatingListings.has(listing.id)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:border-red-300"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
                     </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Bottom Pagination */}
+            {totalPages > 1 && (
+              <Card className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredListings.length)} to {Math.min(currentPage * itemsPerPage, filteredListings.length)} of {filteredListings.length} listings
                   </div>
-                  <div className="p-3 md:p-4">
-                    <h3 className="font-semibold text-gray-900 mb-2 text-sm md:text-base line-clamp-1">{listing.title}</h3>
-                    <p className="text-xs md:text-sm text-gray-600 mb-3 line-clamp-2">{listing.description}</p>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-base md:text-lg font-bold text-green-600">{formatPrice(listing.daily_rate)}/day</span>
-                      <span className="text-xs md:text-sm text-gray-500 truncate">{listing.category}</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs text-gray-600 mb-3 md:mb-4">
-                      <div className="flex items-center gap-1">
-                        <Eye className="w-3 h-3" />
-                        <span className="truncate">{listing.view_count}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        <span className="truncate">{listing.total_bookings}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" />
-                        <span className="truncate text-xs">{formatPrice(listing.total_earnings)}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-1 md:gap-2 mb-2">
-                      <Button
-                        onClick={() => router.push(`/listings/${listing.id}`)}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs md:text-sm"
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
-                      <Button
-                        onClick={() => editListing(listing.id)}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs md:text-sm"
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      size="sm"
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center space-x-1">
+                      {generatePageNumbers().map((page, index) => (
+                        <button
+                          key={index}
+                          onClick={() => typeof page === 'number' && handlePageChange(page)}
+                          disabled={typeof page !== 'number'}
+                          className={`px-3 py-1 text-sm rounded ${
+                            typeof page === 'number'
+                              ? page === currentPage
+                                ? 'bg-green-600 text-white'
+                                : 'text-gray-600 hover:bg-gray-100'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
                     </div>
                     
-                    <div className="flex gap-1 md:gap-2">
-                      <Button
-                        onClick={() => toggleListingStatus(listing.id, listing.status)}
-                        disabled={updatingListings.has(listing.id) || listing.status === 'pending_approval' || listing.status === 'rejected' || listing.status === 'rented'}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs md:text-sm"
-                      >
-                        {listing.status === 'pending_approval' ? (
-                          <>
-                            <Clock className="w-3 h-3 mr-1" />
-                            <span className="hidden sm:inline">Pending</span>
-                          </>
-                        ) : listing.status === 'rejected' ? (
-                          <>
-                            <XCircle className="w-3 h-3 mr-1" />
-                            <span className="hidden sm:inline">Rejected</span>
-                          </>
-                        ) : listing.status === 'rented' ? (
-                          <>
-                            <Users className="w-3 h-3 mr-1" />
-                            <span className="hidden sm:inline">In Use</span>
-                          </>
-                        ) : listing.status === 'active' ? (
-                          <>
-                            <Pause className="w-3 h-3 mr-1" />
-                            <span className="hidden sm:inline">Pause</span>
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-3 h-3 mr-1" />
-                            <span className="hidden sm:inline">Activate</span>
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        onClick={() => deleteListing(listing.id, listing.title)}
-                        disabled={updatingListings.has(listing.id)}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-red-600 hover:text-red-700 hover:border-red-300 text-xs md:text-sm"
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        <span className="hidden sm:inline">Delete</span>
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      size="sm"
+                    >
+                      Next
+                    </Button>
                   </div>
-                </Card>
-              ))}
-            </div>
+                </div>
+              </Card>
             )}
-          </div>
+          </>
         )}
 
         {activeTab === 'bookings' && (
-          <div className="space-y-3 md:space-y-4">
+          <div className="space-y-6">
             {itemBookings.length === 0 ? (
-              <div className="text-center py-8 md:py-12">
-                <Calendar className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400 mb-4" />
-                <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">No bookings yet</h3>
-                <p className="text-gray-500 mb-4 md:mb-6 text-sm md:text-base">Bookings for your items will appear here.</p>
-              </div>
+              <Card className="p-8 text-center">
+                <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings yet</h3>
+                <p className="text-gray-500 mb-6">Bookings for your items will appear here.</p>
+              </Card>
             ) : (
-              itemBookings.map((booking) => (
-                <Card key={booking.id} className="p-3 md:p-4">
-                  <div className="flex items-center justify-between mb-3 md:mb-4">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-gray-900 text-sm md:text-base truncate">{booking.listing_title}</h3>
-                      <p className="text-xs md:text-sm text-gray-600">
-                        {format(new Date(booking.start_date), 'MMM dd')} - {format(new Date(booking.end_date), 'MMM dd, yyyy')}
-                      </p>
-                    </div>
-                    <div className={`px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2 flex-shrink-0 ${getStatusColor(booking.status)}`}>
-                      {getStatusIcon(booking.status)}
-                      {booking.status}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
-                        <span className="text-xs md:text-sm font-medium truncate">{booking.renter.full_name}</span>
+              <div className="space-y-6">
+                {itemBookings.map((booking) => (
+                  <Card key={booking.id} className="p-6">
+                    <div className="flex gap-6">
+                      {/* Image */}
+                      <div className="w-32 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                        <Image
+                          src={listings.find(l => l.id === booking.listing_id)?.images?.[0] || '/images/placeholder-item.jpg'}
+                          alt={booking.listing_title}
+                          width={128}
+                          height={128}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
-                        <span className="text-xs md:text-sm font-medium">{formatPrice(booking.total_amount)}</span>
+
+                      {/* Content */}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">{booking.listing_title}</h3>
+                          <div className="flex items-center space-x-3">
+                            <span className="text-lg font-bold text-green-600">
+                              {formatPrice(booking.total_amount)}
+                            </span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
+                              {getStatusIcon(booking.status)}
+                              <span className="ml-1">{booking.status.charAt(0).toUpperCase() + booking.status.slice(1).replace('_', ' ')}</span>
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <p className="text-gray-600 mb-3">
+                          Booking request from: {booking.renter.full_name}
+                        </p>
+                        
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                            🏠 My Item
+                          </span>
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                            {format(new Date(booking.start_date), 'MMM d')} - {format(new Date(booking.end_date), 'MMM d, yyyy')}
+                          </span>
+                        </div>
+
+                        <div className="text-sm text-gray-500 mb-3">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <strong>Start:</strong> {format(new Date(booking.start_date), 'MMM d, yyyy')}
+                            </div>
+                            <div>
+                              <strong>End:</strong> {format(new Date(booking.end_date), 'MMM d, yyyy')}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-wrap gap-2">
+                          {/* Owner actions for pending booking requests */}
+                          {booking.status === 'pending' && (
+                            <>
+                              <Button
+                                onClick={() => updateBookingStatus(booking.id, 'payment_required')}
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Accept
+                              </Button>
+                              <Button
+                                onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                                size="sm"
+                                variant="outline"
+                                className="border-red-300 text-red-600 hover:bg-red-50"
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Decline
+                              </Button>
+                            </>
+                          )}
+
+                          {/* Owner actions for return pending bookings */}
+                          {booking.status === 'return_pending' && (
+                            <Button
+                              onClick={() => openOwnerReceiptModal(booking)}
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Confirm Receipt
+                            </Button>
+                          )}
+
+                          {/* Common actions */}
+                          <Button
+                            onClick={() => window.open(`mailto:${booking.renter.email}`)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Mail className="w-4 h-4 mr-1" />
+                            Email
+                          </Button>
+                          <Button
+                            onClick={() => router.push(`/messages?user=${booking.renter.id}`)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <MessageCircle className="w-4 h-4 mr-1" />
+                            Message
+                          </Button>
+                          <Button
+                            onClick={() => setSelectedBooking(booking)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Details
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <Button
-                        onClick={() => window.open(`mailto:${booking.renter.email}`)}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs md:text-sm"
-                      >
-                        <Mail className="w-3 h-3" />
-                        <span className="hidden sm:inline ml-1">Email</span>
-                      </Button>
-                      {booking.renter.phone && (
-                        <Button
-                          onClick={() => window.open(`tel:${booking.renter.phone}`)}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs md:text-sm"
-                        >
-                          <Phone className="w-3 h-3" />
-                          <span className="hidden sm:inline ml-1">Phone</span>
-                        </Button>
-                      )}
-                      <Button
-                        onClick={() => router.push(`/messages?user=${booking.renter.id}`)}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs md:text-sm"
-                      >
-                        <MessageCircle className="w-3 h-3" />
-                        <span className="hidden sm:inline ml-1">Message</span>
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))
+                  </Card>
+                ))}
+              </div>
             )}
           </div>
         )}
 
         {activeTab === 'earnings' && (
-          <div className="space-y-4 md:space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              <Card className="p-4 md:p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 md:p-3 bg-green-100 rounded-lg">
-                    <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <DollarSign className="w-6 h-6 text-green-600" />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs md:text-sm text-gray-600">Total Earnings</p>
-                    <p className="text-xl md:text-2xl font-bold text-gray-900">{formatPrice(totalEarnings)}</p>
-                    <p className="text-xs md:text-sm text-green-600">+12% from last month</p>
-                  </div>
-                </div>
-              </Card>
-              
-              <Card className="p-4 md:p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 md:p-3 bg-blue-100 rounded-lg">
-                    <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs md:text-sm text-gray-600">This Month</p>
-                    <p className="text-xl md:text-2xl font-bold text-gray-900">{formatPrice(450)}</p>
-                    <p className="text-xs md:text-sm text-blue-600">3 completed rentals</p>
+                  <div>
+                    <p className="text-sm text-gray-500">Total Earnings</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatPrice(totalEarnings)}</p>
+                    <p className="text-sm text-green-600">+12% from last month</p>
                   </div>
                 </div>
               </Card>
               
-              <Card className="p-4 md:p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 md:p-3 bg-purple-100 rounded-lg">
-                    <Calendar className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
+              <Card className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <TrendingUp className="w-6 h-6 text-blue-600" />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs md:text-sm text-gray-600">Avg per Booking</p>
-                    <p className="text-xl md:text-2xl font-bold text-gray-900">{formatPrice(totalEarnings / totalBookings)}</p>
-                    <p className="text-xs md:text-sm text-purple-600">Across {totalBookings} bookings</p>
+                  <div>
+                    <p className="text-sm text-gray-500">This Month</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatPrice(450)}</p>
+                    <p className="text-sm text-blue-600">3 completed rentals</p>
+                  </div>
+                </div>
+              </Card>
+              
+              <Card className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <Calendar className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Avg per Booking</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {totalBookings > 0 ? formatPrice(totalEarnings / totalBookings) : formatPrice(0)}
+                    </p>
+                    <p className="text-sm text-purple-600">Across {totalBookings} bookings</p>
                   </div>
                 </div>
               </Card>
             </div>
 
-            <Card className="p-4 md:p-6">
-              <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Top Performing Items</h3>
-              <div className="space-y-3 md:space-y-4">
-                {listings
-                  .sort((a, b) => b.total_earnings - a.total_earnings)
-                  .slice(0, 3)
-                  .map((listing, index) => (
-                    <div key={listing.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 md:w-8 md:h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm">
-                          {index + 1}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Items</h3>
+              <div className="space-y-4">
+                {listings.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p className="text-gray-500">No items to show earnings for yet.</p>
+                  </div>
+                ) : (
+                  listings
+                    .sort((a, b) => b.total_earnings - a.total_earnings)
+                    .slice(0, 3)
+                    .map((listing, index) => (
+                      <div key={listing.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{listing.title}</p>
+                            <p className="text-sm text-gray-600">{listing.total_bookings} bookings</p>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-gray-900 text-sm md:text-base truncate">{listing.title}</p>
-                          <p className="text-xs md:text-sm text-gray-600">{listing.total_bookings} bookings</p>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">{formatPrice(listing.total_earnings)}</p>
+                          <p className="text-sm text-gray-600">{formatPrice(listing.daily_rate)}/day</p>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-semibold text-gray-900 text-sm md:text-base">{formatPrice(listing.total_earnings)}</p>
-                        <p className="text-xs md:text-sm text-gray-600">{formatPrice(listing.daily_rate)}/day</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                )}
               </div>
             </Card>
+          </div>
+        )}
+
+        {/* Booking Details Modal */}
+        {selectedBooking && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg md:text-xl font-bold">Booking Details</h2>
+                  <button
+                    onClick={() => setSelectedBooking(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-5 h-5 md:w-6 md:h-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4 md:space-y-6">
+                  {/* Item Info */}
+                  <div>
+                    <h3 className="font-semibold mb-2 text-sm md:text-base">Item Information</h3>
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <Image
+                        src={listings.find(l => l.id === selectedBooking.listing_id)?.images?.[0] || '/images/placeholder-item.jpg'}
+                        alt={selectedBooking.listing_title}
+                        width={80}
+                        height={80}
+                        className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-lg"
+                      />
+                      <div>
+                        <p className="font-medium text-sm md:text-base">{selectedBooking.listing_title}</p>
+                        <p className="text-xs md:text-sm text-gray-600">Category: Item category</p>
+                        <p className="text-xs md:text-sm text-green-600">{formatPrice(selectedBooking.total_amount)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Renter Contact */}
+                  <div>
+                    <h3 className="font-semibold mb-2 text-sm md:text-base">Renter Contact</h3>
+                    <div className="space-y-2">
+                      <p className="text-sm md:text-base">{selectedBooking.renter.full_name}</p>
+                      <p className="text-xs md:text-sm text-gray-600">{selectedBooking.renter.email}</p>
+                      {selectedBooking.renter.phone && (
+                        <p className="text-xs md:text-sm text-gray-600">{selectedBooking.renter.phone}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Booking Dates */}
+                  <div>
+                    <h3 className="font-semibold mb-2 text-sm md:text-base">Booking Period</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <Calendar className="w-3 h-3 md:w-4 md:h-4 text-gray-400 mt-0.5" />
+                        <div>
+                          <p className="text-xs md:text-sm font-medium">Start Date</p>
+                          <p className="text-xs md:text-sm text-gray-600">{format(new Date(selectedBooking.start_date), 'MMM d, yyyy')}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Calendar className="w-3 h-3 md:w-4 md:h-4 text-gray-400 mt-0.5" />
+                        <div>
+                          <p className="text-xs md:text-sm font-medium">End Date</p>
+                          <p className="text-xs md:text-sm text-gray-600">{format(new Date(selectedBooking.end_date), 'MMM d, yyyy')}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Information */}
+                  <div>
+                    <h3 className="font-semibold mb-2 text-sm md:text-base">Payment Information</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Total Amount:</span>
+                        <span className="text-sm font-medium">{formatPrice(selectedBooking.total_amount)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Status:</span>
+                        <span className={`text-sm px-2 py-1 rounded-full ${getStatusColor(selectedBooking.status)}`}>
+                          {selectedBooking.status.charAt(0).toUpperCase() + selectedBooking.status.slice(1).replace('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Simple Confirmation Modal - Inline for now */}
+        {confirmationModal.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold mb-4">
+                Confirm {confirmationModal.type === 'pickup' ? 'Pickup' : 'Return'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to confirm the {confirmationModal.type} for this booking?
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    if (confirmationModal.type === 'pickup') {
+                      handlePickupConfirmation({ notes: '', condition: 'Good' });
+                    } else {
+                      handleReturnConfirmation({ notes: '', condition: 'Good' });
+                    }
+                    closeConfirmationModal();
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Confirm
+                </Button>
+                <Button onClick={closeConfirmationModal} variant="outline">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Owner Receipt Modal - Inline for now */}
+        {ownerReceiptModal.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold mb-4">Confirm Item Receipt</h3>
+              <p className="text-gray-600 mb-4">
+                Confirm that you have received the item back from the renter.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    handleOwnerReceiptConfirmation({ 
+                      notes: 'Item returned successfully', 
+                      condition: 'Good', 
+                      hasIssues: false 
+                    });
+                    closeOwnerReceiptModal();
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Confirm Receipt
+                </Button>
+                <Button onClick={closeOwnerReceiptModal} variant="outline">
+                  Cancel
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>
