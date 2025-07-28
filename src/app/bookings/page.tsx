@@ -232,7 +232,6 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'active' | 'past' | 'all'>('upcoming');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [deliveryFilter, setDeliveryFilter] = useState<string>('all');
@@ -257,7 +256,7 @@ export default function BookingsPage() {
 
   useEffect(() => {
     loadBookings();
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
     filterBookings();
@@ -441,27 +440,6 @@ export default function BookingsPage() {
 
   const filterBookings = () => {
     let filtered = [...bookings];
-
-    // Filter by tab (timeline)
-    const now = new Date();
-    if (activeTab === 'upcoming') {
-      filtered = filtered.filter(booking => 
-        isAfter(new Date(booking.start_date), now) && 
-        (booking.status === 'confirmed' || booking.status === 'pending' || booking.status === 'payment_required')
-      );
-    } else if (activeTab === 'active') {
-      filtered = filtered.filter(booking => 
-        (booking.status === 'in_progress' || booking.status === 'return_pending') && 
-        isAfter(new Date(booking.end_date), now) // Only check that rental hasn't ended yet
-      );
-    } else if (activeTab === 'past') {
-      filtered = filtered.filter(booking => 
-        isBefore(new Date(booking.end_date), now) &&
-        (booking.status === 'completed' || booking.status === 'cancelled')
-      );
-    } else if (activeTab === 'all') {
-      // Don't filter by date for "all" tab, show all bookings
-    }
 
     // Filter by status
     if (statusFilter !== 'all') {
@@ -715,56 +693,6 @@ export default function BookingsPage() {
           </Button>
         </div>
 
-        {/* Timeline Tabs */}
-        <div className="mb-4 md:mb-6">
-          <div className="flex space-x-1 bg-gray-50 p-1 rounded-lg overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('upcoming')}
-              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-md transition-colors flex-shrink-0 ${
-                activeTab === 'upcoming'
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Timer className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 inline" />
-              Upcoming
-            </button>
-            <button
-              onClick={() => setActiveTab('active')}
-              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-md transition-colors flex-shrink-0 ${
-                activeTab === 'active'
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Zap className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 inline" />
-              Active
-            </button>
-            <button
-              onClick={() => setActiveTab('past')}
-              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-md transition-colors flex-shrink-0 ${
-                activeTab === 'past'
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <CheckSquare className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 inline" />
-              Past
-            </button>
-            <button
-              onClick={() => setActiveTab('all')}
-              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-md transition-colors flex-shrink-0 ${
-                activeTab === 'all'
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <List className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 inline" />
-              All
-            </button>
-          </div>
-        </div>
-
         {/* Filters */}
         <Card className="p-4 md:p-6 mb-4 md:mb-6">
           <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
@@ -816,17 +744,6 @@ export default function BookingsPage() {
                   <option value="delivery">Delivery Only</option>
                 </select>
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" className="text-xs md:text-sm">
-                <Download className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                Export
-              </Button>
-              <Button variant="outline" size="sm" onClick={loadBookings} className="text-xs md:text-sm">
-                <RefreshCw className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                Refresh
-              </Button>
             </div>
           </div>
         </Card>
