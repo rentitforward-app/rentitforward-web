@@ -8,8 +8,8 @@ export default function HowItWorksPage() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-50 to-primary-100 py-16">
-        <div className="container">
-          <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-screen-2xl mx-auto px-4">
+          <div className="text-center">
             <h1 className="font-primary text-4xl md:text-5xl font-bold text-secondary mb-6">
               How It Works
             </h1>
@@ -23,7 +23,7 @@ export default function HowItWorksPage() {
 
       {/* For Renters */}
       <section className="py-16 bg-white">
-        <div className="container">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-secondary mb-4">For Renters</h2>
             <p className="text-lg text-gray-600">Find and rent exactly what you need from your local community</p>
@@ -75,7 +75,7 @@ export default function HowItWorksPage() {
 
       {/* For Lenders */}
       <section className="py-16 bg-gray-50">
-        <div className="container">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-secondary mb-4">For Lenders</h2>
             <p className="text-lg text-gray-600">Turn your unused items into a source of passive income</p>
@@ -127,7 +127,7 @@ export default function HowItWorksPage() {
 
       {/* Safety & Trust */}
       <section className="py-16 bg-white">
-        <div className="container">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-secondary mb-4">Safety & Trust</h2>
             <p className="text-lg text-gray-600">Your security and peace of mind are our top priorities</p>
@@ -169,61 +169,59 @@ export default function HowItWorksPage() {
 
       {/* Pricing */}
       <section className="py-16 bg-gray-50">
-        <div className="container">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-secondary mb-4">Transparent Pricing</h2>
-              <p className="text-lg text-gray-600">Simple, fair fees with no hidden costs</p>
-            </div>
-            
-            <Card variant="elevated" padding="lg">
-              <CardContent className="p-0">
-                <div className="grid md:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="text-2xl font-bold text-secondary mb-4">For Renters</h3>
-                    <ul className="space-y-3 text-gray-600">
-                      <li className="flex items-center">
-                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                        Booking fee: 5% of rental cost
-                      </li>
-                      <li className="flex items-center">
-                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                        Payment processing: 2.9% + $0.30
-                      </li>
-                      <li className="flex items-center">
-                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                        Insurance coverage included
-                      </li>
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-2xl font-bold text-secondary mb-4">For Lenders</h3>
-                    <ul className="space-y-3 text-gray-600">
-                      <li className="flex items-center">
-                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                        Service fee: 3% of rental income
-                      </li>
-                      <li className="flex items-center">
-                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                        Free listing creation
-                      </li>
-                      <li className="flex items-center">
-                        <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                        Automatic payouts
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="max-w-screen-2xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-secondary mb-4">Transparent Pricing</h2>
+            <p className="text-lg text-gray-600">Simple, fair fees with no hidden costs</p>
           </div>
+          
+          <Card variant="elevated" padding="lg">
+            <CardContent className="p-0">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-secondary mb-4">For Renters</h3>
+                  <ul className="space-y-3 text-gray-600">
+                    <li className="flex items-center">
+                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                      Booking fee: 5% of rental cost
+                    </li>
+                    <li className="flex items-center">
+                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                      Payment processing: 2.9% + $0.30
+                    </li>
+                    <li className="flex items-center">
+                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                      Insurance coverage included
+                    </li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h3 className="text-2xl font-bold text-secondary mb-4">For Lenders</h3>
+                  <ul className="space-y-3 text-gray-600">
+                    <li className="flex items-center">
+                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                      Service fee: 3% of rental income
+                    </li>
+                    <li className="flex items-center">
+                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                      Free listing creation
+                    </li>
+                    <li className="flex items-center">
+                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                      Automatic payouts
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
       {/* CTA */}
       <section className="py-16 bg-primary-50">
-        <div className="container">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-secondary mb-4">Ready to Get Started?</h2>
             <p className="text-lg text-gray-600 mb-8">

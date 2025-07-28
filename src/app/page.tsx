@@ -195,7 +195,7 @@ function DashboardOverview() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center">
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -347,12 +347,12 @@ function DashboardOverview() {
         {/* Popular Categories for Quick Browsing */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Browse Popular Categories</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             {categories.slice(0, 6).map((category, index) => (
               <Link 
                 key={index}
                 href={`/browse?category=${category.slug}`}
-                className="text-center p-4 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all duration-200 group"
+                className="text-center p-4 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all duration-200 group w-32 sm:w-36 lg:w-40 flex-shrink-0"
               >
                 <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">
                   {category.icon}
@@ -406,7 +406,7 @@ function MarketingHomepage() {
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
         
-        <div className="max-w-6xl mx-auto text-center relative z-10">
+        <div className="max-w-screen-2xl mx-auto text-center relative z-10">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-6 sm:mb-8 leading-tight px-4">
             Share More, Buy Less
           </h1>
@@ -437,7 +437,7 @@ function MarketingHomepage() {
 
       {/* Browse by Categories */}
       <section className="py-12 sm:py-16 lg:py-20 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Browse by Categories</h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
@@ -445,12 +445,12 @@ function MarketingHomepage() {
             </p>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
             {categories.map((category, index) => (
               <Link 
                 key={index}
                 href={`/browse?category=${category.slug}`}
-                className="bg-white rounded-2xl p-4 sm:p-6 text-center shadow-sm hover:shadow-md transition-all duration-300 group border border-gray-100"
+                className="bg-white rounded-2xl p-4 sm:p-6 text-center shadow-sm hover:shadow-md transition-all duration-300 group border border-gray-100 w-40 sm:w-44 lg:w-48 xl:w-52 flex-shrink-0"
               >
                 <div className="text-3xl sm:text-4xl lg:text-5xl mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300">
                   {category.icon}
@@ -466,7 +466,7 @@ function MarketingHomepage() {
 
       {/* Why Rent It Forward */}
       <section className="py-12 sm:py-16 lg:py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center text-gray-900 mb-12 sm:mb-16">Why Rent It Forward?</h2>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -505,7 +505,7 @@ function MarketingHomepage() {
 
       {/* Top Rented Items */}
       <section className="py-12 sm:py-16 lg:py-20 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center text-gray-900 mb-12 sm:mb-16">Top Rented Items</h2>
           
           <TopListings limit={4} />
@@ -514,7 +514,7 @@ function MarketingHomepage() {
 
       {/* How It Works */}
       <section className="py-12 sm:py-16 lg:py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center text-gray-900 mb-12 sm:mb-16">How It Works</h2>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-12">
@@ -563,7 +563,7 @@ function MarketingHomepage() {
 
       {/* Help and Policies */}
       <section className="py-12 sm:py-16 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="grid sm:grid-cols-2 gap-8 sm:gap-12">
             <div className="text-center sm:text-left">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">Need Help?</h3>
@@ -598,7 +598,7 @@ function MarketingHomepage() {
 
       {/* Call to Action */}
       <section className="py-12 sm:py-16 lg:py-20 bg-green-500">
-        <div className="max-w-4xl mx-auto text-center px-4">
+        <div className="max-w-screen-2xl mx-auto text-center px-4">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 sm:mb-6">
             Ready to Start Sharing?
           </h2>

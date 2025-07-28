@@ -8,8 +8,8 @@ export default function ContactPage() {
     <div>
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-50 to-primary-100 py-16">
-        <div className="container">
-          <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-screen-2xl mx-auto px-4">
+          <div className="text-center">
             <h1 className="font-primary text-4xl md:text-5xl font-bold text-secondary mb-6">
               Contact Us
             </h1>
@@ -23,7 +23,7 @@ export default function ContactPage() {
 
       {/* Contact Information */}
       <section className="py-16 bg-white">
-        <div className="container">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Contact Details */}
             <div>
@@ -177,8 +177,8 @@ export default function ContactPage() {
 
       {/* FAQ Link */}
       <section className="py-16 bg-gray-50">
-        <div className="container">
-          <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-screen-2xl mx-auto px-4">
+          <div className="text-center">
             <h2 className="text-3xl font-bold text-secondary mb-6">Need Quick Answers?</h2>
             <p className="text-lg text-gray-600 leading-relaxed mb-8">
               Check our FAQ section for instant answers to common questions, 

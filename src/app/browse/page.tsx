@@ -1190,7 +1190,7 @@ function BrowseContent() {
 
       {/* Results Header */}
       <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4 relative z-10" data-results-section>
-        <div className="max-w-screen-xl mx-auto">
+        <div className="max-w-screen-2xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4">
             <div className="flex items-center space-x-2 md:space-x-4">
               <h1 className="text-lg md:text-xl font-semibold text-gray-900">
@@ -1239,7 +1239,7 @@ function BrowseContent() {
 
       {/* Results Grid */}
       <div className="px-2 py-4 md:px-4 md:py-6">
-        <div className="max-w-screen-xl mx-auto">
+        <div className="max-w-screen-2xl mx-auto">
           {filteredListings.length === 0 ? (
             <div className="text-center py-8 md:py-12">
               <p className="text-gray-500 text-base md:text-lg mb-4">No items found</p>
@@ -1248,7 +1248,7 @@ function BrowseContent() {
           ) : (
             <>
               {viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
                   {paginatedListings.map((listing) => {
                     return (
                       <ListingCard

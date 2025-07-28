@@ -8,8 +8,8 @@ export default function AboutPage() {
     <div>
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-50 to-primary-100 py-16">
-        <div className="container">
-          <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-screen-2xl mx-auto px-4">
+          <div className="text-center">
             <h1 className="font-primary text-4xl md:text-5xl font-bold text-secondary mb-6">
               About Rent It Forward
             </h1>
@@ -23,7 +23,7 @@ export default function AboutPage() {
 
       {/* Mission & Vision */}
       <section className="py-16 bg-white">
-        <div className="container">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl font-bold text-secondary mb-6">Our Mission</h2>
@@ -54,7 +54,7 @@ export default function AboutPage() {
 
       {/* Core Values */}
       <section className="py-16 bg-gray-50">
-        <div className="container">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center text-secondary mb-12">Our Core Values</h2>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -111,8 +111,8 @@ export default function AboutPage() {
 
       {/* CTA */}
       <section className="py-16 bg-primary-50">
-        <div className="container">
-          <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-screen-2xl mx-auto px-4">
+          <div className="text-center">
             <h2 className="text-3xl font-bold text-secondary mb-6">Join Our Mission</h2>
             <p className="text-lg text-gray-600 leading-relaxed mb-8">
               Whether you're looking to rent something you need or earn income from items 
