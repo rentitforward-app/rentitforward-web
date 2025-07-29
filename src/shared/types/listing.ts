@@ -19,16 +19,17 @@ export enum ListingCondition {
 }
 
 export enum ListingCategory {
-  TOOLS_DIY = 'tools_diy',
-  ELECTRONICS = 'electronics',
-  CAMERAS = 'cameras',
-  SPORTS_OUTDOORS = 'sports_outdoors',
-  EVENT_PARTY = 'event_party',
-  INSTRUMENTS = 'instruments',
-  AUTOMOTIVE = 'automotive',
-  HOME_GARDEN = 'home_garden',
-  APPLIANCES = 'appliances',
-  OTHER = 'other'
+  TOOLS_DIY_EQUIPMENT = 'tools_diy_equipment',
+  CAMERAS_PHOTOGRAPHY_GEAR = 'cameras_photography_gear',
+  EVENT_PARTY_EQUIPMENT = 'event_party_equipment',
+  CAMPING_OUTDOOR_GEAR = 'camping_outdoor_gear',
+  TECH_ELECTRONICS = 'tech_electronics',
+  VEHICLES_TRANSPORT = 'vehicles_transport',
+  HOME_GARDEN_APPLIANCES = 'home_garden_appliances',
+  SPORTS_FITNESS_EQUIPMENT = 'sports_fitness_equipment',
+  MUSICAL_INSTRUMENTS_GEAR = 'musical_instruments_gear',
+  COSTUMES_PROPS = 'costumes_props',
+  MAKER_CRAFT_SUPPLIES = 'maker_craft_supplies'
 }
 
 export enum PricingType {
@@ -78,7 +79,6 @@ export const ListingSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100),
   description: z.string().min(10, 'Description must be at least 10 characters').max(2000),
   category: z.nativeEnum(ListingCategory),
-  subcategory: z.string().optional(),
   condition: z.nativeEnum(ListingCondition),
   brand: z.string().optional(),
   model: z.string().optional(),

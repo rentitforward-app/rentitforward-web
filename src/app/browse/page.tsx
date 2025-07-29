@@ -68,16 +68,17 @@ interface Listing {
 }
 
 const categories = {
-  'Tools & DIY': { label: 'Tools & DIY', icon: '🔧' },
-  'Electronics': { label: 'Electronics', icon: '📱' },
-  'Cameras': { label: 'Cameras', icon: '📷' },
-  'Sports & Outdoors': { label: 'Sports & Outdoors', icon: '🏃' },
-  'Event & Party': { label: 'Event & Party', icon: '🎉' },
-  'Instruments': { label: 'Instruments', icon: '🎸' },
-  'Automotive': { label: 'Automotive', icon: '🚗' },
-  'Home & Garden': { label: 'Home & Garden', icon: '🏡' },
-  'Appliances': { label: 'Appliances', icon: '🔌' },
-  'Other': { label: 'Other', icon: '📦' }
+  'Tools & DIY Equipment': { label: 'Tools & DIY Equipment', icon: '🔧' },
+  'Cameras & Photography Gear': { label: 'Cameras & Photography Gear', icon: '📷' },
+  'Event & Party Equipment': { label: 'Event & Party Equipment', icon: '🎉' },
+  'Camping & Outdoor Gear': { label: 'Camping & Outdoor Gear', icon: '🏕️' },
+  'Tech & Electronics': { label: 'Tech & Electronics', icon: '📱' },
+  'Vehicles & Transport': { label: 'Vehicles & Transport', icon: '🚗' },
+  'Home & Garden Appliances': { label: 'Home & Garden Appliances', icon: '🏡' },
+  'Sports & Fitness Equipment': { label: 'Sports & Fitness Equipment', icon: '🏃' },
+  'Musical Instruments & Gear': { label: 'Musical Instruments & Gear', icon: '🎸' },
+  'Costumes & Props': { label: 'Costumes & Props', icon: '🎭' },
+  'Maker & Craft Supplies': { label: 'Maker & Craft Supplies', icon: '✂️' }
 };
 
 const australianStates = [

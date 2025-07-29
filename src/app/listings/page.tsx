@@ -861,20 +861,17 @@ export default function MyListingsPage() {
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   >
                     <option value="all">All Categories</option>
-                    <option value="Automotive">Automotive</option>
-                    <option value="Appliances">Appliances</option>
-                    <option value="Event & Party">Event & Party</option>
-                    <option value="Instruments">Instruments</option>
-                    <option value="Cameras">Cameras</option>
-                    <option value="Electronics">Electronics</option>
-                    <option value="Home & Garden">Home & Garden</option>
-                    <option value="Sports & Outdoors">Sports & Outdoors</option>
-                    <option value="Tools & DIY">Tools & DIY</option>
-                    <option value="Books & Learning">Books & Learning</option>
-                    <option value="Crafts & Creative">Crafts & Creative</option>
-                    <option value="Moving & Storage">Moving & Storage</option>
-                    <option value="Travel & Camping">Travel & Camping</option>
-                    <option value="Other">Other</option>
+                    <option value="Tools & DIY Equipment">Tools & DIY Equipment</option>
+                    <option value="Cameras & Photography Gear">Cameras & Photography Gear</option>
+                    <option value="Event & Party Equipment">Event & Party Equipment</option>
+                    <option value="Camping & Outdoor Gear">Camping & Outdoor Gear</option>
+                    <option value="Tech & Electronics">Tech & Electronics</option>
+                    <option value="Vehicles & Transport">Vehicles & Transport</option>
+                    <option value="Home & Garden Appliances">Home & Garden Appliances</option>
+                    <option value="Sports & Fitness Equipment">Sports & Fitness Equipment</option>
+                    <option value="Musical Instruments & Gear">Musical Instruments & Gear</option>
+                    <option value="Costumes & Props">Costumes & Props</option>
+                    <option value="Maker & Craft Supplies">Maker & Craft Supplies</option>
                   </select>
 
                   <select

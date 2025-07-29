@@ -109,16 +109,18 @@ export default function TopListings({ limit = 4 }: TopListingsProps) {
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                   <span className="text-4xl text-gray-400">
-                    {item.category === 'Electronics' && '📱'}
-                    {item.category === 'Cameras' && '📷'}
-                    {item.category === 'Tools & DIY' && '🔧'}
-                    {item.category === 'Sports & Outdoors' && '🚴'}
-                    {item.category === 'Event & Party' && '🎉'}
-                    {item.category === 'Appliances' && '🏠'}
-                    {item.category === 'Automotive' && '🚗'}
-                    {item.category === 'Instruments' && '🎵'}
-                    {item.category === 'Home & Garden' && '🌱'}
-                    {!['Electronics', 'Cameras', 'Tools & DIY', 'Sports & Outdoors', 'Event & Party', 'Appliances', 'Automotive', 'Instruments', 'Home & Garden'].includes(item.category) && '📦'}
+                    {item.category === 'Tech & Electronics' && '📱'}
+                    {item.category === 'Cameras & Photography Gear' && '📷'}
+                    {item.category === 'Tools & DIY Equipment' && '🔧'}
+                    {item.category === 'Sports & Fitness Equipment' && '🏃'}
+                    {item.category === 'Event & Party Equipment' && '🎉'}
+                    {item.category === 'Home & Garden Appliances' && '🏡'}
+                    {item.category === 'Vehicles & Transport' && '🚗'}
+                    {item.category === 'Musical Instruments & Gear' && '🎸'}
+                    {item.category === 'Camping & Outdoor Gear' && '🏕️'}
+                    {item.category === 'Costumes & Props' && '🎭'}
+                    {item.category === 'Maker & Craft Supplies' && '✂️'}
+                    {!['Tech & Electronics', 'Cameras & Photography Gear', 'Tools & DIY Equipment', 'Sports & Fitness Equipment', 'Event & Party Equipment', 'Home & Garden Appliances', 'Vehicles & Transport', 'Musical Instruments & Gear', 'Camping & Outdoor Gear', 'Costumes & Props', 'Maker & Craft Supplies'].includes(item.category) && '📦'}
                   </span>
                 </div>
               )}

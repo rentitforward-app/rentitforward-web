@@ -28,65 +28,60 @@ export const FONTS = {
 
 // Category Configuration
 export const CATEGORIES = {
-  TOOLS_DIY: {
-    label: 'Tools & DIY',
+  TOOLS_DIY_EQUIPMENT: {
+    label: 'Tools & DIY Equipment',
     icon: '🔧',
-    color: '#FF6B35',
-    subcategories: ['Power Tools', 'Hand Tools', 'Measuring Tools', 'Safety Equipment', 'Ladders & Scaffolding']
+    color: '#FF6B35'
   },
-  ELECTRONICS: {
-    label: 'Electronics',
-    icon: '📱',
-    color: '#4ECDC4',
-    subcategories: ['Computers', 'Audio', 'Gaming', 'Smart Home', 'Tablets']
-  },
-  CAMERAS: {
-    label: 'Cameras',
+  CAMERAS_PHOTOGRAPHY_GEAR: {
+    label: 'Cameras & Photography Gear',
     icon: '📷',
-    color: '#45B7D1',
-    subcategories: ['DSLR', 'Mirrorless', 'Action Cameras', 'Lenses', 'Accessories']
+    color: '#45B7D1'
   },
-  SPORTS_OUTDOORS: {
-    label: 'Sports & Outdoors',
-    icon: '🏃',
-    color: '#96CEB4',
-    subcategories: ['Camping', 'Cycling', 'Water Sports', 'Winter Sports', 'Fitness']
-  },
-  EVENT_PARTY: {
-    label: 'Event & Party',
+  EVENT_PARTY_EQUIPMENT: {
+    label: 'Event & Party Equipment',
     icon: '🎉',
-    color: '#FECA57',
-    subcategories: ['Sound Systems', 'Lighting', 'Decorations', 'Furniture', 'Catering Equipment']
+    color: '#FECA57'
   },
-  INSTRUMENTS: {
-    label: 'Instruments',
-    icon: '🎸',
-    color: '#FF9FF3',
-    subcategories: ['Guitars', 'Keyboards', 'Drums', 'Wind Instruments', 'Recording Equipment']
+  CAMPING_OUTDOOR_GEAR: {
+    label: 'Camping & Outdoor Gear',
+    icon: '🏕️',
+    color: '#96CEB4'
   },
-  AUTOMOTIVE: {
-    label: 'Automotive',
+  TECH_ELECTRONICS: {
+    label: 'Tech & Electronics',
+    icon: '📱',
+    color: '#4ECDC4'
+  },
+  VEHICLES_TRANSPORT: {
+    label: 'Vehicles & Transport',
     icon: '🚗',
-    color: '#54A0FF',
-    subcategories: ['Car Care', 'Tools', 'Accessories', 'Bike Racks', 'Trailers']
+    color: '#54A0FF'
   },
-  HOME_GARDEN: {
-    label: 'Home & Garden',
+  HOME_GARDEN_APPLIANCES: {
+    label: 'Home & Garden Appliances',
     icon: '🏡',
-    color: '#5F27CD',
-    subcategories: ['Gardening Tools', 'Lawn Care', 'Cleaning Equipment', 'Furniture', 'Appliances']
+    color: '#5F27CD'
   },
-  APPLIANCES: {
-    label: 'Appliances',
-    icon: '🏠',
-    color: '#00D2D3',
-    subcategories: ['Kitchen', 'Laundry', 'Heating & Cooling', 'Small Appliances', 'Cleaning']
+  SPORTS_FITNESS_EQUIPMENT: {
+    label: 'Sports & Fitness Equipment',
+    icon: '🏃',
+    color: '#FF9F43'
   },
-  OTHER: {
-    label: 'Other',
-    icon: '📦',
-    color: '#A0A0A0',
-    subcategories: ['Books', 'Games', 'Baby Items', 'Pet Supplies', 'Miscellaneous']
+  MUSICAL_INSTRUMENTS_GEAR: {
+    label: 'Musical Instruments & Gear',
+    icon: '🎸',
+    color: '#FF9FF3'
+  },
+  COSTUMES_PROPS: {
+    label: 'Costumes & Props',
+    icon: '🎭',
+    color: '#A4B0BE'
+  },
+  MAKER_CRAFT_SUPPLIES: {
+    label: 'Maker & Craft Supplies',
+    icon: '✂️',
+    color: '#2ED573'
   }
 } as const;
 

@@ -12,41 +12,71 @@ import { useRouter } from 'next/navigation'
 
 const categories = [
   { 
-    name: 'Tools & DIY', 
+    name: 'Tools & DIY Equipment', 
     icon: '🔧', 
-    slug: 'tools-diy',
+    slug: 'tools-diy-equipment',
     items: ['drills', 'saws', 'ladders', 'power tools']
   },
   { 
-    name: 'Electronics', 
-    icon: '📱', 
-    slug: 'electronics',
-    items: ['laptops', 'tablets', 'gaming', 'audio devices']
-  },
-  { 
-    name: 'Cameras', 
+    name: 'Cameras & Photography Gear', 
     icon: '📷', 
-    slug: 'cameras',
+    slug: 'cameras-photography-gear',
     items: ['DSLR cameras', 'lenses', 'tripods', 'lighting']
   },
   { 
-    name: 'Sports & Outdoors', 
-    icon: '🚴', 
-    slug: 'sports-outdoors',
-    items: ['bikes', 'kayaks', 'camping gear', 'sports equipment']
-  },
-  { 
-    name: 'Event & Party', 
+    name: 'Event & Party Equipment', 
     icon: '🎉', 
-    slug: 'event-party',
-    items: ['speakers', 'decorations', 'costumes', 'party supplies']
+    slug: 'event-party-equipment',
+    items: ['speakers', 'decorations', 'lighting', 'party supplies']
   },
   { 
-    name: 'Tools & Equipment', 
-    icon: '🔨', 
-    slug: 'tools-equipment',
-    items: ['pressure washers', 'generators', 'lawn equipment', 'construction tools']
+    name: 'Camping & Outdoor Gear', 
+    icon: '🏕️', 
+    slug: 'camping-outdoor-gear',
+    items: ['tents', 'sleeping bags', 'camping gear', 'hiking equipment']
   },
+  { 
+    name: 'Tech & Electronics', 
+    icon: '📱', 
+    slug: 'tech-electronics',
+    items: ['laptops', 'tablets', 'gaming', 'audio devices']
+  },
+  { 
+    name: 'Vehicles & Transport', 
+    icon: '🚗', 
+    slug: 'vehicles-transport',
+    items: ['cars', 'bikes', 'trailers', 'mobility equipment']
+  },
+  { 
+    name: 'Home & Garden Appliances', 
+    icon: '🏡', 
+    slug: 'home-garden-appliances',
+    items: ['appliances', 'garden tools', 'lawn equipment', 'home tools']
+  },
+  { 
+    name: 'Sports & Fitness Equipment', 
+    icon: '🏃', 
+    slug: 'sports-fitness-equipment',
+    items: ['exercise equipment', 'sports gear', 'bikes', 'fitness accessories']
+  },
+  { 
+    name: 'Musical Instruments & Gear', 
+    icon: '🎸', 
+    slug: 'musical-instruments-gear',
+    items: ['guitars', 'keyboards', 'drums', 'recording equipment']
+  },
+  { 
+    name: 'Costumes & Props', 
+    icon: '🎭', 
+    slug: 'costumes-props',
+    items: ['costumes', 'props', 'theatrical gear', 'party accessories']
+  },
+  { 
+    name: 'Maker & Craft Supplies', 
+    icon: '✂️', 
+    slug: 'maker-craft-supplies',
+    items: ['craft tools', 'art supplies', 'maker equipment', 'creative materials']
+  }
 ]
 
 // Dashboard Overview Component for Logged-in Users
@@ -348,7 +378,7 @@ function DashboardOverview() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Browse Popular Categories</h2>
           <div className="flex flex-wrap justify-center gap-4">
-            {categories.slice(0, 6).map((category, index) => (
+            {categories.slice(0, 8).map((category, index) => (
               <Link 
                 key={index}
                 href={`/browse?category=${category.slug}`}

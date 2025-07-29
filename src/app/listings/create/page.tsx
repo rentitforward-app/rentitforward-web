@@ -37,97 +37,38 @@ declare global {
 }
 
 const categories = {
-  'appliances': { 
-    label: 'Appliances',
-    subcategories: ['Cleaning', 'Heating & Cooling', 'Kitchen', 'Laundry', 'Small Appliances'] 
+  'tools-diy-equipment': { 
+    label: 'Tools & DIY Equipment'
   },
-  'automotive': { 
-    label: 'Automotive',
-    subcategories: ['Accessories', 'Bike Racks', 'Car Care', 'Tools', 'Trailers'] 
+  'cameras-photography-gear': { 
+    label: 'Cameras & Photography Gear'
   },
-  'books-learning': {
-    label: 'Books & Learning',
-    subcategories: ['E-readers', 'Educational Materials', 'Reference Books', 'Study Aids', 'Textbooks']
+  'event-party-equipment': { 
+    label: 'Event & Party Equipment'
   },
-  'cameras': { 
-    label: 'Cameras', 
-    subcategories: ['Accessories', 'Action Cameras', 'DSLR', 'Lenses', 'Mirrorless'] 
+  'camping-outdoor-gear': { 
+    label: 'Camping & Outdoor Gear'
   },
-  'cleaning-maintenance': {
-    label: 'Cleaning & Maintenance',
-    subcategories: ['Floor Care', 'Pest Control', 'Pressure Washers', 'Vacuum Cleaners', 'Window Cleaning']
+  'tech-electronics': { 
+    label: 'Tech & Electronics'
   },
-  'clothing-costumes': {
-    label: 'Clothing & Costumes',
-    subcategories: ['Accessories', 'Costumes', 'Formal Wear', 'Uniforms', 'Work Clothing']
+  'vehicles-transport': { 
+    label: 'Vehicles & Transport'
   },
-  'crafts-creative': {
-    label: 'Crafts & Creative Supplies',
-    subcategories: ['Art Supplies', 'Craft Tools', 'Pottery', 'Sewing Equipment', 'Woodworking']
+  'home-garden-appliances': { 
+    label: 'Home & Garden Appliances'
   },
-  'electronics': { 
-    label: 'Electronics',
-    subcategories: ['Audio', 'Computers', 'Gaming', 'Smart Home', 'Tablets'] 
+  'sports-fitness-equipment': { 
+    label: 'Sports & Fitness Equipment'
   },
-  'event-party': { 
-    label: 'Event & Party', 
-    subcategories: ['Catering Equipment', 'Decorations', 'Furniture', 'Lighting', 'Sound Systems'] 
+  'musical-instruments-gear': { 
+    label: 'Musical Instruments & Gear'
   },
-  'furniture-decor': {
-    label: 'Furniture & Decor',
-    subcategories: ['Decor Items', 'Lighting', 'Seating', 'Storage', 'Tables']
+  'costumes-props': { 
+    label: 'Costumes & Props'
   },
-  'games-entertainment': {
-    label: 'Games & Entertainment',
-    subcategories: ['Arcade Games', 'Board Games', 'Entertainment Systems', 'Party Games', 'Video Games']
-  },
-  'health-mobility': {
-    label: 'Health & Mobility',
-    subcategories: ['Exercise Equipment', 'Medical Devices', 'Recovery Tools', 'Walking Aids', 'Wheelchairs']
-  },
-  'home-garden': { 
-    label: 'Home & Garden', 
-    subcategories: ['Appliances', 'Cleaning Equipment', 'Furniture', 'Gardening Tools', 'Lawn Care'] 
-  },
-  'instruments': { 
-    label: 'Instruments',
-    subcategories: ['Drums', 'Guitars', 'Keyboards', 'Recording Equipment', 'Wind Instruments'] 
-  },
-  'kids-baby': {
-    label: 'Kids & Baby',
-    subcategories: ['Baby Gear', 'Car Seats', 'High Chairs', 'Strollers', 'Toys']
-  },
-  'moving-storage': {
-    label: 'Moving & Storage',
-    subcategories: ['Dollies', 'Lifting Equipment', 'Moving Equipment', 'Packing Supplies', 'Storage Solutions']
-  },
-  'office-tech': {
-    label: 'Office & Tech',
-    subcategories: ['Communication', 'Computers', 'Office Furniture', 'Presentation Equipment', 'Printers']
-  },
-  'other': { 
-    label: 'Other', 
-    subcategories: ['Baby Items', 'Books', 'Games', 'Miscellaneous', 'Pet Supplies'] 
-  },
-  'pets': {
-    label: 'Pets',
-    subcategories: ['Carriers', 'Exercise Equipment', 'Grooming', 'Pet Care', 'Training Aids']
-  },
-  'seasonal-holiday': {
-    label: 'Seasonal & Holiday',
-    subcategories: ['Christmas Decorations', 'Easter Supplies', 'Halloween Items', 'Holiday Lighting', 'Party Themes']
-  },
-  'sports-outdoors': { 
-    label: 'Sports & Outdoors',
-    subcategories: ['Camping', 'Cycling', 'Fitness', 'Water Sports', 'Winter Sports'] 
-  },
-  'tools-diy': { 
-    label: 'Tools & DIY',
-    subcategories: ['Hand Tools', 'Ladders & Scaffolding', 'Measuring Tools', 'Power Tools', 'Safety Equipment'] 
-  },
-  'travel-camping': {
-    label: 'Travel & Camping',
-    subcategories: ['Backpacks', 'Outdoor Cooking', 'Sleeping Gear', 'Tents', 'Travel Accessories']
+  'maker-craft-supplies': { 
+    label: 'Maker & Craft Supplies'
   }
 };
 
@@ -161,7 +102,6 @@ const stepSchemas = {
     title: z.string().min(5, 'Title must be at least 5 characters').max(100, 'Title must be less than 100 characters'),
     description: z.string().min(20, 'Description must be at least 20 characters').max(2000, 'Description must be less than 2000 characters'),
     category: z.string().min(1, 'Please select a category'),
-    subcategory: z.string().min(1, 'Please select a subcategory'),
     condition: z.string().min(1, 'Please select the item condition'),
     brand: z.string().min(1, 'Please enter the brand'),
     model: z.string().min(1, 'Please enter the model'),
@@ -258,7 +198,7 @@ function CreateListingContent() {
   const getStepFields = (step: number): string[] => {
     switch (step) {
       case 1:
-        return ['title', 'description', 'category', 'subcategory', 'condition', 'brand', 'model', 'year'];
+        return ['title', 'description', 'category', 'condition', 'brand', 'model', 'year'];
       case 2:
         return ['dailyRate', 'hourlyRate', 'weeklyRate', 'monthlyRate', 'depositAmount', 'availabilityType', 'availableFrom', 'availableTo', 'insuranceEnabled'];
       case 3:
@@ -363,11 +303,10 @@ function CreateListingContent() {
       setValue('deliveryMethods', deliveryMethods);
       setSelectedDeliveryMethods(deliveryMethods);
 
-      // Load existing features (filter out delivery methods and subcategory info)
+      // Load existing features (filter out delivery methods)
       if (data.features && data.features.length > 0) {
         const itemFeatures = data.features.filter((feature: string) => 
-          !['pickup', 'delivery', 'shipping'].includes(feature) && 
-          !feature.startsWith('Subcategory:')
+          !['pickup', 'delivery', 'shipping'].includes(feature)
         );
         setFeatures(itemFeatures);
       }
@@ -383,11 +322,7 @@ function CreateListingContent() {
     }
   };
 
-  useEffect(() => {
-    if (watchCategory) {
-      setValue('subcategory', ''); // Reset subcategory when category changes
-    }
-  }, [watchCategory, setValue]);
+
 
   useEffect(() => {
     if (watchAvailabilityType === 'always') {
@@ -1109,7 +1044,7 @@ function CreateListingContent() {
       const fieldName = firstError.path[0] as string;
       
       // Determine which step contains the error and redirect there
-      if (['title', 'description', 'category', 'subcategory', 'condition', 'brand', 'model', 'year'].includes(fieldName)) {
+      if (['title', 'description', 'category', 'condition', 'brand', 'model', 'year'].includes(fieldName)) {
         setCurrentStep(1);
       } else if (['dailyRate', 'hourlyRate', 'weeklyRate', 'monthlyRate', 'depositAmount', 'availabilityType', 'availableFrom', 'availableTo', 'insuranceEnabled'].includes(fieldName)) {
         setCurrentStep(2);
@@ -1150,24 +1085,15 @@ function CreateListingContent() {
       const finalLat = selectedLocation?.lat ?? -33.8688;
       const finalLng = selectedLocation?.lng ?? 151.2093;
 
-      // Prepare features array including delivery methods, subcategory, and user-added features
+      // Prepare features array including delivery methods and user-added features
       // Always include pickup, plus any additional delivery methods
       const finalFeatures = ['pickup', ...(cleanedData.deliveryMethods || []), ...features];
-      if (cleanedData.subcategory) {
-        finalFeatures.push(`Subcategory: ${cleanedData.subcategory}`);
-      }
-
-      // Prepare description with subcategory if provided
-      let fullDescription = cleanedData.description;
-      if (cleanedData.subcategory) {
-        fullDescription = `${cleanedData.description}\n\nSubcategory: ${cleanedData.subcategory}`;
-      }
 
       if (isEditMode && editingListing) {
         // Prepare the listing data for API call
         const listingPayload = {
             title: cleanedData.title,
-            description: fullDescription,
+            description: cleanedData.description,
             category: cleanedData.category,
             price_per_day: cleanedData.dailyRate,
             price_hourly: cleanedData.hourlyRate || null,
@@ -1229,7 +1155,7 @@ function CreateListingContent() {
         // Prepare the listing data for API call
         const listingPayload = {
             title: cleanedData.title,
-            description: fullDescription,
+            description: cleanedData.description,
             category: cleanedData.category,
             price_per_day: cleanedData.dailyRate,
             price_hourly: cleanedData.hourlyRate || null,
@@ -1760,30 +1686,7 @@ function CreateListingContent() {
                 </div>
 
                 {/* Subcategory */}
-                {watchCategory && categories[watchCategory as keyof typeof categories] && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Subcategory *
-                    </label>
-                    <select
-                      {...register('subcategory')}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                        errors.subcategory ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                    >
-                      <option value="">Select a subcategory</option>
-                      {categories[watchCategory as keyof typeof categories].subcategories.map((sub) => (
-                        <option key={sub} value={sub}>{sub}</option>
-                      ))}
-                    </select>
-                    {errors.subcategory && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-1" />
-                        {errors.subcategory.message}
-                      </p>
-                                 )}
-               </div>
-             )}
+
 
                 {/* Item Condition Section */}
                 <div className="border-t pt-6 mt-8">
