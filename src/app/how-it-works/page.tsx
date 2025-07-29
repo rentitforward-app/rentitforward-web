@@ -183,17 +183,26 @@ export default function HowItWorksPage() {
                   <ul className="space-y-3 text-gray-600">
                     <li className="flex items-center">
                       <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Booking fee: 5% of rental cost
+                      Service fee: 15% of rental cost
                     </li>
                     <li className="flex items-center">
                       <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Payment processing: 2.9% + $0.30
+                      Optional insurance: ~$7/day for damage protection
                     </li>
                     <li className="flex items-center">
                       <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Insurance coverage included
+                      Optional security deposit for high-value items
+                    </li>
+                    <li className="flex items-center">
+                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                      Secure escrow payment system
                     </li>
                   </ul>
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      <strong>Example:</strong> $30/day bike rental + $4.50 service fee (15%) + $7 insurance = $41.50 total
+                    </p>
+                  </div>
                 </div>
                 
                 <div>
@@ -201,7 +210,7 @@ export default function HowItWorksPage() {
                   <ul className="space-y-3 text-gray-600">
                     <li className="flex items-center">
                       <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Service fee: 3% of rental income
+                      Platform commission: 20% of rental income
                     </li>
                     <li className="flex items-center">
                       <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
@@ -209,9 +218,18 @@ export default function HowItWorksPage() {
                     </li>
                     <li className="flex items-center">
                       <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
-                      Automatic payouts
+                      Automatic payouts after rental completion
+                    </li>
+                    <li className="flex items-center">
+                      <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
+                      Set your own pricing and availability
                     </li>
                   </ul>
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      <strong>Example:</strong> $30/day rental - $6 platform fee (20%) = $24 net earnings
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
