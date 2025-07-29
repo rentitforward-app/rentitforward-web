@@ -41,14 +41,13 @@ export default function Footer() {
               <li><Link href="/about" className="hover:text-green-400 transition-colors">About Us</Link></li>
               <li><Link href="/browse" className="hover:text-green-400 transition-colors">Browse Items</Link></li>
               <li><Link href="/create-listing" className="hover:text-green-400 transition-colors">List an Item</Link></li>
-              <li><Link href="/safety" className="hover:text-green-400 transition-colors">Safety</Link></li>
             </ul>
           </div>
           
           <div>
             <h4 className="font-semibold mb-6 text-lg">Support</h4>
             <ul className="space-y-3 text-gray-300">
-              <li><Link href="/help" className="hover:text-green-400 transition-colors">Help Center</Link></li>
+              <li><Link href="/faq" className="hover:text-green-400 transition-colors">FAQ</Link></li>
               <li><Link href="/contact" className="hover:text-green-400 transition-colors">Contact Us</Link></li>
               <li><Link href="/terms" className="hover:text-green-400 transition-colors">Terms of Service</Link></li>
               <li><Link href="/privacy" className="hover:text-green-400 transition-colors">Privacy Policy</Link></li>
@@ -70,15 +69,35 @@ export default function Footer() {
             </div>
             <div className="space-y-3">
               <p className="text-gray-300 text-sm">Download our app:</p>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Link href="#" className="block">
-                  <div className="bg-gray-800 rounded-lg px-4 py-2 text-sm hover:bg-gray-700 transition-colors">
-                    📱 App Store
+                  <div className="bg-black rounded-lg px-4 py-3 hover:bg-gray-800 transition-colors flex items-center space-x-3">
+                    <Image 
+                      src="/images/apple-store-icon.png" 
+                      alt="Apple Logo" 
+                      width={20} 
+                      height={24}
+                      className="flex-shrink-0"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-300">Download on the</span>
+                      <span className="text-sm font-semibold text-white">App Store</span>
+                    </div>
                   </div>
                 </Link>
                 <Link href="#" className="block">
-                  <div className="bg-gray-800 rounded-lg px-4 py-2 text-sm hover:bg-gray-700 transition-colors">
-                    🤖 Google Play
+                  <div className="bg-black rounded-lg px-4 py-3 hover:bg-gray-800 transition-colors flex items-center space-x-3">
+                    <Image 
+                      src="/images/google-play-icon.png" 
+                      alt="Google Play Logo" 
+                      width={20} 
+                      height={22}
+                      className="flex-shrink-0"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-300">GET IT ON</span>
+                      <span className="text-sm font-semibold text-white">Google Play</span>
+                    </div>
                   </div>
                 </Link>
               </div>
