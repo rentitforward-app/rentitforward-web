@@ -392,7 +392,7 @@ function MarketingHomepage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section with Background Image */}
-      <section className="relative py-16 sm:py-20 lg:py-24 xl:py-28 px-4 overflow-hidden">
+      <section className="relative h-[90vh] px-4 overflow-hidden flex items-center justify-center">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0">
           <Image
@@ -400,16 +400,19 @@ function MarketingHomepage() {
             alt="Rent It Forward Hero Background"
             fill
             className="object-cover"
-            style={{ objectPosition: 'center center' }}
+            style={{ objectPosition: 'top center' }}
             priority
           />
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
         
         <div className="max-w-screen-2xl mx-auto text-center relative z-10">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-6 sm:mb-8 leading-tight px-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight px-4">
             Share More, Buy Less
           </h1>
+          <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-6 sm:mb-8 px-4 max-w-3xl mx-auto">
+            Building communities, one rental at a time.
+          </p>
           
           {/* Search Bar */}
           <div className="max-w-2xl mx-auto px-4">
