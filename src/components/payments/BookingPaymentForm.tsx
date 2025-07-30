@@ -23,7 +23,7 @@ import {
   Info
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { formatCurrency } from 'rentitforward-shared/src/utils/formatting';
+import { formatPrice } from '@rentitforward/shared/src/utils/formatting';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -169,8 +169,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ booking, onSuccess, onCancel 
           
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span>{booking.total_days} days × {formatCurrency(booking.daily_rate)}</span>
-              <span>{formatCurrency(booking.subtotal)}</span>
+              <span>{booking.total_days} days × {formatPrice(booking.daily_rate)}</span>
+              <span>{formatPrice(booking.subtotal)}</span>
             </div>
             
             {booking.has_insurance && (
@@ -179,13 +179,13 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ booking, onSuccess, onCancel 
                   <Shield className="h-4 w-4" />
                   Insurance Protection
                 </span>
-                <span>{formatCurrency(booking.insurance_cost)}</span>
+                <span>{formatPrice(booking.insurance_cost)}</span>
               </div>
             )}
             
             <div className="flex justify-between">
               <span>Platform Fee</span>
-              <span>{formatCurrency(booking.platform_fee)}</span>
+              <span>{formatPrice(booking.platform_fee)}</span>
             </div>
             
             {booking.has_deposit && (
@@ -195,14 +195,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ booking, onSuccess, onCancel 
                   Security Deposit
                   <Badge variant="outline" size="sm">Refundable</Badge>
                 </span>
-                <span>{formatCurrency(booking.deposit_amount)}</span>
+                <span>{formatPrice(booking.deposit_amount)}</span>
               </div>
             )}
             
             <hr className="my-2" />
             <div className="flex justify-between font-semibold text-lg">
               <span>Total</span>
-              <span>{formatCurrency(booking.total)}</span>
+              <span>{formatPrice(booking.total)}</span>
             </div>
           </div>
         </CardContent>
@@ -268,7 +268,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ booking, onSuccess, onCancel 
           ) : (
             <div className="flex items-center gap-2">
               <Lock className="h-4 w-4" />
-              Pay {formatCurrency(booking.total)}
+              Pay {formatPrice(booking.total)}
             </div>
           )}
         </Button>

@@ -1,7 +1,7 @@
 import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import { ApolloServer } from '@apollo/server';
 import { NextRequest } from 'next/server';
-import { typeDefs } from 'rentitforward-shared/src/graphql';
+import { typeDefs } from '@rentitforward/shared/src/graphql';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 // Simple resolvers for testing
 const resolvers = {
