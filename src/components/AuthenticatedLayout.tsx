@@ -182,17 +182,27 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
           {/* Mobile Header */}
           <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <button
-                  onClick={() => setIsMobileMenuOpen(true)}
-                  className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100"
-                >
-                  <Menu className="w-6 h-6" />
-                </button>
-                <h1 className="ml-3 text-lg font-semibold text-gray-900">Dashboard</h1>
-              </div>
+              {/* Left side - Menu button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
               
-              {/* Mobile User Profile */}
+              {/* Center - Logo */}
+              <Link href="/dashboard" className="flex items-center">
+                <Image 
+                  src="/images/RentitForward-Main-Logo.svg" 
+                  alt="Rent It Forward" 
+                  width={160} 
+                  height={40}
+                  className="h-8 w-auto"
+                  priority
+                />
+              </Link>
+              
+              {/* Right side - User Profile */}
               <div className="flex items-center space-x-3">
                 <Link href="/notifications" className="p-2 text-gray-500 hover:text-gray-700">
                   <NotificationBadge />
