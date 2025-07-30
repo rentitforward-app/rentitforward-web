@@ -68,17 +68,17 @@ interface Listing {
 }
 
 const categories = {
-  'Tools & DIY Equipment': { label: 'Tools & DIY Equipment', icon: '🔧' },
-  'Cameras & Photography Gear': { label: 'Cameras & Photography Gear', icon: '📷' },
-  'Event & Party Equipment': { label: 'Event & Party Equipment', icon: '🎉' },
-  'Camping & Outdoor Gear': { label: 'Camping & Outdoor Gear', icon: '🏕️' },
-  'Tech & Electronics': { label: 'Tech & Electronics', icon: '📱' },
-  'Vehicles & Transport': { label: 'Vehicles & Transport', icon: '🚗' },
-  'Home & Garden Appliances': { label: 'Home & Garden Appliances', icon: '🏡' },
-  'Sports & Fitness Equipment': { label: 'Sports & Fitness Equipment', icon: '🏃' },
-  'Musical Instruments & Gear': { label: 'Musical Instruments & Gear', icon: '🎸' },
-  'Costumes & Props': { label: 'Costumes & Props', icon: '🎭' },
-  'Maker & Craft Supplies': { label: 'Maker & Craft Supplies', icon: '✂️' }
+  'Tools & DIY Equipment': { label: 'Tools & DIY Equipment', icon: '🔧', dbValue: 'tools_diy_equipment' },
+  'Cameras & Photography Gear': { label: 'Cameras & Photography Gear', icon: '📷', dbValue: 'cameras_photography_gear' },
+  'Event & Party Equipment': { label: 'Event & Party Equipment', icon: '🎉', dbValue: 'event_party_equipment' },
+  'Camping & Outdoor Gear': { label: 'Camping & Outdoor Gear', icon: '🏕️', dbValue: 'camping_outdoor_gear' },
+  'Tech & Electronics': { label: 'Tech & Electronics', icon: '📱', dbValue: 'tech_electronics' },
+  'Vehicles & Transport': { label: 'Vehicles & Transport', icon: '🚗', dbValue: 'vehicles_transport' },
+  'Home & Garden Appliances': { label: 'Home & Garden Appliances', icon: '🏡', dbValue: 'home_garden_appliances' },
+  'Sports & Fitness Equipment': { label: 'Sports & Fitness Equipment', icon: '🏃', dbValue: 'sports_fitness_equipment' },
+  'Musical Instruments & Gear': { label: 'Musical Instruments & Gear', icon: '🎸', dbValue: 'musical_instruments_gear' },
+  'Costumes & Props': { label: 'Costumes & Props', icon: '🎭', dbValue: 'costumes_props' },
+  'Maker & Craft Supplies': { label: 'Maker & Craft Supplies', icon: '✂️', dbValue: 'maker_craft_supplies' }
 };
 
 const australianStates = [
@@ -705,11 +705,15 @@ function BrowseContent() {
 
     // Apply category filter
     if (selectedCategories.length > 0) {
-      filtered = filtered.filter(listing =>
-        selectedCategories.some(category => 
-          listing.category.toLowerCase() === category.toLowerCase()
-        )
-      );
+      filtered = filtered.filter(listing => {
+        // Convert selected human-readable categories to database values
+        const dbValues = selectedCategories.map(category => 
+          categories[category as keyof typeof categories]?.dbValue || category
+        );
+        return dbValues.some(dbValue => 
+          listing.category.toLowerCase() === dbValue.toLowerCase()
+        );
+      });
     }
 
 
@@ -1249,7 +1253,7 @@ function BrowseContent() {
           ) : (
             <>
               {viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 md:gap-4">
                   {paginatedListings.map((listing) => {
                     return (
                       <ListingCard

@@ -130,7 +130,23 @@ export default function MyListingsPage() {
 
     // Filter by category
     if (categoryFilter !== 'all') {
-      filtered = filtered.filter(listing => listing.category === categoryFilter);
+      // Map human-readable category to database value
+      const categoryMapping: { [key: string]: string } = {
+        'Tools & DIY Equipment': 'tools_diy_equipment',
+        'Cameras & Photography Gear': 'cameras_photography_gear',
+        'Event & Party Equipment': 'event_party_equipment',
+        'Camping & Outdoor Gear': 'camping_outdoor_gear',
+        'Tech & Electronics': 'tech_electronics',
+        'Vehicles & Transport': 'vehicles_transport',
+        'Home & Garden Appliances': 'home_garden_appliances',
+        'Sports & Fitness Equipment': 'sports_fitness_equipment',
+        'Musical Instruments & Gear': 'musical_instruments_gear',
+        'Costumes & Props': 'costumes_props',
+        'Maker & Craft Supplies': 'maker_craft_supplies'
+      };
+      
+      const dbCategoryValue = categoryMapping[categoryFilter] || categoryFilter;
+      filtered = filtered.filter(listing => listing.category === dbCategoryValue);
     }
 
     // Filter by search term

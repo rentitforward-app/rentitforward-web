@@ -69,15 +69,6 @@ export default function ListingCard({
             className="object-contain bg-gray-50 group-hover:scale-105 transition-transform duration-300"
           />
           
-          {/* Category Badge */}
-          {category && (
-            <div className="absolute top-3 left-3">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                📷 {category.toUpperCase()}
-              </span>
-            </div>
-          )}
-
           {/* Price Badge */}
           <div className="absolute top-3 right-3">
             <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1">
