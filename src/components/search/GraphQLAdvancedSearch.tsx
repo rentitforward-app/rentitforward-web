@@ -15,9 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import { formatPrice, formatDate } from '@rentitforward/shared/utils/formatting';
+// Note: Slider and Switch components not available, using simplified alternatives
+import { formatPrice, formatDate } from '../../../../rentitforward-shared/src/utils/formatting';
 
 interface AdvancedSearchProps {
   onResultSelect?: (listing: any) => void;
@@ -409,14 +408,32 @@ function SearchFilters({ facets, activeFilters, onToggleFilter, onClearFilter }:
             <div>
               <h4 className="font-semibold mb-3">Price Range</h4>
               <div className="space-y-3">
-                <Slider
-                  defaultValue={[0, 500]}
-                  max={1000}
-                  step={10}
-                  onValueChange={(value) => {
-                    onToggleFilter('price_range', { min: value[0], max: value[1] });
-                  }}
-                />
+                <div className="flex space-x-2">
+                  <Input
+                    type="number"
+                    placeholder="Min $"
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      onToggleFilter('price_range', { 
+                        min: value, 
+                        max: activeFilters.price_range?.max || 1000 
+                      });
+                    }}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max $"
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1000;
+                      onToggleFilter('price_range', { 
+                        min: activeFilters.price_range?.min || 0, 
+                        max: value 
+                      });
+                    }}
+                    className="flex-1"
+                  />
+                </div>
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>$0</span>
                   <span>$1000+</span>
@@ -494,9 +511,11 @@ function SearchFilters({ facets, activeFilters, onToggleFilter, onClearFilter }:
           {/* Instant Book Filter */}
           <div>
             <label className="flex items-center space-x-2 cursor-pointer">
-              <Switch
+              <input
+                type="checkbox"
                 checked={activeFilters.instant_book || false}
-                onCheckedChange={(checked) => onToggleFilter('instant_book', checked)}
+                onChange={(e) => onToggleFilter('instant_book', e.target.checked)}
+                className="rounded"
               />
               <span className="text-sm font-medium">Instant Book Only</span>
             </label>

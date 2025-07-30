@@ -23,6 +23,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'react-hot-toast';
 import NotificationBadge from './NotificationBadge';
 import ProfileAvatar from './ProfileAvatar';
+import { EnhancedPredictiveSearch } from '@/components/search/EnhancedPredictiveSearch';
+import { RealAPIPredictiveSearch } from '@/components/search/RealAPIPredictiveSearch';
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode;
@@ -50,7 +52,7 @@ const bottomNavigationItems = [
 
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
@@ -216,21 +218,26 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
           <div className="hidden lg:block bg-white border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex-1 max-w-2xl">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Search for items, categories or locations"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && searchTerm.trim()) {
-                        router.push(`/browse?search=${encodeURIComponent(searchTerm.trim())}`);
-                      }
-                    }}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
+                {/* REAL DATABASE SEARCH (Now Active!) */}
+                <RealAPIPredictiveSearch
+                  placeholder="Search for items, categories or locations..."
+                  onSearch={(query) => {
+                    router.push(`/browse?search=${encodeURIComponent(query)}`);
+                  }}
+                  useRealAPI={true}
+                  className="w-full"
+                />
+
+                {/* OLD MOCK DATA (Disabled) */}
+                {/* <EnhancedPredictiveSearch
+                  placeholder="Search for items, categories or locations..."
+                  onSearch={(query) => {
+                    router.push(`/browse?search=${encodeURIComponent(query)}`);
+                  }}
+                  showPopularOnFocus={true}
+                  enableHistory={true}
+                  size="md"
+                /> */}
               </div>
               
               <div className="flex items-center space-x-4 ml-6">
