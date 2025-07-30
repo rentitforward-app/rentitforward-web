@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { ReviewList, ReviewStats } from '@/components/reviews';
 import MessageModal from '@/components/MessageModal';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 interface HostProfile {
   id: string;
@@ -42,6 +43,7 @@ interface HostListing {
   condition: string;
   category: string;
   created_at: string;
+  is_active: boolean;
 }
 
 interface Review {
@@ -50,13 +52,16 @@ interface Review {
   comment: string;
   created_at: string;
   reviewer_id: string;
+  tags: string[] | null;
   profiles: {
     full_name: string;
     avatar_url: string | null;
   };
   bookings?: {
+    listing_id: string;
     listings: {
       title: string;
+      owner_id: string;
     };
   };
 }
@@ -113,9 +118,9 @@ export default function HostProfilePage() {
     try {
       const { data, error } = await supabase
         .from('listings')
-        .select('id, title, price_per_day, images, city, state, condition, category, created_at')
+        .select('id, title, price_per_day, images, city, state, condition, category, created_at, is_active')
         .eq('owner_id', hostId)
-        .eq('status', 'active')
+        .eq('is_active', true) // Use is_active boolean field instead of status
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -131,22 +136,29 @@ export default function HostProfilePage() {
 
   const fetchHostReviews = async () => {
     try {
-      // Fetch reviews where this host was the reviewee (received reviews)
+      // Fetch reviews for all listings owned by this host
       const { data, error } = await supabase
         .from('reviews')
         .select(`
-          *,
+          id,
+          rating,
+          comment,
+          created_at,
+          reviewer_id,
+          tags,
           profiles:reviewer_id (
             full_name,
             avatar_url
           ),
-          bookings (
-            listings (
-              title
+          bookings!inner (
+            listing_id,
+            listings!inner (
+              title,
+              owner_id
             )
           )
         `)
-        .eq('reviewee_id', hostId)
+        .eq('bookings.listings.owner_id', hostId)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -193,40 +205,36 @@ export default function HostProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-center h-96">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
-          </div>
+      <AuthenticatedLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
         </div>
-      </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (!host) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">Host not found</h1>
-              <Link
-                href="/browse"
-                className="text-[#44D62C] hover:text-[#3AB827] font-medium"
-              >
-                Browse listings
-              </Link>
-            </div>
+      <AuthenticatedLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Host not found</h1>
+            <Link
+              href="/browse"
+              className="text-[#44D62C] hover:text-[#3AB827] font-medium"
+            >
+              Browse listings
+            </Link>
           </div>
         </div>
-      </div>
+      </AuthenticatedLayout>
     );
   }
 
   const averageRating = calculateAverageRating();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <div className="mb-6">
@@ -428,6 +436,6 @@ export default function HostProfilePage() {
           }}
         />
       )}
-    </div>
+    </AuthenticatedLayout>
   );
 } 

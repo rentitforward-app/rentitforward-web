@@ -89,13 +89,15 @@ export const reviewFormatting = {
 // Review statistics calculations
 export const reviewStats = {
   calculateAverageRating: (reviews: Review[]): number => {
-    if (reviews.length === 0) return 0;
+    if (!reviews || !Array.isArray(reviews) || reviews.length === 0) return 0;
     const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
     return totalRating / reviews.length;
   },
 
   calculateRatingDistribution: (reviews: Review[]): { 1: number; 2: number; 3: number; 4: number; 5: number } => {
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    if (!reviews || !Array.isArray(reviews)) return distribution;
+    
     reviews.forEach(review => {
       if (review.rating >= 1 && review.rating <= 5) {
         distribution[review.rating as keyof typeof distribution]++;
@@ -111,6 +113,7 @@ export const reviewStats = {
     accuracy?: number;
     experience?: number;
   } | undefined => {
+    if (!reviews || !Array.isArray(reviews)) return undefined;
     const validReviews = reviews.filter(r => r.detailedRatings);
     if (validReviews.length === 0) return undefined;
 
@@ -162,10 +165,20 @@ export const reviewStats = {
   getMostUsedTags: (reviews: Review[], limit: number = 10) => {
     const tagCounts: Record<string, number> = {};
     
+    // Add defensive check for reviews array
+    if (!reviews || !Array.isArray(reviews)) {
+      return [];
+    }
+    
     reviews.forEach(review => {
-      review.tags.forEach(tag => {
-        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-      });
+      // Add defensive check for tags array
+      if (review.tags && Array.isArray(review.tags)) {
+        review.tags.forEach(tag => {
+          if (tag) { // Also check that tag is not null/undefined
+            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+          }
+        });
+      }
     });
 
     return Object.entries(tagCounts)
@@ -175,15 +188,18 @@ export const reviewStats = {
   },
 
   generateReviewStats: (reviews: Review[]): ReviewStats => {
+    // Add defensive check for reviews array
+    const safeReviews = reviews && Array.isArray(reviews) ? reviews : [];
+    
     return {
-      totalReviews: reviews.length,
-      averageRating: reviewStats.calculateAverageRating(reviews),
-      ratingDistribution: reviewStats.calculateRatingDistribution(reviews),
-      detailedAverages: reviewStats.calculateDetailedAverages(reviews),
-      mostUsedTags: reviewStats.getMostUsedTags(reviews),
+      totalReviews: safeReviews.length,
+      averageRating: reviewStats.calculateAverageRating(safeReviews),
+      ratingDistribution: reviewStats.calculateRatingDistribution(safeReviews),
+      detailedAverages: reviewStats.calculateDetailedAverages(safeReviews),
+      mostUsedTags: reviewStats.getMostUsedTags(safeReviews),
       reviewsByType: {
-        asRenter: reviews.filter(r => r.type === ReviewType.OWNER_TO_RENTER).length,
-        asOwner: reviews.filter(r => r.type === ReviewType.RENTER_TO_OWNER).length
+        asRenter: safeReviews.filter(r => r.type === ReviewType.OWNER_TO_RENTER).length,
+        asOwner: safeReviews.filter(r => r.type === ReviewType.RENTER_TO_OWNER).length
       }
     };
   }
@@ -203,8 +219,14 @@ export const reviewFilters = {
     return reviews.filter(review => review.type === type);
   },
 
-  filterByTags: (reviews: Review[], tags: ReviewTag[]): Review[] => {
-    return reviews.filter(review => 
+    filterByTags: (reviews: Review[], tags: ReviewTag[]): Review[] => {
+    if (!reviews || !Array.isArray(reviews) || !tags || !Array.isArray(tags)) {
+      return reviews || [];
+    }
+    
+    return reviews.filter(review =>
+      review.tags && 
+      Array.isArray(review.tags) && 
       tags.some(tag => review.tags.includes(tag))
     );
   },
