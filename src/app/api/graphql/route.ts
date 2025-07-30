@@ -1,8 +1,14 @@
 import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import { ApolloServer } from '@apollo/server';
 import { NextRequest } from 'next/server';
-import { typeDefs } from '@rentitforward/shared/dist/graphql';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
+
+// Temporary inline schema - TODO: Import from shared package when export is fixed
+const typeDefs = `#graphql
+  type Query {
+    hello: String
+  }
+`;
 
 // Simple resolvers for testing
 const resolvers = {
