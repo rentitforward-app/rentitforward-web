@@ -829,7 +829,14 @@ export default function ListingDetailPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{listing.profiles.full_name}</h3>
+                  <Link 
+                    href={`/host/${listing.profiles.id}`}
+                    className="hover:text-[#44D62C] transition-colors cursor-pointer"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 hover:text-[#44D62C] transition-colors">
+                      {listing.profiles.full_name}
+                    </h3>
+                  </Link>
                   <p className="text-gray-600">
                     {[listing.profiles.city, listing.profiles.state].filter(Boolean).join(', ')}
                   </p>
@@ -1087,50 +1094,6 @@ export default function ListingDetailPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Reviews Section */}
-        <div className="mt-12 bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Reviews</h2>
-            <div className="flex items-center gap-2">
-              {listing?.rating && (
-                <div className="flex items-center gap-1">
-                  <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                  <span className="text-lg font-semibold">{listing.rating.toFixed(1)}</span>
-                  <span className="text-gray-500">({listing.review_count || 0} reviews)</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {reviews.length > 0 ? (
-            <div className="space-y-6">
-              {/* Review Statistics */}
-              <ReviewStats reviews={reviews} />
-              
-              {/* Review List */}
-              <div className="mt-8">
-                <ReviewList reviews={reviews} />
-              </div>
-              
-              {reviews.length >= 5 && (
-                <div className="text-center pt-4">
-                  <button className="text-[#44D62C] hover:text-[#3AB827] font-medium">
-                    View all reviews
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="text-gray-400 mb-4">
-                <Star className="w-12 h-12 mx-auto" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
-              <p className="text-gray-600">Be the first to rent this item and leave a review!</p>
-            </div>
-          )}
         </div>
 
         {/* Related Listings - Carousel */}

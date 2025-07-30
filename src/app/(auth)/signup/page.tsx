@@ -105,12 +105,9 @@ function SignupForm() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
       <div className="max-w-md w-full">
         <Card className="p-8 shadow-lg border-0">
-          {/* Logo and Header */}
+          {/* Header */}
           <div className="text-center mb-8">
-            <div className="mx-auto w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mb-6">
-              <span className="text-white text-2xl font-bold">R</span>
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Join Rent It Forward</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sign Up</h1>
             <p className="text-gray-600">Create your account to start sharing</p>
           </div>
 
