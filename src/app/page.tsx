@@ -407,7 +407,7 @@ function MarketingHomepage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section with Background Image */}
-      <section className="relative h-[110vh] px-4 overflow-hidden flex items-center justify-center z-50">
+      <section className="relative h-[90vh] px-4 overflow-hidden flex items-center justify-center">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0">
           <Image
@@ -421,7 +421,7 @@ function MarketingHomepage() {
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
         
-        <div className="max-w-screen-2xl mx-auto text-center relative z-50">
+        <div className="max-w-screen-2xl mx-auto text-center relative">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight px-4">
             Share More, Buy Less
           </h1>
