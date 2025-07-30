@@ -19,6 +19,7 @@ const nextConfig = {
       net: false,
       tls: false,
       crypto: false,
+      buffer: require.resolve('buffer'),
     };
     
     // Optimize for production builds

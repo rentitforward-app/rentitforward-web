@@ -18,6 +18,8 @@
     "test:geocoding": "node scripts/test-geocoding.js"
   },
   "dependencies": {
+    "@apollo/server": "^5.0.0",
+    "@as-integrations/next": "^4.0.0",
     "@hookform/resolvers": "^5.1.1",
     "@rentitforward/shared": "file:../rentitforward-shared",
     "@sentry/nextjs": "^9.30.0",
@@ -32,6 +34,7 @@
     "@types/react": "^18.2.61",
     "@types/react-dom": "^18.2.19",
     "autoprefixer": "^10.4.18",
+    "buffer": "^6.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.3.1",
