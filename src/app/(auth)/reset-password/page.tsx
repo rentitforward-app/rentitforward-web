@@ -28,6 +28,8 @@ function ResetPasswordForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -43,17 +45,54 @@ function ResetPasswordForm() {
     // Check if user has a valid session for password reset
     const checkSession = async () => {
       try {
+        setIsCheckingSession(true);
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (error || !session) {
-          toast.error('Invalid or expired reset link. Please request a new password reset.');
-          router.push('/forgot-password');
+        if (error) {
+          console.error('Session error:', error);
+          let errorMessage = 'Invalid or expired reset link. Please request a new password reset.';
+          
+          if (error.message.includes('expired')) {
+            errorMessage = 'Your reset link has expired. Reset links are valid for 1 hour only.';
+          } else if (error.message.includes('invalid')) {
+            errorMessage = 'This reset link is invalid. It may have been used already.';
+          }
+          
+          setSessionError(errorMessage);
+          toast.error(errorMessage);
+          
+          // Redirect after 3 seconds to allow user to read the message
+          setTimeout(() => {
+            router.push('/forgot-password');
+          }, 3000);
           return;
         }
+        
+        if (!session) {
+          const errorMessage = 'No valid session found. The reset link may have expired or been used already.';
+          setSessionError(errorMessage);
+          toast.error(errorMessage);
+          
+          // Redirect after 3 seconds
+          setTimeout(() => {
+            router.push('/forgot-password');
+          }, 3000);
+          return;
+        }
+        
+        // Valid session found
+        setIsCheckingSession(false);
+        setSessionError(null);
+        
       } catch (error) {
         console.error('Error checking session:', error);
-        toast.error('Invalid or expired reset link. Please request a new password reset.');
-        router.push('/forgot-password');
+        const errorMessage = 'Unable to verify reset link. Please try requesting a new password reset.';
+        setSessionError(errorMessage);
+        toast.error(errorMessage);
+        
+        setTimeout(() => {
+          router.push('/forgot-password');
+        }, 3000);
       }
     };
 
@@ -84,6 +123,59 @@ function ResetPasswordForm() {
       setIsLoading(false);
     }
   };
+
+  // Show loading state while checking session
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#44D62C]"></div>
+            </div>
+            <h2 className="mt-6 text-2xl font-bold text-gray-900">
+              Verifying reset link...
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Please wait while we verify your password reset link.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if session validation failed
+  if (sessionError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="flex justify-center">
+              <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-red-600 text-2xl">✕</span>
+              </div>
+            </div>
+            <h2 className="mt-6 text-2xl font-bold text-gray-900">
+              Reset Link Issue
+            </h2>
+            <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">
+              {sessionError}
+            </p>
+            <p className="mt-4 text-sm text-gray-600">
+              You'll be redirected to the forgot password page shortly, or{' '}
+              <button 
+                onClick={() => router.push('/forgot-password')}
+                className="font-medium text-[#44D62C] hover:text-[#3AB827]"
+              >
+                click here to go now
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isSuccess) {
     return (

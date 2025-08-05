@@ -70,6 +70,13 @@ export default function ForgotPasswordPage() {
             </p>
             
             <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Important:</strong> Reset links expire after 1 hour for security. 
+                  Please use the link promptly after receiving it.
+                </p>
+              </div>
+              
               <p className="text-sm text-gray-600">
                 Didn't receive the email? Check your spam folder or{' '}
                 <button
