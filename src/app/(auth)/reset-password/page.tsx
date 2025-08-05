@@ -58,6 +58,7 @@ function ResetPasswordForm() {
             errorMessage = 'This reset link is invalid. It may have been used already.';
           }
           
+          setIsCheckingSession(false); // Stop loading state
           setSessionError(errorMessage);
           toast.error(errorMessage);
           
@@ -70,6 +71,7 @@ function ResetPasswordForm() {
         
         if (!session) {
           const errorMessage = 'No valid session found. The reset link may have expired or been used already.';
+          setIsCheckingSession(false); // Stop loading state
           setSessionError(errorMessage);
           toast.error(errorMessage);
           
@@ -87,6 +89,7 @@ function ResetPasswordForm() {
       } catch (error) {
         console.error('Error checking session:', error);
         const errorMessage = 'Unable to verify reset link. Please try requesting a new password reset.';
+        setIsCheckingSession(false); // Stop loading state
         setSessionError(errorMessage);
         toast.error(errorMessage);
         
@@ -162,15 +165,18 @@ function ResetPasswordForm() {
             <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">
               {sessionError}
             </p>
-            <p className="mt-4 text-sm text-gray-600">
-              You'll be redirected to the forgot password page shortly, or{' '}
+            <div className="mt-6 space-y-4">
               <button 
                 onClick={() => router.push('/forgot-password')}
-                className="font-medium text-[#44D62C] hover:text-[#3AB827]"
+                className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#44D62C] hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C]"
               >
-                click here to go now
+                Request New Password Reset
               </button>
-            </p>
+              
+              <p className="text-xs text-gray-500 text-center">
+                Auto-redirecting in 3 seconds...
+              </p>
+            </div>
           </div>
         </div>
       </div>
