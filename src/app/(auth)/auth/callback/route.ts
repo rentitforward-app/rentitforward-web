@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       
       if (error) {
         console.error('Auth callback error:', error)
+        console.error('Error details:', JSON.stringify(error, null, 2))
         // Add specific error handling for different error types
         if (error.message.includes('expired')) {
           return NextResponse.redirect(new URL('/auth/auth-code-error?error=expired', origin))
@@ -42,7 +43,15 @@ export async function GET(request: NextRequest) {
       }
 
       if (data.session) {
-        console.log('Auth callback success, redirecting to:', next)
+        console.log('Auth callback success - session created')
+        console.log('Session details:', {
+          user: data.session.user?.id,
+          expires_at: data.session.expires_at,
+          type: data.session.user?.app_metadata
+        })
+        console.log('Redirecting to:', next)
+        
+        // Create response with proper cookie handling for password reset
         const response = NextResponse.redirect(new URL(next, origin))
         return response
       }

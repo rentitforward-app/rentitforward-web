@@ -32,6 +32,21 @@ function ResetPasswordForm() {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
+  
+  // Check URL parameters for direct password reset handling
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get('access_token');
+    const refreshToken = urlParams.get('refresh_token');
+    const type = urlParams.get('type');
+    
+    console.log('URL parameters:', {
+      accessToken: accessToken ? 'present' : 'missing',
+      refreshToken: refreshToken ? 'present' : 'missing',
+      type,
+      fullURL: window.location.href
+    });
+  }, []);
 
   const {
     register,
@@ -46,7 +61,53 @@ function ResetPasswordForm() {
     const checkSession = async () => {
       try {
         setIsCheckingSession(true);
+        console.log('Checking session for password reset...');
+        
+        // First check if we have URL parameters indicating a direct password reset
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+        const refreshToken = urlParams.get('refresh_token');
+        const type = urlParams.get('type');
+        
+        if (accessToken && refreshToken && type === 'recovery') {
+          console.log('Direct password reset detected with URL parameters');
+          try {
+            // Set the session from URL parameters
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            
+            if (error) {
+              console.error('Error setting session from URL parameters:', error);
+              setIsCheckingSession(false);
+              setSessionError('Invalid or expired reset link. Please request a new password reset.');
+              toast.error('Invalid or expired reset link. Please request a new password reset.');
+              setTimeout(() => router.push('/forgot-password'), 3000);
+              return;
+            }
+            
+            if (data.session) {
+              console.log('Session established from URL parameters');
+              setIsCheckingSession(false);
+              setSessionError(null);
+              return;
+            }
+          } catch (error) {
+            console.error('Exception setting session from URL parameters:', error);
+          }
+        }
+        
+        // Fallback to checking existing session
         const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log('Session check result:', {
+          hasSession: !!session,
+          error: error?.message,
+          user: session?.user?.id,
+          sessionType: session?.user?.app_metadata,
+          expires_at: session?.expires_at
+        });
         
         if (error) {
           console.error('Session error:', error);
@@ -58,11 +119,10 @@ function ResetPasswordForm() {
             errorMessage = 'This reset link is invalid. It may have been used already.';
           }
           
-          setIsCheckingSession(false); // Stop loading state
+          setIsCheckingSession(false);
           setSessionError(errorMessage);
           toast.error(errorMessage);
           
-          // Redirect after 3 seconds to allow user to read the message
           setTimeout(() => {
             router.push('/forgot-password');
           }, 3000);
@@ -70,17 +130,20 @@ function ResetPasswordForm() {
         }
         
         if (!session) {
+          console.log('No session found - this appears to be direct access without valid reset parameters');
           const errorMessage = 'No valid session found. The reset link may have expired or been used already.';
-          setIsCheckingSession(false); // Stop loading state
+          setIsCheckingSession(false);
           setSessionError(errorMessage);
           toast.error(errorMessage);
           
-          // Redirect after 3 seconds
           setTimeout(() => {
             router.push('/forgot-password');
           }, 3000);
           return;
         }
+        
+        // Check if this is actually a password reset session
+        console.log('Valid session found, checking session type...');
         
         // Valid session found
         setIsCheckingSession(false);
@@ -89,7 +152,7 @@ function ResetPasswordForm() {
       } catch (error) {
         console.error('Error checking session:', error);
         const errorMessage = 'Unable to verify reset link. Please try requesting a new password reset.';
-        setIsCheckingSession(false); // Stop loading state
+        setIsCheckingSession(false);
         setSessionError(errorMessage);
         toast.error(errorMessage);
         
