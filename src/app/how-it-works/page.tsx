@@ -1,23 +1,35 @@
 import { Search, MessageCircle, CreditCard, Star, Shield, Clock } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
 export default function HowItWorksPage() {
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-50 to-primary-100 py-16">
-        <div className="max-w-screen-2xl mx-auto px-4">
-          <div className="text-center">
-            <h1 className="font-primary text-4xl md:text-5xl font-bold text-secondary mb-6">
-              How It Works
-            </h1>
-            <p className="text-xl text-gray-600 leading-relaxed">
-              Renting and lending on Rent It Forward is simple, safe, and rewarding. 
-              Here's everything you need to know to get started.
-            </p>
-          </div>
+      {/* Hero Section with Background Image */}
+      <section className="relative h-[70vh] px-4 overflow-hidden flex items-center justify-center">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0">
+          <Image
+            src="/images/RIF_Onboarding_Login.jpg"
+            alt="How It Works Hero Background"
+            fill
+            className="object-cover"
+            style={{ objectPosition: 'center center' }}
+            priority
+          />
+          <div className="absolute inset-0 bg-black/50"></div>
+        </div>
+        
+        <div className="max-w-screen-2xl mx-auto text-center relative">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            How It Works
+          </h1>
+          <p className="text-xl text-white/90 leading-relaxed max-w-3xl mx-auto">
+            Renting and lending on Rent It Forward is simple, safe, and rewarding. 
+            Here's everything you need to know to get started.
+          </p>
         </div>
       </section>
 
