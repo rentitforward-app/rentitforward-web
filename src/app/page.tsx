@@ -444,6 +444,56 @@ function MarketingHomepage() {
         </div>
       </section>
 
+      {/* Enhanced Booking Experience Feature */}
+      <section className="py-12 sm:py-16 lg:py-20 bg-white">
+        <div className="max-w-screen-2xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+              🎉 New Airbnb-Style Booking Experience
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
+              Experience our enhanced 9-step booking flow with calendar availability, transparent pricing, and owner approval workflow
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Calendar className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Real-time Calendar</h3>
+              <p className="text-gray-600">Select dates with real-time availability checking and visual blocked/available dates</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <DollarSign className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Transparent Pricing</h3>
+              <p className="text-gray-600">Clear breakdown of rental fees, 15% service fee, optional insurance, and deposits</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Bell className="w-8 h-8 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Smart Notifications</h3>
+              <p className="text-gray-600">OneSignal push notifications for booking requests, approvals, and rental reminders</p>
+            </div>
+          </div>
+          
+          <div className="text-center">
+            <Link 
+              href="/complete-booking-flow"
+              className="inline-flex items-center px-8 py-4 bg-green-600 text-white text-lg font-semibold rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <ArrowRight className="w-5 h-5 mr-2" />
+              Try the New Booking Experience
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Browse by Categories */}
       <section className="py-12 sm:py-16 lg:py-20 bg-gray-50">
         <div className="max-w-screen-2xl mx-auto px-4">

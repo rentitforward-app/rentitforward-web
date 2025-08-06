@@ -81,69 +81,156 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // Create Stripe Checkout session
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      payment_intent_data: paymentIntentData,
-      line_items: [
-        {
-          price_data: {
-            currency: 'aud',
-            product_data: {
-              name: `Rental: ${booking.listings.title}`,
-              description: `${booking.start_date} to ${booking.end_date}`,
-              images: booking.listings.images?.length > 0 ? [booking.listings.images[0]] : [],
-              metadata: {
-                bookingId,
-                category: booking.listings.category,
-                location: `${booking.listings.city}, ${booking.listings.state}`,
+    // Try to create Stripe Checkout session with Connect transfer first
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        payment_intent_data: paymentIntentData,
+        line_items: [
+          {
+            price_data: {
+              currency: 'aud',
+              product_data: {
+                name: `Rental: ${booking.listings.title}`,
+                description: `${booking.start_date} to ${booking.end_date}`,
+                images: booking.listings.images?.length > 0 ? [booking.listings.images[0]] : [],
+                metadata: {
+                  bookingId,
+                  category: booking.listings.category,
+                  location: `${booking.listings.location || 'Location not specified'}`,
+                },
               },
+              unit_amount: booking.subtotal * 100, // Subtotal in cents
             },
-            unit_amount: booking.subtotal * 100, // Subtotal in cents
+            quantity: 1,
           },
-          quantity: 1,
-        },
-        {
-          price_data: {
-            currency: 'aud',
-            product_data: {
-              name: 'Service Fee',
-              description: 'Platform service fee',
+          {
+            price_data: {
+              currency: 'aud',
+              product_data: {
+                name: 'Service Fee',
+                description: 'Platform service fee',
+              },
+              unit_amount: booking.service_fee * 100, // Service fee in cents
             },
-            unit_amount: booking.service_fee * 100, // Service fee in cents
+            quantity: 1,
           },
-          quantity: 1,
-        },
-        {
-          price_data: {
-            currency: 'aud',
-            product_data: {
-              name: 'Security Deposit',
-              description: 'Refundable security deposit (held until return)',
+          {
+            price_data: {
+              currency: 'aud',
+              product_data: {
+                name: 'Security Deposit',
+                description: 'Refundable security deposit (held until return)',
+              },
+              unit_amount: booking.deposit_amount * 100, // Deposit in cents
             },
-            unit_amount: booking.deposit_amount * 100, // Deposit in cents
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        metadata: {
+          bookingId,
+          userId,
+          ownerId: booking.owner_id,
+          type: 'booking_payment',
         },
-      ],
-      metadata: {
-        bookingId,
-        userId,
-        ownerId: booking.owner_id,
-        type: 'booking_payment',
-      },
-      success_url: `${baseUrl}/bookings/${bookingId}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/bookings/${bookingId}/payment?cancelled=true`,
-      automatic_tax: { enabled: false },
-      allow_promotion_codes: true,
-      billing_address_collection: 'required',
-      shipping_address_collection: {
-        allowed_countries: ['AU'],
-      },
-      customer_email: booking.profiles?.email,
-      expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
-    });
+        success_url: `${baseUrl}/bookings/${bookingId}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/bookings/${bookingId}/payment?cancelled=true`,
+        automatic_tax: { enabled: false },
+        allow_promotion_codes: true,
+        billing_address_collection: 'required',
+        shipping_address_collection: {
+          allowed_countries: ['AU'],
+        },
+        customer_email: booking.profiles?.email,
+        expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
+      });
+    } catch (stripeError: any) {
+      // If Connect transfer fails due to account capabilities, create a regular payment
+      if (stripeError.code === 'insufficient_capabilities_for_transfer' && ownerStripeAccount) {
+        console.log('Owner account lacks transfer capabilities, creating regular payment session');
+        
+        // Create payment session without Connect transfer (manual payout later)
+        const fallbackPaymentData = {
+          metadata: {
+            bookingId,
+            userId,
+            ownerId: booking.owner_id,
+            platformFee: platformFee.toString(),
+            hasConnectedAccount: 'false', // Mark as false to handle manually
+            requiresManualPayout: 'true',
+          },
+        };
+
+        session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          payment_method_types: ['card'],
+          payment_intent_data: fallbackPaymentData,
+          line_items: [
+            {
+              price_data: {
+                currency: 'aud',
+                product_data: {
+                  name: `Rental: ${booking.listings.title}`,
+                  description: `${booking.start_date} to ${booking.end_date}`,
+                  images: booking.listings.images?.length > 0 ? [booking.listings.images[0]] : [],
+                  metadata: {
+                    bookingId,
+                    category: booking.listings.category,
+                    location: `${booking.listings.location || 'Location not specified'}`,
+                  },
+                },
+                unit_amount: booking.subtotal * 100,
+              },
+              quantity: 1,
+            },
+            {
+              price_data: {
+                currency: 'aud',
+                product_data: {
+                  name: 'Service Fee',
+                  description: 'Platform service fee',
+                },
+                unit_amount: booking.service_fee * 100,
+              },
+              quantity: 1,
+            },
+            {
+              price_data: {
+                currency: 'aud',
+                product_data: {
+                  name: 'Security Deposit',
+                  description: 'Refundable security deposit (held until return)',
+                },
+                unit_amount: booking.deposit_amount * 100,
+              },
+              quantity: 1,
+            },
+          ],
+          metadata: {
+            bookingId,
+            userId,
+            ownerId: booking.owner_id,
+            type: 'booking_payment',
+            requiresManualPayout: 'true',
+          },
+          success_url: `${baseUrl}/bookings/${bookingId}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}/bookings/${bookingId}/payment?cancelled=true`,
+          automatic_tax: { enabled: false },
+          allow_promotion_codes: true,
+          billing_address_collection: 'required',
+          shipping_address_collection: {
+            allowed_countries: ['AU'],
+          },
+          customer_email: booking.profiles?.email,
+          expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60),
+        });
+      } else {
+        // Re-throw other Stripe errors
+        throw stripeError;
+      }
+    }
 
     // Update booking with Stripe session ID
     const { error: updateError } = await supabase

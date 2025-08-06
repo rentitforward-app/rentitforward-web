@@ -4,9 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+
 import { toast } from 'react-hot-toast';
 import { 
   MapPin, 
@@ -27,12 +25,13 @@ import {
   Send
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { format, addDays, differenceInDays, parseISO } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
 import MessageModal from '@/components/MessageModal';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { ReviewList, ReviewStats } from '@/components/reviews';
+import { PaymentBookingModal } from '@/components/booking/PaymentBookingModal';
 
 interface Listing {
   id: string;
@@ -109,22 +108,7 @@ interface RelatedListing {
   };
 }
 
-const bookingSchema = z.object({
-  startDate: z.string().min(1, 'Please select a start date'),
-  endDate: z.string().min(1, 'Please select an end date'),
-  deliveryMethod: z.string().min(1, 'Please select a delivery method'),
-  deliveryAddress: z.string().optional(),
-  specialInstructions: z.string().optional(),
-}).refine((data) => {
-  const start = new Date(data.startDate);
-  const end = new Date(data.endDate);
-  return end > start;
-}, {
-  message: "End date must be after start date",
-  path: ["endDate"],
-});
 
-type BookingForm = z.infer<typeof bookingSchema>;
 
 // Layout wrapper that chooses appropriate layout based on authentication
 function ConditionalLayout({ children }: { children: React.ReactNode }) {
@@ -163,24 +147,16 @@ export default function ListingDetailPage() {
   const [bookedDates, setBookedDates] = useState<string[]>([]);
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
+  
+  // Booking modal state
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   const params = useParams();
   const router = useRouter();
   const supabase = createClient();
   const listingId = params.id as string;
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm<BookingForm>({
-    resolver: zodResolver(bookingSchema),
-  });
 
-  const watchStartDate = watch('startDate');
-  const watchEndDate = watch('endDate');
-  const watchDeliveryMethod = watch('deliveryMethod');
 
   useEffect(() => {
     checkUser();
@@ -418,89 +394,7 @@ export default function ListingDetailPage() {
     setIsMessageModalOpen(true);
   };
 
-  const calculateBookingCost = () => {
-    if (!watchStartDate || !watchEndDate || !listing) {
-      return { subtotal: 0, serviceFee: 0, total: 0, totalDays: 0 };
-    }
 
-    const start = new Date(watchStartDate);
-    const end = new Date(watchEndDate);
-    const totalDays = differenceInDays(end, start);
-
-    if (totalDays <= 0) {
-      return { subtotal: 0, serviceFee: 0, total: 0, totalDays: 0 };
-    }
-
-    let dailyRate = listing.price_per_day || 0;
-    
-    // Apply weekly rates if available and applicable
-    if (totalDays >= 7 && listing.price_weekly) {
-      const weeks = Math.floor(totalDays / 7);
-      const remainingDays = totalDays % 7;
-      dailyRate = ((weeks * listing.price_weekly) + (remainingDays * listing.price_per_day)) / totalDays;
-    }
-
-    const subtotal = dailyRate * totalDays;
-    const serviceFee = subtotal * 0.1; // 10% service fee
-    const total = subtotal + serviceFee + (listing.deposit || 0);
-
-    return { subtotal, serviceFee, total, totalDays };
-  };
-
-  const onSubmitBooking = async (data: BookingForm) => {
-    if (!user) {
-      toast.error('Please log in to make a booking');
-      router.push('/login');
-      return;
-    }
-
-    if (!listing) return;
-
-    setIsBooking(true);
-    try {
-      const costs = calculateBookingCost();
-      
-      // Calculate the required fields based on actual database schema
-      const totalDays = Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / (1000 * 60 * 60 * 24));
-      const pricePerDay = parseFloat(listing.price_per_day.toString());
-      const subtotal = pricePerDay * totalDays;
-      const serviceFee = parseFloat((subtotal * 0.05).toFixed(2)); // 5% service fee
-      const totalAmount = subtotal + serviceFee;
-
-      const { error } = await supabase
-        .from('bookings')
-        .insert({
-          listing_id: listingId,
-          renter_id: user.id,
-          owner_id: listing.profiles.id,
-          start_date: data.startDate,
-          end_date: data.endDate,
-          price_per_day: pricePerDay,
-          subtotal: subtotal,
-          service_fee: serviceFee,
-          total_amount: totalAmount,
-          delivery_method: data.deliveryMethod,
-          delivery_address: data.deliveryMethod === 'delivery' ? data.deliveryAddress : null,
-          pickup_location: data.deliveryMethod === 'pickup' ? `${listing.address || ''}, ${listing.city || ''}, ${listing.state || ''} ${listing.postal_code || ''}`.trim() : null,
-          renter_message: data.specialInstructions || null,
-          status: 'pending'
-        });
-
-      if (error) {
-        console.error('Error creating booking:', error);
-        toast.error('Failed to create booking');
-        return;
-      }
-
-      toast.success('Booking request sent successfully!');
-      router.push('/dashboard?tab=bookings');
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      toast.error('Failed to create booking');
-    } finally {
-      setIsBooking(false);
-    }
-  };
 
   const formatPrice = (price: number | null | undefined) => {
     // Handle string prices that come from database as strings
@@ -535,6 +429,8 @@ export default function ListingDetailPage() {
   const handleImageError = (imageSrc: string) => {
     setImageLoadErrors(prev => new Set(prev).add(imageSrc));
   };
+
+
 
   const getDeliveryMethods = () => {
     if (!listing) return [];
@@ -627,7 +523,6 @@ export default function ListingDetailPage() {
     );
   }
 
-  const costs = calculateBookingCost();
   const displayImages = listing.images && listing.images.length > 0 ? listing.images : ['/images/placeholder-item.svg'];
 
   return (
@@ -863,14 +758,14 @@ export default function ListingDetailPage() {
               
               {/* Review Statistics */}
               <ReviewStats 
-                reviews={reviews}
+                reviews={reviews as any}
                 showDistribution={true}
                 className="mb-6"
               />
               
               {/* Review List with Filters */}
               <ReviewList
-                reviews={reviews}
+                reviews={reviews as any}
                 currentUserId={user?.id}
                 showFilters={reviews.length > 5}
                 initialFilter={{ sortBy: 'newest' }}
@@ -883,9 +778,9 @@ export default function ListingDetailPage() {
 
           {/* Booking Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto pb-8 scrollbar-hide">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="mb-6">
+            <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto pb-4 scrollbar-hide">
+              <div className="bg-white rounded-lg shadow-md p-3">
+                <div className="mb-3">
                   <div className="flex items-baseline space-x-2">
                     <span className="text-3xl font-bold text-[#44D62C]">
                       {listing.price_per_day && listing.price_per_day > 0 
@@ -912,153 +807,20 @@ export default function ListingDetailPage() {
                 {user?.id !== listing.profiles.id ? (
                   <>
                     {listing.price_per_day && listing.price_per_day > 0 ? (
-                      <form onSubmit={handleSubmit(onSubmitBooking)} className="space-y-4">
-                        {/* Date Selection */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Start Date
-                            </label>
-                            <input
-                              {...register('startDate')}
-                              type="date"
-                              min={format(new Date(), 'yyyy-MM-dd')}
-                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                            />
-                            {errors.startDate && (
-                              <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>
-                            )}
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              End Date
-                            </label>
-                            <input
-                              {...register('endDate')}
-                              type="date"
-                              min={watchStartDate || format(addDays(new Date(), 1), 'yyyy-MM-dd')}
-                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                            />
-                            {errors.endDate && (
-                              <p className="mt-1 text-sm text-red-600">{errors.endDate.message}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Delivery Method */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Delivery Method
-                          </label>
-                          <select
-                            {...register('deliveryMethod')}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                          >
-                            <option value="">Select delivery method</option>
-                            {getDeliveryMethods().map((method) => (
-                              <option key={method} value={method}>
-                                {method.charAt(0).toUpperCase() + method.slice(1)}
-                              </option>
-                            ))}
-                          </select>
-                          {errors.deliveryMethod && (
-                            <p className="mt-1 text-sm text-red-600">{errors.deliveryMethod.message}</p>
-                          )}
-                        </div>
-
-                        {/* Delivery Address (if delivery selected) */}
-                        {watchDeliveryMethod === 'delivery' && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Delivery Address
-                            </label>
-                            <textarea
-                              {...register('deliveryAddress')}
-                              rows={3}
-                              placeholder="Enter your delivery address..."
-                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                            />
-                          </div>
-                        )}
-
-                        {/* Pickup Location (if pickup selected) */}
-                        {watchDeliveryMethod === 'pickup' && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Pickup Location
-                            </label>
-                            <div className="border border-gray-300 rounded-md px-3 py-2 bg-gray-50">
-                              <div className="flex items-center">
-                                <MapPin className="h-4 w-4 text-[#44D62C] mr-2 flex-shrink-0" />
-                                <span className="text-gray-900 font-medium">
-                                  {getMaskedPickupLocation()}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
-                              <div className="flex items-start">
-                                <Shield className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
-                                <p className="text-xs text-blue-700 leading-relaxed">
-                                  The exact pickup address will be provided by the owner once your booking is confirmed.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Special Instructions */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Special Instructions (Optional)
-                          </label>
-                          <textarea
-                            {...register('specialInstructions')}
-                            rows={3}
-                            placeholder="Any special requests or instructions..."
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
-                          />
-                        </div>
-
-                        {/* Booking Summary */}
-                        {costs.totalDays > 0 && (
-                          <div className="bg-gray-50 p-4 rounded-lg">
-                            <h4 className="font-medium text-gray-900 mb-2">Booking Summary</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span>
-                                  {formatPrice(listing.price_per_day)} × {costs.totalDays} {costs.totalDays === 1 ? 'day' : 'days'}
-                                </span>
-                                <span>{formatPrice(costs.subtotal)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Service fee</span>
-                                <span>{formatPrice(costs.serviceFee)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Security deposit</span>
-                                <span>{formatPrice(listing.deposit)}</span>
-                              </div>
-                              <div className="border-t pt-2 flex justify-between font-semibold">
-                                <span>Total</span>
-                                <span>{formatPrice(costs.total)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
+                      <div className="space-y-4">
+                        {/* Simple Book Now Button */}
                         <button
-                          type="submit"
-                          disabled={isBooking || costs.totalDays === 0}
-                          className="w-full bg-[#44D62C] text-white py-3 px-4 rounded-md font-semibold hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C] disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => setIsBookingModalOpen(true)}
+                          className="w-full bg-[#44D62C] text-white py-3 px-4 rounded-lg font-semibold hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C] transition-colors duration-200 flex items-center justify-center"
                         >
-                          {isBooking ? 'Processing...' : 'Request to Book'}
+                          <Calendar className="h-5 w-5 mr-2" />
+                          Book Now
                         </button>
 
                         <p className="text-xs text-gray-600 text-center">
-                          You won't be charged yet. This sends a booking request to the owner.
+                          Select dates and complete your booking request
                         </p>
-                      </form>
+                      </div>
                     ) : (
                       <div className="text-center py-8">
                         <p className="text-gray-600 mb-4">Contact the owner for pricing and availability</p>
@@ -1203,14 +965,23 @@ export default function ListingDetailPage() {
 
       {/* Message Modal */}
       {listing && (
-        <MessageModal
-          isOpen={isMessageModalOpen}
-          onClose={() => setIsMessageModalOpen(false)}
-          listing={listing}
-          onSuccess={() => {
-            toast.success('Message sent! Check your messages for replies.');
-          }}
-        />
+        <>
+          <MessageModal
+            isOpen={isMessageModalOpen}
+            onClose={() => setIsMessageModalOpen(false)}
+            listing={listing}
+            onSuccess={() => {
+              toast.success('Message sent! Check your messages for replies.');
+            }}
+          />
+
+                              <PaymentBookingModal
+                      isOpen={isBookingModalOpen}
+                      onClose={() => setIsBookingModalOpen(false)}
+                      listing={listing}
+                      user={user}
+                    />
+        </>
       )}
     </ConditionalLayout>
   );

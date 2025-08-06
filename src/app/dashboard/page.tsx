@@ -481,6 +481,91 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* New Booking Features - Conditional Display */}
+        {stats.pendingBookings > 0 && (
+          <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4 md:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-orange-500 rounded-lg">
+                  <Bell className="w-5 h-5 text-white" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-lg font-semibold text-orange-900">Pending Booking Requests</h3>
+                  <p className="text-sm text-orange-700">You have {stats.pendingBookings} booking request{stats.pendingBookings > 1 ? 's' : ''} awaiting your approval</p>
+                </div>
+              </div>
+              <Link 
+                href="/test-owner-dashboard" 
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+              >
+                Review Requests
+              </Link>
+            </div>
+            <div className="bg-white rounded-lg p-3 border border-orange-200">
+              <p className="text-sm text-orange-800">
+                <strong>New!</strong> Our enhanced booking system now includes owner approval workflow with transparent pricing, 
+                calendar availability, and real-time notifications. Approve or decline requests to help build trust in our community.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Booking Experience Showcase */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 md:p-6">
+          <div className="flex items-center mb-4">
+            <div className="p-2 bg-green-500 rounded-lg">
+              <Calendar className="w-5 h-5 text-white" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-lg font-semibold text-green-900">🎉 New Airbnb-Style Booking Experience</h3>
+              <p className="text-sm text-green-700">Experience our enhanced 9-step booking flow with calendar availability and transparent pricing</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="bg-white rounded-lg p-3 border border-green-200">
+              <div className="flex items-center mb-2">
+                <Calendar className="w-4 h-4 text-green-600 mr-2" />
+                <span className="text-sm font-medium text-green-900">Calendar Availability</span>
+              </div>
+              <p className="text-xs text-green-700">Real-time date selection with blocked/available visualization</p>
+            </div>
+            
+            <div className="bg-white rounded-lg p-3 border border-green-200">
+              <div className="flex items-center mb-2">
+                <DollarSign className="w-4 h-4 text-green-600 mr-2" />
+                <span className="text-sm font-medium text-green-900">Transparent Pricing</span>
+              </div>
+              <p className="text-xs text-green-700">Clear breakdown of all fees (15% service fee + insurance options)</p>
+            </div>
+            
+            <div className="bg-white rounded-lg p-3 border border-green-200">
+              <div className="flex items-center mb-2">
+                <Bell className="w-4 h-4 text-green-600 mr-2" />
+                <span className="text-sm font-medium text-green-900">Real-time Notifications</span>
+              </div>
+              <p className="text-xs text-green-700">OneSignal push notifications for all booking updates</p>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+            <Link 
+              href="/complete-booking-flow" 
+              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium flex items-center"
+            >
+              <ArrowRight className="w-4 h-4 mr-2" />
+              Try New Booking Flow
+            </Link>
+            <Link 
+              href="/test-notifications" 
+              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center"
+            >
+              <Bell className="w-4 h-4 mr-2" />
+              Notification Settings
+            </Link>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Recent Activity */}
           <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">

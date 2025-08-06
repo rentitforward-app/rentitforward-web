@@ -1,0 +1,363 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from 'react-hot-toast';
+import { X, Calendar as CalendarIcon, MapPin, User } from 'lucide-react';
+import { AvailabilityCalendar } from './AvailabilityCalendar';
+import { PricingBreakdown } from './PricingBreakdown';
+import { DateRangeSelection } from '@/lib/calendar-utils';
+import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
+
+// Form validation schema
+const bookingSchema = z.object({
+  notes: z.string().optional(),
+  deliveryMethod: z.enum(['pickup', 'delivery'], {
+    required_error: 'Please select a delivery method',
+  }),
+  deliveryAddress: z.string().optional(),
+});
+
+type BookingForm = z.infer<typeof bookingSchema>;
+
+interface BookingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  listing: any; // Should be typed properly based on your listing type
+  user: any; // Should be typed properly based on your user type
+}
+
+export function BookingModal({ isOpen, onClose, listing, user }: BookingModalProps) {
+  const router = useRouter();
+  const supabase = createClient();
+  
+  // State management
+  const [selectedDates, setSelectedDates] = useState<{startDate: Date | null; endDate: Date | null}>({
+    startDate: null,
+    endDate: null
+  });
+  const [showPricing, setShowPricing] = useState(false);
+  const [includeInsurance, setIncludeInsurance] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
+
+  // Form setup
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<BookingForm>({
+    resolver: zodResolver(bookingSchema),
+    defaultValues: {
+      notes: '',
+      deliveryMethod: 'pickup',
+      deliveryAddress: '',
+    },
+  });
+
+  const watchDeliveryMethod = watch('deliveryMethod');
+
+  // Date selection handler
+  const handleDateSelection = (selection: DateRangeSelection) => {
+    setSelectedDates({
+      startDate: selection.startDate,
+      endDate: selection.endDate
+    });
+    setShowPricing(selection.startDate !== null && selection.endDate !== null);
+  };
+
+  // Reset modal state when opened/closed
+  useEffect(() => {
+    if (isOpen) {
+      // Reset state when modal opens
+      setSelectedDates({ startDate: null, endDate: null });
+      setShowPricing(false);
+      setIncludeInsurance(false);
+    }
+  }, [isOpen]);
+
+  // Form submission
+  const onSubmitBooking = async (data: BookingForm) => {
+    if (!user) {
+      toast.error('Please log in to make a booking');
+      router.push('/login');
+      return;
+    }
+
+    if (!listing || !selectedDates.startDate || !selectedDates.endDate) {
+      toast.error('Please select dates to continue');
+      return;
+    }
+
+    setIsBooking(true);
+    try {
+      // Calculate booking details
+      const totalDays = Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const pricePerDay = parseFloat(listing.price_per_day.toString());
+      const subtotal = pricePerDay * totalDays;
+      const serviceFee = parseFloat((subtotal * 0.15).toFixed(2)); // 15% service fee
+      const insuranceFee = includeInsurance ? parseFloat((subtotal * 0.10).toFixed(2)) : 0; // 10% insurance
+      const totalAmount = subtotal + serviceFee + insuranceFee;
+
+      // Check if user is trying to book their own listing
+      if (user.id === listing.owner_id) {
+        toast.error('You cannot book your own listing');
+        return;
+      }
+
+      const startDateStr = selectedDates.startDate.toISOString().split('T')[0];
+      const endDateStr = selectedDates.endDate.toISOString().split('T')[0];
+
+      // First, check for conflicts before creating booking
+      const { data: conflictCheck, error: conflictError } = await supabase
+        .rpc('check_booking_conflicts', {
+          p_listing_id: listing.id,
+          p_start_date: startDateStr,
+          p_end_date: endDateStr,
+          p_exclude_booking_id: null,
+        });
+
+      if (conflictError) {
+        console.error('Conflict check error:', conflictError);
+        toast.error('Failed to check availability. Please try again.');
+        return;
+      }
+
+      if (conflictCheck) {
+        toast.error('Sorry, these dates are no longer available. Please select different dates and try again.');
+        return;
+      }
+
+      // Create the booking (database triggers will handle availability automatically)
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          listing_id: listing.id,
+          renter_id: user.id,
+          owner_id: listing.owner_id,
+          start_date: startDateStr,
+          end_date: endDateStr,
+          // total_days is auto-generated by database
+          price_per_day: pricePerDay,
+          subtotal: subtotal,
+          service_fee: serviceFee,
+          insurance_fee: insuranceFee,
+          total_amount: totalAmount,
+          delivery_method: data.deliveryMethod && ['pickup', 'delivery'].includes(data.deliveryMethod) ? data.deliveryMethod : 'pickup',
+          delivery_address: data.deliveryMethod === 'delivery' ? data.deliveryAddress || null : null,
+          renter_message: data.notes || null,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (bookingError) {
+        console.error('Booking creation error details:', {
+          error: bookingError,
+          code: bookingError.code,
+          message: bookingError.message,
+          details: bookingError.details,
+          hint: bookingError.hint,
+        });
+        toast.error(`Failed to create booking: ${bookingError.message || 'Please try again.'}`);
+        return;
+      }
+
+      toast.success('Booking request submitted successfully! Redirecting to payment...');
+      onClose(); // Close modal
+      
+      // Redirect to payment page with booking ID
+      router.push(`/payment/${bookingData.id}`);
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast.error('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+        onClick={onClose}
+      />
+      
+      {/* Modal Content */}
+      <div className="relative w-full max-w-2xl max-h-[90vh] mx-4 bg-white rounded-lg shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <div className="flex items-center space-x-3">
+            <CalendarIcon className="h-6 w-6 text-[#44D62C]" />
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Book {listing.title}</h2>
+              <p className="text-sm text-gray-600">Select dates and confirm your booking</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto max-h-[calc(90vh-100px)]">
+          <div className="p-6">
+            {/* Listing Info Card */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 text-lg">{listing.title}</h3>
+                  <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      {listing.city}, {listing.state}
+                    </div>
+                    <div className="flex items-center">
+                      <User className="h-4 w-4 mr-1" />
+                      {listing.profiles?.full_name || 'Host'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-[#44D62C]">
+                    ${listing.price_per_day}
+                  </div>
+                  <div className="text-sm text-gray-600">per day</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Calendar Section */}
+            <div className="mb-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <CalendarIcon className="h-5 w-5 text-gray-700" />
+                <h3 className="text-lg font-semibold text-gray-900">Select Dates</h3>
+              </div>
+              
+              <AvailabilityCalendar
+                listingId={listing.id}
+                onDatesSelected={handleDateSelection}
+                className="border-none shadow-none"
+              />
+            </div>
+
+            {/* Pricing and Form (shown after date selection) */}
+            {showPricing && selectedDates.startDate && selectedDates.endDate && (
+              <div className="space-y-6">
+                {/* Selected Dates Summary */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Selected Dates</p>
+                      <p className="text-gray-600">
+                        {selectedDates.startDate.toLocaleDateString()} - {selectedDates.endDate.toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500">Duration</p>
+                      <p className="font-semibold text-gray-900">
+                        {Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pricing Breakdown */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Price Breakdown</h3>
+                  <PricingBreakdown
+                    basePrice={parseFloat((listing.price_per_day || listing.price || 0).toString())}
+                    duration={Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24))}
+                    hasWeeklyRate={!!listing.price_weekly}
+                    weeklyRate={listing.price_weekly ? parseFloat(listing.price_weekly.toString()) : undefined}
+                    hasInsurance={includeInsurance}
+                    onInsuranceChange={setIncludeInsurance}
+                    securityDeposit={listing.security_deposit ? parseFloat(listing.security_deposit.toString()) : 0}
+                  />
+                </div>
+
+                {/* Booking Form */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Booking Details</h3>
+                  <form onSubmit={handleSubmit(onSubmitBooking)} className="space-y-4">
+                    {/* Delivery Method */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Delivery Method
+                      </label>
+                      <div className="space-y-2">
+                        <label className="flex items-center">
+                          <input
+                            {...register('deliveryMethod')}
+                            type="radio"
+                            value="pickup"
+                            className="mr-2 text-[#44D62C] focus:ring-[#44D62C]"
+                          />
+                          <span className="text-sm">Pickup</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            {...register('deliveryMethod')}
+                            type="radio"
+                            value="delivery"
+                            className="mr-2 text-[#44D62C] focus:ring-[#44D62C]"
+                          />
+                          <span className="text-sm">Delivery (+$20)</span>
+                        </label>
+                      </div>
+                      {errors.deliveryMethod && (
+                        <p className="mt-1 text-sm text-red-600">{errors.deliveryMethod.message}</p>
+                      )}
+                    </div>
+
+                    {/* Delivery Address (conditional) */}
+                    {watchDeliveryMethod === 'delivery' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Delivery Address
+                        </label>
+                        <textarea
+                          {...register('deliveryAddress')}
+                          rows={2}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
+                          placeholder="Enter your delivery address"
+                        />
+                      </div>
+                    )}
+
+                    {/* Additional Notes */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Additional Notes (Optional)
+                      </label>
+                      <textarea
+                        {...register('notes')}
+                        rows={2}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] sm:text-sm"
+                        placeholder="Any special requests or notes..."
+                      />
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={isBooking || !selectedDates.startDate || !selectedDates.endDate}
+                      className="w-full bg-[#44D62C] hover:bg-[#3AB827] text-white py-3 px-4 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                    >
+                      {isBooking ? 'Processing...' : 'Request to Book'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

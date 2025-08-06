@@ -4,15 +4,16 @@ import * as Sentry from '@sentry/nextjs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
+  const { id } = await params;
   
   try {
     const { data: listing, error } = await supabase
       .from('listings')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (error) {

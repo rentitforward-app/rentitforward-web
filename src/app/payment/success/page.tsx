@@ -1,15 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, Calendar, Home, Loader2, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Calendar, Home, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'react-hot-toast';
-import Link from 'next/link';
-import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 interface Booking {
   id: string;
@@ -26,19 +24,19 @@ interface Booking {
 export default function PaymentSuccessPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const supabase = createClient();
-  
-  const bookingId = params.id as string;
-  const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
     const handlePaymentSuccess = async () => {
       try {
-        if (!sessionId) {
-          toast.error('Missing payment session information');
+        // Get booking ID from URL parameters (Stripe can pass custom data)
+        const sessionId = searchParams.get('session_id');
+        const bookingId = searchParams.get('booking_id');
+
+        if (!bookingId) {
+          toast.error('Missing booking information');
           router.push('/bookings');
           return;
         }
@@ -63,13 +61,12 @@ export default function PaymentSuccessPage() {
           return;
         }
 
-        // Update booking status to confirmed if payment was successful and still in payment_required
-        if (bookingData.status === 'payment_required') {
+        // Update booking status to confirmed if payment was successful
+        if (bookingData.status === 'payment_pending') {
           const { error: updateError } = await supabase
             .from('bookings')
             .update({ 
               status: 'confirmed',
-              payment_status: 'succeeded',
               updated_at: new Date().toISOString()
             })
             .eq('id', bookingId);
@@ -96,65 +93,39 @@ export default function PaymentSuccessPage() {
     };
 
     handlePaymentSuccess();
-  }, [bookingId, sessionId, router, supabase]);
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
+  }, [searchParams, router, supabase]);
 
   if (isLoading) {
     return (
-      <AuthenticatedLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Processing your payment...</p>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Processing your payment...</p>
         </div>
-      </AuthenticatedLayout>
+      </div>
     );
   }
 
   if (!booking) {
     return (
-      <AuthenticatedLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-gray-600">Booking not found</p>
-            <Link href="/bookings">
-              <Button className="mt-4">Back to Bookings</Button>
-            </Link>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Booking not found</p>
         </div>
-      </AuthenticatedLayout>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-6">
-          <Link
-            href="/bookings"
-            className="inline-flex items-center text-[#44D62C] hover:text-[#3AB827] font-medium mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Bookings
-          </Link>
-        </div>
-
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-2xl mx-auto px-4">
         <div className="text-center mb-8">
           <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Payment Successful!
           </h1>
           <p className="text-lg text-gray-600">
-            Your booking has been confirmed and payment processed
+            Your booking has been confirmed
           </p>
         </div>
 
@@ -182,7 +153,7 @@ export default function PaymentSuccessPage() {
               <div className="flex justify-between items-center">
                 <span className="font-semibold">Total Paid:</span>
                 <span className="text-xl font-bold text-green-600">
-                  {formatPrice(booking.total_amount)}
+                  ${booking.total_amount.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -195,18 +166,7 @@ export default function PaymentSuccessPage() {
             <ul className="text-blue-800 space-y-1">
               <li>• You'll receive a confirmation email shortly</li>
               <li>• The host will be notified of your booking</li>
-              <li>• Your payment is held securely in escrow until item return</li>
               <li>• Check your messages for coordination details</li>
-            </ul>
-          </div>
-
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h3 className="font-semibold text-green-900 mb-2">Escrow Protection</h3>
-            <ul className="text-green-800 space-y-1">
-              <li>• Your payment is protected by Stripe Connect</li>
-              <li>• Funds are held in escrow until successful item return</li>
-              <li>• Platform fee and owner payment are automatically separated</li>
-              <li>• Security deposit will be refunded after item return</li>
             </ul>
           </div>
 
@@ -226,6 +186,6 @@ export default function PaymentSuccessPage() {
           </div>
         </div>
       </div>
-    </AuthenticatedLayout>
+    </div>
   );
 }
