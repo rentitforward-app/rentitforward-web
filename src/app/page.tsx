@@ -447,14 +447,7 @@ function MarketingHomepage() {
       {/* Enhanced Booking Experience Feature */}
       <section className="py-12 sm:py-16 lg:py-20 bg-white">
         <div className="max-w-screen-2xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              🎉 New Airbnb-Style Booking Experience
-            </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
-              Experience our enhanced 9-step booking flow with calendar availability, transparent pricing, and owner approval workflow
-            </p>
-          </div>
+          
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
             <div className="text-center">
@@ -482,15 +475,7 @@ function MarketingHomepage() {
             </div>
           </div>
           
-          <div className="text-center">
-            <Link 
-              href="/complete-booking-flow"
-              className="inline-flex items-center px-8 py-4 bg-green-600 text-white text-lg font-semibold rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <ArrowRight className="w-5 h-5 mr-2" />
-              Try the New Booking Experience
-            </Link>
-          </div>
+         
         </div>
       </section>
 
