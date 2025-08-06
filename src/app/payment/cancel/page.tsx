@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { XCircle, ArrowLeft, Calendar, Home } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
 
 export default function PaymentCancelPage() {

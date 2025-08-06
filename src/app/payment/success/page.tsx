@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { CheckCircle, Calendar, Home, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'react-hot-toast';
 

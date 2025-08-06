@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';

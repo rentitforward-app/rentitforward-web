@@ -472,4 +472,39 @@ export const BookingNotifications = {
       priority: NOTIFICATION_PRIORITY.HIGH,
     }, reminderTime);
   },
+
+  /**
+   * Notify owner of completed booking (direct payment)
+   */
+  async notifyOwnerBookingCompleted(
+    ownerId: string,
+    bookingId: string,
+    listingTitle: string,
+    renterName: string,
+    amount: number,
+    startDate: string,
+    endDate: string
+  ): Promise<NotificationResult> {
+    return notificationService.sendNotification({
+      category: NOTIFICATION_CATEGORIES.BOOKING_APPROVED, // Reusing approved category for confirmed bookings
+      userId: ownerId,
+      title: '🎉 New Booking Confirmed!',
+      message: `${renterName} has booked "${listingTitle}" and paid $${amount.toFixed(2)}`,
+      templateVars: {
+        listingTitle,
+        renterName,
+        amount: `$${amount.toFixed(2)}`,
+      },
+      data: {
+        bookingId,
+        renterName,
+        amount,
+        startDate,
+        endDate,
+        action: 'view_booking',
+      },
+      url: `/dashboard/bookings/${bookingId}`,
+      priority: NOTIFICATION_PRIORITY.HIGH,
+    });
+  },
 };

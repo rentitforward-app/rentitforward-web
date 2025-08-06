@@ -3,7 +3,7 @@
 import React from 'react';
 import { useListings, useCurrentUser, useCreateListing } from '@/hooks/graphql/useGraphQL';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatPrice } from '@rentitforward/shared/utils/formatting';
 

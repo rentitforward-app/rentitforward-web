@@ -14,7 +14,7 @@ import { AvailabilityCalendar } from './AvailabilityCalendar';
 import { PricingBreakdown } from './PricingBreakdown';
 import { DateRangeSelection } from '@/lib/calendar-utils';
 import { createClient } from '@/lib/supabase/client';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);

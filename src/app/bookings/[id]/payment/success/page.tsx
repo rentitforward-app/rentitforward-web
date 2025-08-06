@@ -20,6 +20,11 @@ interface Booking {
   listings: {
     title: string;
     images: string[];
+    owner_id: string;
+  };
+  renter_profile?: {
+    full_name: string;
+    email: string;
   };
 }
 
@@ -50,15 +55,27 @@ export default function PaymentSuccessPage() {
             *,
             listings:listing_id (
               title,
-              images
+              images,
+              owner_id
+            ),
+            renter_profile:renter_id (
+              full_name,
+              email
             )
           `)
           .eq('id', bookingId)
           .single();
 
         if (bookingError || !bookingData) {
-          console.error('Error fetching booking:', bookingError);
-          toast.error('Failed to load booking details');
+          console.error('Error fetching booking:', {
+            error: bookingError,
+            code: bookingError?.code,
+            message: bookingError?.message,
+            details: bookingError?.details,
+            hint: bookingError?.hint,
+            bookingId: bookingId
+          });
+          toast.error(`Failed to load booking details: ${bookingError?.message || 'Unknown error'}`);
           router.push('/bookings');
           return;
         }
@@ -78,6 +95,47 @@ export default function PaymentSuccessPage() {
             console.error('Error updating booking status:', updateError);
           } else {
             bookingData.status = 'confirmed';
+            
+            // Send notification to owner about completed booking
+            try {
+              const { BookingNotifications } = await import('@/lib/onesignal/notifications');
+              
+              await BookingNotifications.notifyOwnerBookingCompleted(
+                bookingData.listings.owner_id,
+                bookingData.id,
+                bookingData.listings.title,
+                bookingData.renter_profile?.full_name || 'A user',
+                bookingData.total_amount || 0,
+                bookingData.start_date,
+                bookingData.end_date
+              );
+              
+              console.log('✅ Owner notification sent successfully for booking:', bookingData.id);
+              
+              // Also create a database notification for the owner
+              await supabase.from('notifications').insert({
+                user_id: bookingData.listings.owner_id,
+                type: 'booking_confirmed',
+                title: '🎉 New Booking Confirmed!',
+                message: `${bookingData.renter_profile?.full_name || 'A user'} has booked "${bookingData.listings.title}" and paid $${(bookingData.total_amount || 0).toFixed(2)}`,
+                related_id: bookingData.id,
+                action_url: `/dashboard/bookings/${bookingData.id}`,
+                metadata: {
+                  booking_id: bookingData.id,
+                  renter_name: bookingData.renter_profile?.full_name,
+                  amount: bookingData.total_amount,
+                  start_date: bookingData.start_date,
+                  end_date: bookingData.end_date,
+                },
+                is_read: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+              
+            } catch (notificationError) {
+              console.error('⚠️ Failed to send owner notification:', notificationError);
+              // Don't fail the payment success flow if notification fails
+            }
           }
         }
 
