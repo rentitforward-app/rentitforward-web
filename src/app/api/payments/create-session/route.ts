@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
-import { PLATFORM_RATES } from '@rentitforward/shared/src/utils/pricing';
+// TODO: Replace with shared package import when monorepo is properly configured
+const PLATFORM_RATES = {
+  SERVICE_FEE_PERCENT: 0.15, // 15% added to renter total
+  COMMISSION_PERCENT: 0.20,  // 20% deducted from owner payout
+  INSURANCE_PERCENT: 0.10,   // 10% of daily rate per day
+  POINTS_TO_CREDIT_RATE: 0.10, // 100 points = $10 AUD
+};
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
