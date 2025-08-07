@@ -1038,8 +1038,23 @@ export default function BookingsPage() {
                   <div className="flex-1">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">{booking.listing.title}</h3>
-                        <p className="text-sm text-gray-500">Booking ID: {booking.id}</p>
+                        <button
+                          onClick={() => router.push(`/bookings/${booking.id}`)}
+                          className="text-left"
+                        >
+                          <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 cursor-pointer">
+                            {booking.listing.title}
+                          </h3>
+                        </button>
+                        <p className="text-sm text-gray-500">
+                          Booking ID: 
+                          <button
+                            onClick={() => router.push(`/bookings/${booking.id}`)}
+                            className="ml-1 text-blue-600 hover:text-blue-800 cursor-pointer"
+                          >
+                            {booking.id}
+                          </button>
+                        </p>
                       </div>
                       <div className="flex items-center space-x-3">
                         <span className="text-lg font-bold text-green-600">
@@ -1189,7 +1204,7 @@ export default function BookingsPage() {
                         Message
                       </Button>
                       <Button
-                        onClick={() => setSelectedBooking(booking)}
+                        onClick={() => router.push(`/bookings/${booking.id}`)}
                         variant="outline"
                         size="sm"
                       >
