@@ -32,6 +32,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { ReviewList, ReviewStats } from '@/components/reviews';
 import { PaymentBookingModal } from '@/components/booking/PaymentBookingModal';
+import { ImageZoomModal } from '@/components/ImageZoomModal';
 
 interface Listing {
   id: string;
@@ -150,6 +151,7 @@ export default function ListingDetailPage() {
   
   // Booking modal state
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
 
   const params = useParams();
   const router = useRouter();
@@ -543,27 +545,43 @@ export default function ListingDetailPage() {
           <div className="lg:col-span-2">
             {/* Image Gallery */}
             <div className="relative bg-white rounded-lg shadow-md overflow-hidden mb-6">
-              <div className="aspect-w-16 aspect-h-9 relative h-96">
+              <div 
+                className="aspect-w-16 aspect-h-9 relative h-96 cursor-pointer group"
+                onClick={() => setIsImageZoomOpen(true)}
+              >
                 <Image
                   src={getDisplayImage(displayImages, currentImageIndex)}
                   alt={listing.title}
                   fill
-                  className="object-contain bg-gray-50"
+                  className="object-contain bg-gray-50 group-hover:scale-105 transition-transform duration-200"
                   priority
                   onError={() => handleImageError(displayImages[currentImageIndex])}
                 />
                 
+                {/* Zoom indicator */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 rounded-full p-2">
+                    <Eye className="h-6 w-6 text-gray-800" />
+                  </div>
+                </div>
+                
                 {displayImages.length > 1 && (
                   <>
                     <button
-                      onClick={prevImage}
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        prevImage();
+                      }}
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 z-10"
                     >
                       <ChevronLeft className="h-6 w-6" />
                     </button>
                     <button
-                      onClick={nextImage}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        nextImage();
+                      }}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 z-10"
                     >
                       <ChevronRight className="h-6 w-6" />
                     </button>
@@ -576,7 +594,10 @@ export default function ListingDetailPage() {
                     {displayImages.map((_, index) => (
                       <button
                         key={index}
-                        onClick={() => setCurrentImageIndex(index)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentImageIndex(index);
+                        }}
                         className={`w-2 h-2 rounded-full ${
                           index === currentImageIndex ? 'bg-white' : 'bg-white/50'
                         }`}
@@ -593,7 +614,10 @@ export default function ListingDetailPage() {
                     {displayImages.map((image, index) => (
                       <button
                         key={index}
-                        onClick={() => setCurrentImageIndex(index)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentImageIndex(index);
+                        }}
                         className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 ${
                           index === currentImageIndex ? 'border-[#44D62C]' : 'border-gray-200'
                         }`}
@@ -759,7 +783,6 @@ export default function ListingDetailPage() {
               {/* Review Statistics */}
               <ReviewStats 
                 reviews={reviews as any}
-                showDistribution={true}
                 className="mb-6"
               />
               
@@ -981,6 +1004,14 @@ export default function ListingDetailPage() {
                       listing={listing}
                       user={user}
                     />
+
+          <ImageZoomModal
+            isOpen={isImageZoomOpen}
+            onClose={() => setIsImageZoomOpen(false)}
+            images={displayImages}
+            initialIndex={currentImageIndex}
+            title={listing.title}
+          />
         </>
       )}
     </ConditionalLayout>

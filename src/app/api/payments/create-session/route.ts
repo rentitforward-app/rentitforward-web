@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
+import { PLATFORM_RATES } from '@rentitforward/shared/src/utils/pricing';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -54,13 +55,21 @@ export async function POST(request: NextRequest) {
     }
 
     const ownerStripeAccount = booking.profiles?.stripe_account_id;
-    const platformFeeRate = 0.05; // 5% platform fee
-    const platformFee = Math.round(booking.subtotal * platformFeeRate * 100); // Convert to cents
+    // Use shared platform commission rate for consistency
+    const platformFee = Math.round(booking.subtotal * PLATFORM_RATES.COMMISSION_PERCENT * 100); // Convert to cents
     const totalAmount = booking.total_amount * 100; // Convert to cents
 
     // Construct base URL from request or environment
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
       `${request.headers.get('x-forwarded-proto') || 'http'}://${request.headers.get('host')}`;
+
+    // Debug logging for URL construction
+    console.log('🔗 Payment Session URL Construction:');
+    console.log('- NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL);
+    console.log('- Request protocol:', request.headers.get('x-forwarded-proto'));
+    console.log('- Request host:', request.headers.get('host'));
+    console.log('- Final baseUrl:', baseUrl);
+    console.log('- Success URL will be:', `${baseUrl}/bookings/${bookingId}/payment/success?session_id={CHECKOUT_SESSION_ID}`);
 
     // Determine payment intent data based on whether owner has connected account
     const paymentIntentData: any = {

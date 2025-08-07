@@ -489,12 +489,12 @@ function MarketingHomepage() {
             </p>
           </div>
           
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 justify-items-center">
             {categories.map((category, index) => (
               <Link 
                 key={index}
                 href={`/browse?category=${category.slug}`}
-                className="bg-white rounded-2xl p-4 sm:p-6 text-center shadow-sm hover:shadow-md transition-all duration-300 group border border-gray-100 w-40 sm:w-44 lg:w-48 xl:w-52 flex-shrink-0"
+                className="bg-white rounded-2xl p-4 sm:p-6 text-center shadow-sm hover:shadow-md transition-all duration-300 group border border-gray-100 w-full max-w-40 sm:max-w-44 lg:max-w-48 xl:max-w-52"
               >
                 <div className="text-3xl sm:text-4xl lg:text-5xl mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300">
                   {category.icon}

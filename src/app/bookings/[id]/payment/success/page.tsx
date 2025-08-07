@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, Calendar, Home, Loader2, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Calendar, Home, Loader2, ArrowLeft, MessageCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -136,6 +136,30 @@ export default function PaymentSuccessPage() {
               console.error('⚠️ Failed to send owner notification:', notificationError);
               // Don't fail the payment success flow if notification fails
             }
+
+            // Send confirmation emails
+            try {
+              const emailResponse = await fetch(`/api/bookings/${bookingId}/send-confirmation-email`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  bookingId: bookingId
+                }),
+              });
+
+              const emailResult = await emailResponse.json();
+              
+              if (emailResult.success) {
+                console.log('✅ Confirmation emails sent successfully');
+              } else {
+                console.warn('⚠️ Some confirmation emails failed to send:', emailResult);
+              }
+            } catch (emailError) {
+              console.error('⚠️ Failed to send confirmation emails:', emailError);
+              // Don't fail the payment success flow if emails fail
+            }
           }
         }
 
@@ -254,8 +278,21 @@ export default function PaymentSuccessPage() {
               <li>• You'll receive a confirmation email shortly</li>
               <li>• The host will be notified of your booking</li>
               <li>• Your payment is held securely in escrow until item return</li>
-              <li>• Check your messages for coordination details</li>
+              <li>• Message the host to coordinate pickup details</li>
             </ul>
+            
+            <div className="mt-4 pt-3 border-t border-blue-200 space-y-2">
+              <Link 
+                href="/messages"
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Go to Messages
+              </Link>
+              <p className="text-xs text-blue-700">
+                Look for a conversation with your host to coordinate pickup details
+              </p>
+            </div>
           </div>
 
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">

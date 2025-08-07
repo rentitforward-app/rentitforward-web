@@ -377,7 +377,9 @@ export default function BookingsPage() {
       }
 
       // Transform the data to match our interface
-      const transformedBookings: Booking[] = (allBookingsData || []).map(booking => {
+      const transformedBookings: Booking[] = (allBookingsData || [])
+        .filter(booking => booking.listings !== null) // Filter out bookings with null listings
+        .map(booking => {
         // Check if this is a booking where user is the owner (has renter data) or renter (has owner data)
         const isOwnerBooking = booking.owner_id === user.id;
 
@@ -418,12 +420,12 @@ export default function BookingsPage() {
           return_images: booking.return_images || [],
           return_notes: booking.return_notes,
           listing: {
-            id: booking.listings.id,
-            title: booking.listings.title,
-            images: booking.listings.images || ['/placeholder-image.jpg'],
-            daily_rate: booking.listings.price_per_day,
-            category: booking.listings.category || 'General',
-            owner_id: booking.listings.owner_id
+            id: booking.listings?.id || 'unknown',
+            title: booking.listings?.title || 'Unknown Listing',
+            images: booking.listings?.images || ['/placeholder-image.jpg'],
+            daily_rate: booking.listings?.price_per_day || 0,
+            category: booking.listings?.category || 'General',
+            owner_id: booking.listings?.owner_id || 'unknown'
           },
           // For owner bookings, show renter info; for renter bookings, show owner info
           owner: isOwnerBooking ? {
@@ -1035,7 +1037,10 @@ export default function BookingsPage() {
                   {/* Content */}
                   <div className="flex-1">
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{booking.listing.title}</h3>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{booking.listing.title}</h3>
+                        <p className="text-sm text-gray-500">Booking ID: {booking.id}</p>
+                      </div>
                       <div className="flex items-center space-x-3">
                         <span className="text-lg font-bold text-green-600">
                           {formatPrice(booking.total_amount)}

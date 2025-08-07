@@ -110,7 +110,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} antialiased min-h-screen bg-gray-50`}>
+      <body 
+        className={`${inter.className} antialiased min-h-screen bg-gray-50`}
+        suppressHydrationWarning={true}
+      >
         <Providers>
           <div id="root" className="relative flex flex-col min-h-screen">
             <Header />

@@ -60,6 +60,8 @@ export function AvailabilityCalendar({
         );
         if (!response.ok) throw new Error('Failed to fetch availability');
         const data = await response.json();
+        // console.log('📅 Availability data fetched:', data.dates?.length, 'dates');
+        // console.log('📅 Booked dates found:', data.dates?.filter(d => d.status === 'booked').length);
         return data.dates as CalendarAvailability[];
       } catch (error) {
         console.warn('Availability API not available, using demo data');
@@ -69,7 +71,7 @@ export function AvailabilityCalendar({
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: false, // Disable automatic refetching
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     retry: false, // Disable retries for now
     retryDelay: 1000
   });
@@ -167,6 +169,12 @@ export function AvailabilityCalendar({
     const dateStr = format(date, 'yyyy-MM-dd');
     const dateAvailability = availability.find(a => a.date === dateStr);
     
+    // Debug logging for weekend dates (commented out for production)
+    // const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    // if (isWeekend && dateAvailability?.status === 'booked') {
+    //   console.log('🎯 Weekend booked date:', dateStr, 'status:', dateAvailability.status, 'returning dot');
+    // }
+    
     if (!dateAvailability || dateAvailability.status === 'available') {
       return null;
     }
@@ -181,7 +189,14 @@ export function AvailabilityCalendar({
     };
 
     return (
-      <div className={`w-2 h-2 rounded-full mx-auto mt-1 ${getStatusColor(dateAvailability.status)}`} />
+      <div 
+        className={`w-4 h-4 rounded-full mx-auto mt-0.5 ${getStatusColor(dateAvailability.status)} absolute bottom-1 left-1/2 transform -translate-x-1/2 z-20`}
+        style={{ 
+          backgroundColor: dateAvailability.status === 'booked' ? '#dc2626' : undefined,
+          border: '2px solid white',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+        }}
+      />
     );
   }, [availability]);
 
@@ -302,6 +317,17 @@ export function AvailabilityCalendar({
                 color: white !important;
                 font-weight: bold !important;
                 border: 2px solid #3AB827 !important;
+              }
+              .calendar-container .react-calendar__month-view__days__day--weekend {
+                color: #374151 !important;
+                background: white !important;
+              }
+              .calendar-container .react-calendar__tile {
+                background: white !important;
+                border: 1px solid #e5e7eb !important;
+              }
+              .calendar-container .react-calendar__tile:hover {
+                background: #f9fafb !important;
               }
               .calendar-container .react-calendar__tile--rangeStart {
                 background: #44D62C !important;
@@ -485,6 +511,15 @@ export function AvailabilityCalendar({
           background-color: #f9fafb;
           color: #d1d5db;
           cursor: not-allowed;
+        }
+        
+        .react-calendar__month-view__days__day--weekend {
+          color: #374151 !important;
+          background-color: inherit !important;
+        }
+        
+        .react-calendar__month-view__days__day--weekend:not(.react-calendar__tile--disabled):not(.react-calendar__tile--active):not(.react-calendar__tile--range):not(.react-calendar__tile--rangeStart):not(.react-calendar__tile--rangeEnd) {
+          background-color: #f9fafb;
         }
         
         .react-calendar__navigation button {

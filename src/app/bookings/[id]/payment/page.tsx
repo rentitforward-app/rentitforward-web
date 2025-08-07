@@ -127,7 +127,13 @@ export default function PaymentPage() {
 
       // Check if payment is required
       if (data.status !== 'payment_required') {
-        toast.error('Payment is not required for this booking');
+        if (data.status === 'confirmed') {
+          toast.success('This booking has already been paid for');
+        } else if (data.status === 'pending') {
+          toast.info('This booking is still pending owner approval');
+        } else {
+          toast.error('Payment is not required for this booking');
+        }
         router.push('/bookings');
         return;
       }
@@ -296,7 +302,7 @@ export default function PaymentPage() {
               <div className="pt-6">
                 <h4 className="font-semibold text-gray-900 mb-2">Host Contact</h4>
                 <p className="text-gray-600">{booking.owner.full_name}</p>
-                <p className="text-gray-600">{booking.owner.email}</p>
+                <p className="text-sm text-gray-500">Contact details will be shared after payment confirmation</p>
               </div>
             </Card>
 
@@ -351,7 +357,7 @@ export default function PaymentPage() {
                   <span className="text-purple-600 font-medium">Payment Required</span>
                 </div>
                 <p className="text-purple-600 text-sm mt-1">
-                  Your booking has been approved by the host
+                  Complete payment to confirm your booking
                 </p>
               </div>
 
@@ -377,6 +383,15 @@ export default function PaymentPage() {
               <p className="text-xs text-gray-500 text-center mt-3">
                 Secure payment powered by Stripe
               </p>
+              
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  * Service fee helps us provide a safe and reliable platform
+                </p>
+                <p className="text-xs text-gray-600">
+                  * Security deposit will be refunded after item return
+                </p>
+              </div>
 
               {/* Cancellation Policy */}
               <div className="mt-6 pt-6 border-t">
