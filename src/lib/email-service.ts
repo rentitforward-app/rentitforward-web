@@ -36,16 +36,14 @@ class EmailService {
   private fromEmail: string;
 
   constructor() {
-    // Force Resend for production
-    this.provider = 'resend';
-    this.fromEmail = 'Rent It Forward <noreply@rentitforward.com.au>';
+    this.provider = process.env.EMAIL_PROVIDER || 'console';
+    this.fromEmail = process.env.FROM_EMAIL || 'noreply@rentitforward.com';
     
     // Debug logging
     console.log('📧 Email Service Configuration:');
     console.log('- Provider:', this.provider);
     console.log('- From Email:', this.fromEmail);
     console.log('- Resend API Key:', process.env.RESEND_API_KEY ? 'SET' : 'NOT SET');
-    console.log('- Raw API Key:', process.env.RESEND_API_KEY?.substring(0, 10) + '...');
   }
 
   async sendEmail(options: SendEmailOptions): Promise<EmailResponse> {
@@ -76,18 +74,16 @@ class EmailService {
   }
 
   private async sendWithResend(options: SendEmailOptions): Promise<EmailResponse> {
-    const apiKey = process.env.RESEND_API_KEY || 're_9WDJu3mH_Gequq4WXkyhB7bmhGpFmxGSh';
-    
-    console.log('🔑 Using Resend API Key:', apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING');
-    
-    if (!apiKey) {
+    if (!process.env.RESEND_API_KEY) {
       throw new Error('RESEND_API_KEY environment variable is required');
     }
+    
+    console.log('🔑 Using Resend API Key: [CONFIGURED]');
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
