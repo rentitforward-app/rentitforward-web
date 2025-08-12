@@ -37,10 +37,15 @@ async function getBookingDetails(bookingId: string, userId: string) {
         id,
         full_name,
         avatar_url
+      ),
+      renter:profiles!renter_id (
+        id,
+        full_name,
+        avatar_url
       )
     `)
     .eq('id', bookingId)
-    .eq('renter_id', userId)
+    .or(`renter_id.eq.${userId},owner_id.eq.${userId}`)
     .single();
 
   if (error || !booking) {
@@ -134,13 +139,19 @@ async function BookingDetailsContent({ params }: PageProps) {
   const startDate = new Date(booking.start_date);
   const endDate = new Date(booking.end_date);
   const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Determine if current user is the owner or renter
+  const isOwner = booking.owner_id === user.id;
+  const isRenter = booking.renter_id === user.id;
 
   return (
     <DashboardWrapper>
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Booking Details</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Booking Details {isOwner ? '(As Owner)' : '(As Renter)'}
+          </h1>
           <div className="flex items-center gap-4">
             <Badge className={getStatusColor(booking.status)}>
               {getStatusText(booking.status)}
@@ -279,10 +290,10 @@ async function BookingDetailsContent({ params }: PageProps) {
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
               <div className="space-y-3">
-                <Link href={`/messages?with=${booking.owner_id}&booking=${booking.id}`} className="w-full">
+                <Link href={`/messages?with=${isOwner ? booking.renter_id : booking.owner_id}&booking=${booking.id}`} className="w-full">
                   <Button variant="outline" className="w-full">
                     <MessageCircle className="w-4 h-4 mr-2" />
-                    Message Host
+                    {isOwner ? 'Message Renter' : 'Message Host'}
                   </Button>
                 </Link>
                 
@@ -294,28 +305,57 @@ async function BookingDetailsContent({ params }: PageProps) {
               </div>
             </Card>
 
-            {/* Host Info */}
+            {/* Host/Renter Info */}
             <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Host</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {isOwner ? 'Your Renter' : 'Your Host'}
+              </h3>
               <div className="flex items-center gap-3">
-                {booking.profiles.avatar_url ? (
-                  <div className="relative w-12 h-12 rounded-full overflow-hidden">
-                    <Image
-                      src={booking.profiles.avatar_url}
-                      alt={booking.profiles.full_name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
+                {isOwner ? (
+                  // Show renter info when user is owner
+                  <>
+                    {booking.renter?.avatar_url ? (
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                        <Image
+                          src={booking.renter.avatar_url}
+                          alt={booking.renter.full_name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium text-gray-900">{booking.renter?.full_name}</p>
+                      <p className="text-sm text-gray-500">Renter</p>
+                    </div>
+                  </>
                 ) : (
-                  <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-                    <User className="w-6 h-6 text-gray-400" />
-                  </div>
+                  // Show host info when user is renter
+                  <>
+                    {booking.profiles.avatar_url ? (
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                        <Image
+                          src={booking.profiles.avatar_url}
+                          alt={booking.profiles.full_name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium text-gray-900">{booking.profiles.full_name}</p>
+                      <p className="text-sm text-gray-500">Host</p>
+                    </div>
+                  </>
                 )}
-                <div>
-                  <p className="font-medium text-gray-900">{booking.profiles.full_name}</p>
-                  <p className="text-sm text-gray-500">Host</p>
-                </div>
               </div>
             </Card>
           </div>

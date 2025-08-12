@@ -622,7 +622,7 @@ export default function BookingsPage() {
   };
 
   const handleOwnerReceiptConfirmation = async (data: { notes: string; condition: string; hasIssues: boolean }) => {
-    if (!confirmationModal.booking) return;
+    if (!ownerReceiptModal.booking) return;
 
     try {
       const updateData = {
@@ -634,23 +634,70 @@ export default function BookingsPage() {
         status: 'completed' as const // Mark as completed after owner confirms receipt
       };
 
+      // Update booking directly via Supabase (fallback while API endpoint loads)
       const { error } = await supabase
         .from('bookings')
-        .update(updateData)
-        .eq('id', confirmationModal.booking.id);
+        .update({
+          ...updateData,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', ownerReceiptModal.booking.id);
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || 'Failed to complete booking');
+      }
 
-      // Update local state
+      // Create notifications for both renter and owner
+      const notifications = [
+        {
+          user_id: ownerReceiptModal.booking.owner_id,
+          type: 'rental_completed',
+          title: 'Rental Completed',
+          message: 'You have successfully confirmed the return. The booking is now completed and ready for fund release.',
+          data: {
+            booking_id: ownerReceiptModal.booking.id,
+            listing_title: ownerReceiptModal.booking.listing.title,
+          },
+          created_at: new Date().toISOString(),
+        },
+        {
+          user_id: ownerReceiptModal.booking.renter_id,
+          type: 'rental_completed',
+          title: 'Rental Completed',
+          message: `The owner has confirmed the return of "${ownerReceiptModal.booking.listing.title}". Thank you for renting responsibly!`,
+          data: {
+            booking_id: ownerReceiptModal.booking.id,
+            listing_title: ownerReceiptModal.booking.listing.title,
+          },
+          created_at: new Date().toISOString(),
+        },
+      ];
+
+      // Insert notifications
+      for (const notification of notifications) {
+        try {
+          await supabase.from('notifications').insert(notification);
+        } catch (notificationError) {
+          console.error('Error creating notification:', notificationError);
+        }
+      }
+
+      // Update local state with the completed booking
       setBookings(prev => prev.map(booking => 
-        booking.id === confirmationModal.booking!.id 
-          ? { ...booking, ...updateData } 
+        booking.id === ownerReceiptModal.booking!.id 
+          ? { ...booking, ...updateData, completed_at: new Date().toISOString() } 
           : booking
       ));
 
+      // Close the modal
+      closeOwnerReceiptModal();
+      
+      // Show success message
+      toast.success('Receipt confirmed! Booking completed successfully.');
       console.log('Owner receipt confirmed successfully');
     } catch (error) {
       console.error('Failed to confirm receipt:', error);
+      toast.error('Failed to confirm receipt. Please try again.');
       throw error;
     }
   };

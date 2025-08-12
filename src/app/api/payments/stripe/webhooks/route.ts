@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
         await handleAccountUpdated(event.data.object as Stripe.Account);
         break;
 
+      // ==================== CHECKOUT EVENTS ====================
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+
       // ==================== PAYMENT EVENTS ====================
       case 'payment_intent.succeeded':
         await handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent);
@@ -93,6 +98,86 @@ export async function POST(request: NextRequest) {
 }
 
 // ==================== EVENT HANDLERS ====================
+
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  const supabase = await createClient();
+  
+  try {
+    console.log(`[Webhook] Processing checkout.session.completed for ${session.id}`);
+
+    const bookingId = session.metadata?.bookingId;
+    if (!bookingId) {
+      console.log(`[Webhook] No booking ID found in session metadata`);
+      return;
+    }
+
+    // Update booking status to payment_confirmed (funds held in escrow)
+    const { data: updatedBooking, error: updateError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'payment_confirmed', // Funds received and held in escrow
+        payment_status: 'succeeded',
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: session.payment_intent as string,
+        payment_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', bookingId)
+      .eq('status', 'payment_required')
+      .select()
+      .single();
+
+    if (updateError || !updatedBooking) {
+      console.error('[Webhook] Error updating booking or booking already processed:', updateError);
+      return;
+    }
+
+    // Create notifications for both renter and owner
+    const notifications = [
+      {
+        user_id: updatedBooking.renter_id,
+        type: 'payment_confirmed',
+        title: 'Payment Successful',
+        message: 'Your payment has been confirmed. The rental is now secured and funds are held safely until completion.',
+        data: {
+          booking_id: bookingId,
+          session_id: session.id,
+          amount_total: session.amount_total ? session.amount_total / 100 : 0,
+          currency: session.currency?.toUpperCase() || 'AUD',
+        },
+        created_at: new Date().toISOString(),
+      },
+      {
+        user_id: updatedBooking.owner_id,
+        type: 'booking_payment_received',
+        title: 'Booking Payment Received',
+        message: 'Payment has been received for your rental. Funds will be released to you after the rental is completed and confirmed.',
+        data: {
+          booking_id: bookingId,
+          session_id: session.id,
+          amount_total: session.amount_total ? session.amount_total / 100 : 0,
+          currency: session.currency?.toUpperCase() || 'AUD',
+        },
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    // Insert notifications
+    for (const notification of notifications) {
+      try {
+        await supabase.from('notifications').insert(notification);
+      } catch (notificationError) {
+        console.error('[Webhook] Error creating notification:', notificationError);
+        // Don't fail the webhook if notifications fail
+      }
+    }
+
+    console.log(`[Webhook] Booking ${bookingId} confirmed with payment held in escrow`);
+
+  } catch (error) {
+    console.error('[Webhook] Error handling checkout.session.completed:', error);
+  }
+}
 
 async function handleAccountUpdated(account: Stripe.Account) {
   const supabase = await createClient();

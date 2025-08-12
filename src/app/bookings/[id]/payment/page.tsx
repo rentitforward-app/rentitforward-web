@@ -63,7 +63,7 @@ export default function PaymentPage() {
 
   useEffect(() => {
     initializePage();
-  }, [bookingId]);
+  }, [params.id]);
 
   const initializePage = async () => {
     // First check user authentication

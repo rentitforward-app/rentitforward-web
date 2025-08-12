@@ -49,7 +49,7 @@ export default function PaymentPage() {
     if (bookingId) {
       fetchBooking();
     }
-  }, [bookingId]);
+  }, [params.id]);
 
   const fetchBooking = async () => {
     try {
