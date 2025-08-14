@@ -1178,15 +1178,10 @@ export default function BookingsPage() {
                     </div>
 
                     <div className="text-sm text-gray-500 mb-3">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <strong>Start:</strong> {format(new Date(booking.start_date), 'MMM d, yyyy')}
-                        </div>
-                        <div>
-                          <strong>End:</strong> {format(new Date(booking.end_date), 'MMM d, yyyy')}
-                        </div>
+                      <div className="mb-2">
+                        <strong>Booked:</strong> {format(new Date(booking.created_at), 'MMM d, yyyy h:mm a')}
                       </div>
-                      {booking.deposit_amount && (
+                      {!!booking.deposit_amount && (
                         <div className="mt-1">
                           <strong>Deposit:</strong> {formatPrice(booking.deposit_amount)}
                         </div>
