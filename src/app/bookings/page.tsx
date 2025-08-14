@@ -155,8 +155,9 @@ interface Booking {
   start_date: string;
   end_date: string;
   total_amount: number;
-  status: 'pending' | 'payment_required' | 'confirmed' | 'in_progress' | 'return_pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'payment_required' | 'confirmed' | 'in_progress' | 'return_pending' | 'completed' | 'cancelled' | 'expired';
   created_at: string;
+  expires_at?: string;
   pickup_instructions?: string;
   return_instructions?: string;
   pickup_location?: string;
@@ -302,7 +303,7 @@ export default function BookingsPage() {
 
       // Fetch bookings where user is either renter or owner
       const [renterBookingsResult, ownerBookingsResult] = await Promise.all([
-        // Bookings where user is the renter
+        // Bookings where user is the renter (exclude expired bookings)
         supabase
           .from('bookings')
           .select(`
@@ -324,6 +325,7 @@ export default function BookingsPage() {
             )
           `)
           .eq('renter_id', user.id)
+          .neq('status', 'expired')
           .order('created_at', { ascending: false }),
         
         // Bookings where user is the owner (receiving booking requests)
@@ -348,6 +350,7 @@ export default function BookingsPage() {
             )
           `)
           .eq('owner_id', user.id)
+          .neq('status', 'expired')
           .order('created_at', { ascending: false })
       ]);
 
@@ -377,7 +380,7 @@ export default function BookingsPage() {
       }
 
       // Transform the data to match our interface
-      const transformedBookings: Booking[] = (allBookingsData || [])
+      const transformedBookings: any[] = (allBookingsData || [])
         .filter(booking => booking.listings !== null) // Filter out bookings with null listings
         .map(booking => {
         // Check if this is a booking where user is the owner (has renter data) or renter (has owner data)
@@ -587,6 +590,41 @@ export default function BookingsPage() {
     }
   };
 
+  const cancelBooking = async (bookingId: string) => {
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to cancel booking');
+      }
+
+      // Update local state
+      setBookings(prev => prev.map(booking => 
+        booking.id === bookingId ? { ...booking, status: 'cancelled' as any } : booking
+      ));
+      
+      toast.success('Booking cancelled successfully!');
+      
+      // Refresh data to ensure consistency
+      await loadBookings();
+      
+    } catch (error) {
+      console.error('Failed to cancel booking:', error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to cancel booking. Please try again.');
+      }
+    }
+  };
+
   const handlePickupConfirmation = async (data: { notes: string; condition: string }) => {
     if (!confirmationModal.booking) return;
 
@@ -650,7 +688,7 @@ export default function BookingsPage() {
       // Create notifications for both renter and owner
       const notifications = [
         {
-          user_id: ownerReceiptModal.booking.owner_id,
+          user_id: ownerReceiptModal.booking.listing.owner_id,
           type: 'rental_completed',
           title: 'Rental Completed',
           message: 'You have successfully confirmed the return. The booking is now completed and ready for fund release.',
@@ -661,7 +699,7 @@ export default function BookingsPage() {
           created_at: new Date().toISOString(),
         },
         {
-          user_id: ownerReceiptModal.booking.renter_id,
+          user_id: user?.id, // Renter notification
           type: 'rental_completed',
           title: 'Rental Completed',
           message: `The owner has confirmed the return of "${ownerReceiptModal.booking.listing.title}". Thank you for renting responsibly!`,
@@ -1180,19 +1218,57 @@ export default function BookingsPage() {
                         </>
                       )}
 
+                      {/* Renter cancel option for pending bookings */}
+                      {booking.userRole === 'renter' && booking.status === 'pending' && (
+                        <Button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to cancel this booking request?')) {
+                              cancelBooking(booking.id);
+                            }
+                          }}
+                          size="sm"
+                          variant="outline"
+                          className="border-red-300 text-red-600 hover:bg-red-50"
+                        >
+                          <XCircle className="w-4 h-4 mr-1" />
+                          Cancel Request
+                        </Button>
+                      )}
+
                       {/* Renter actions */}
                       {booking.userRole === 'renter' && (
                         <>
-                          {/* Payment Required Button */}
+                          {/* Payment Required Buttons with Expiration Warning */}
                           {booking.status === 'payment_required' && (
-                            <Button
-                              onClick={() => router.push(`/bookings/${booking.id}/payment`)}
-                              size="sm"
-                              className="bg-purple-600 hover:bg-purple-700 text-white"
-                            >
-                              <DollarSign className="w-4 h-4 mr-1" />
-                              Pay Now
-                            </Button>
+                            <>
+                              {/* Expiration Warning if expires_at exists */}
+                              {booking.expires_at && new Date(booking.expires_at) > new Date() && (
+                                <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                                  ⏰ Expires: {format(new Date(booking.expires_at), 'MMM d, h:mm a')}
+                                </div>
+                              )}
+                              <Button
+                                onClick={() => router.push(`/bookings/${booking.id}/payment`)}
+                                size="sm"
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                              >
+                                <DollarSign className="w-4 h-4 mr-1" />
+                                Pay Now
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
+                                    cancelBooking(booking.id);
+                                  }
+                                }}
+                                size="sm"
+                                variant="outline"
+                                className="border-red-300 text-red-600 hover:bg-red-50"
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Cancel Booking
+                              </Button>
+                            </>
                           )}
 
                           {/* Pickup Confirmation Button */}

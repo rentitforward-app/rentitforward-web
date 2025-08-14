@@ -238,7 +238,10 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
         return;
       }
 
-      // Create the booking
+      // Create the booking with expiration
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() + 30); // 30 minutes from now
+      
       const { data: bookingData, error: bookingError } = await supabase
         .from('bookings')
         .insert({
@@ -257,6 +260,7 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
           delivery_address: data.deliveryMethod === 'delivery' ? data.deliveryAddress || null : null,
           renter_message: data.notes || null,
           status: 'payment_required',
+          expires_at: expirationTime.toISOString(),
         })
         .select()
         .single();

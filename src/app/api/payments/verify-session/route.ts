@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent as string);
 
     // Update booking status to confirmed and mark payment as successful
+    // Clear expiration since payment is now complete
     const { data: updatedBooking, error: updateError } = await supabase
       .from('bookings')
       .update({
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
         payment_status: 'succeeded',
         stripe_payment_intent_id: paymentIntent.id,
         payment_date: new Date().toISOString(),
+        expires_at: null, // Clear expiration since payment is complete
         updated_at: new Date().toISOString(),
       })
       .eq('id', bookingId)
