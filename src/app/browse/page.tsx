@@ -103,10 +103,10 @@ const sortOptions = [
 function BrowseContent() {
   // IMPORTANT: This browse page only displays listings that meet ALL of these criteria:
 // 1. approval_status = 'approved' (approved by admin)
-// 2. is_available = true (available for rent, not currently rented)
-// 3. is_active = true (active listing by owner, not paused)
-// 4. location IS NOT NULL (must have valid location data)
-// 5. NOT currently being rented (no active bookings covering current date)
+// 2. is_active = true (active listing by owner, not paused)
+// 3. location IS NOT NULL (must have valid location data)
+// ✅ FIXED: Removed current booking filter - listings show regardless of existing bookings
+// Availability is checked when user selects specific dates on the listing page
   
   const [listings, setListings] = useState<Listing[]>([]);
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
@@ -509,29 +509,10 @@ function BrowseContent() {
                 data = [];
                 error = candidateError;
               } else {
-                            // Get all active bookings to filter out rented items
-            const { data: activeBookings } = await supabase
-              .from('bookings')
-              .select('listing_id, start_date, end_date')
-              .in('status', ['confirmed', 'in_progress']);
-
-                // Filter out listings that are currently being rented
-                const now = new Date();
-                const rentedListingIds = new Set(
-                  (activeBookings || [])
-                    .filter(booking => {
-                      const startDate = new Date(booking.start_date);
-                      const endDate = new Date(booking.end_date);
-                      return now >= startDate && now <= endDate;
-                    })
-                    .map(booking => booking.listing_id)
-                );
-
-                const availableListings = candidateListings.filter(
-                  listing => !rentedListingIds.has(listing.id)
-                );
-
-                                data = availableListings;
+                // 🎯 FIXED: Don't filter out listings based on current bookings
+                // All approved, active listings should be shown
+                // Availability checking will happen when user selects specific dates
+                data = candidateListings;
                 error = null;
               }
         
