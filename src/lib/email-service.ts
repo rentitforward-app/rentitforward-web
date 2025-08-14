@@ -241,6 +241,50 @@ export async function sendReviewEmail(
 }
 
 /**
+ * Send a listing-related email with proper formatting and error handling
+ */
+export async function sendListingEmail(
+  type: 'approval' | 'rejection' | 'disable' | 'reapproval',
+  recipientEmail: string,
+  templateData: any
+): Promise<EmailResponse> {
+  try {
+    const { emailTemplates } = await import('./email-templates');
+    
+    let template;
+    switch (type) {
+      case 'approval':
+        template = emailTemplates.listingApproval(templateData);
+        break;
+      case 'rejection':
+        template = emailTemplates.listingRejection(templateData);
+        break;
+      case 'disable':
+        template = emailTemplates.listingDisable(templateData);
+        break;
+      case 'reapproval':
+        template = emailTemplates.listingReapproval(templateData);
+        break;
+      default:
+        throw new Error(`Unknown listing email type: ${type}`);
+    }
+
+    return await sendEmail({
+      to: recipientEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+    });
+  } catch (error) {
+    console.error('Error sending listing email:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send email',
+    };
+  }
+}
+
+/**
  * Configuration helper to check if email sending is properly configured
  */
 export function isEmailConfigured(): boolean {

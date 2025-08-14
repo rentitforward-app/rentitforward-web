@@ -99,6 +99,63 @@ export async function POST(request: NextRequest) {
 
 // ==================== EVENT HANDLERS ====================
 
+// Stripe client for post-event lookups (fees, charges, etc.)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: '2023-10-16',
+});
+
+async function upsertPaymentByIntent(params: {
+  bookingId: string;
+  paymentIntentId: string;
+  amount?: number; // dollars
+  currency?: string;
+  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled' | 'refunded';
+  paymentMethodId?: string | null;
+  paymentMethodType?: string | null;
+  platformFee?: number | null;
+  stripeFee?: number | null;
+  netAmount?: number | null;
+  metadata?: Record<string, unknown>;
+}) {
+  const supabase = await createClient();
+
+  const payload: any = {
+    booking_id: params.bookingId,
+    stripe_payment_intent_id: params.paymentIntentId,
+    amount: params.amount ?? null,
+    currency: (params.currency || 'AUD').toUpperCase(),
+    status: params.status,
+    payment_method_id: params.paymentMethodId ?? null,
+    payment_method_type: params.paymentMethodType ?? null,
+    platform_fee: params.platformFee ?? null,
+    stripe_fee: params.stripeFee ?? null,
+    net_amount: params.netAmount ?? null,
+    metadata: params.metadata ? (params.metadata as any) : undefined,
+  };
+
+  // Remove undefined so upsert doesn't try to set them explicitly
+  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+
+  const { error } = await supabase.from('payments').upsert(payload, {
+    onConflict: 'stripe_payment_intent_id',
+  });
+
+  if (error) {
+    console.error('[Webhook] Failed to upsert payments record:', error);
+  }
+}
+
+async function sendPaymentEmails(opts: {
+  renterEmail?: string;
+  ownerEmail?: string;
+  bookingId: string;
+  amount: number;
+  currency: string;
+}) {
+  // Placeholder for real email provider; log for now
+  console.log('[Email] Payment confirmation', opts);
+}
+
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   const supabase = await createClient();
   
@@ -131,6 +188,15 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       console.error('[Webhook] Error updating booking or booking already processed:', updateError);
       return;
     }
+
+    // Write normalized payment record
+    await upsertPaymentByIntent({
+      bookingId,
+      paymentIntentId: session.payment_intent as string,
+      amount: session.amount_total ? session.amount_total / 100 : null,
+      currency: session.currency || 'AUD',
+      status: 'succeeded',
+    });
 
     // Create notifications for both renter and owner
     const notifications = [
@@ -171,6 +237,15 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         // Don't fail the webhook if notifications fail
       }
     }
+
+    // Send emails (log for now)
+    await sendPaymentEmails({
+      renterEmail: undefined,
+      ownerEmail: undefined,
+      bookingId,
+      amount: session.amount_total ? session.amount_total / 100 : 0,
+      currency: session.currency?.toUpperCase() || 'AUD',
+    });
 
     console.log(`[Webhook] Booking ${bookingId} confirmed with payment held in escrow`);
 
@@ -297,8 +372,57 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       return;
     }
 
-    // TODO: Send confirmation emails to both renter and owner
-    // TODO: Create notification records
+    // Fetch fees/net via expanded balance transaction
+    let stripeFeeDollars: number | null = null;
+    let netAmountDollars: number | null = null;
+    let currency = paymentIntent.currency?.toUpperCase() || 'AUD';
+    let amountDollars = paymentIntent.amount_received
+      ? paymentIntent.amount_received / 100
+      : paymentIntent.amount / 100;
+
+    try {
+      const pi = await stripe.paymentIntents.retrieve(paymentIntent.id, {
+        expand: ['charges.data.balance_transaction', 'charges.data.payment_method_details'],
+      });
+      if (pi.charges && pi.charges.data[0]?.balance_transaction && typeof (pi.charges.data[0].balance_transaction as any).fee === 'number') {
+        const bt = pi.charges.data[0].balance_transaction as unknown as { fee: number; net: number };
+        stripeFeeDollars = bt.fee / 100;
+        netAmountDollars = bt.net / 100;
+      }
+      if (pi.charges && pi.charges.data[0]) {
+        const pmType = (pi.charges.data[0] as any).payment_method_details?.type || null;
+        await upsertPaymentByIntent({
+          bookingId: booking.id,
+          paymentIntentId: paymentIntent.id,
+          amount: amountDollars,
+          currency,
+          status: 'succeeded',
+          paymentMethodId: paymentIntent.payment_method as string,
+          paymentMethodType: pmType,
+          stripeFee: stripeFeeDollars,
+          netAmount: netAmountDollars,
+        });
+      } else {
+        await upsertPaymentByIntent({
+          bookingId: booking.id,
+          paymentIntentId: paymentIntent.id,
+          amount: amountDollars,
+          currency,
+          status: 'succeeded',
+          paymentMethodId: paymentIntent.payment_method as string,
+        });
+      }
+    } catch (feeErr) {
+      console.warn('[Webhook] Could not enrich payment with Stripe fees:', feeErr);
+      await upsertPaymentByIntent({
+        bookingId: booking.id,
+        paymentIntentId: paymentIntent.id,
+        amount: amountDollars,
+        currency,
+        status: 'succeeded',
+        paymentMethodId: paymentIntent.payment_method as string,
+      });
+    }
 
     console.log(`[Webhook] Booking ${booking.id} confirmed after successful payment`);
 
@@ -338,6 +462,13 @@ async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
       console.error('[Webhook] Error updating booking status:', updateError);
       return;
     }
+
+    // Update payments row
+    await upsertPaymentByIntent({
+      bookingId: booking.id,
+      paymentIntentId: paymentIntent.id,
+      status: 'failed',
+    });
 
     console.log(`[Webhook] Booking ${booking.id} marked as payment failed`);
 
@@ -408,6 +539,19 @@ async function handleTransferCreated(transfer: Stripe.Transfer) {
         } else {
           console.log(`[Webhook] Updated booking with transfer ${transfer.id}`);
         }
+
+        // Update related payment with payout id
+        const { data: paymentRow } = await supabase
+          .from('payments')
+          .select('id, booking_id')
+          .eq('stripe_payment_intent_id', paymentIntentId)
+          .single();
+        if (paymentRow) {
+          await supabase
+            .from('payments')
+            .update({ payout_id: transfer.id, payout_date: new Date().toISOString() } as any)
+            .eq('id', paymentRow.id);
+        }
       }
     }
 
@@ -437,6 +581,12 @@ async function handleTransferPaid(transfer: Stripe.Transfer) {
       console.log(`[Webhook] Transfer ${transfer.id} completed successfully`);
     }
 
+    // Update payment record payout date as paid now
+    await supabase
+      .from('payments')
+      .update({ payout_date: new Date().toISOString() } as any)
+      .eq('payout_id', transfer.id);
+
   } catch (error) {
     console.error('[Webhook] Error handling transfer.paid:', error);
   }
@@ -457,7 +607,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
         .single();
 
       if (booking && !bookingError) {
-        // Log refund information
+        // Log refund information on both bookings and payments
         const { error: updateError } = await supabase
           .from('bookings')
           .update({ 
@@ -471,6 +621,16 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
         } else {
           console.log(`[Webhook] Recorded refund for booking ${booking.id}`);
         }
+
+        await supabase
+          .from('payments')
+          .update({
+            status: 'refunded',
+            refund_id: (charge.refunds?.data?.[0]?.id as any) || null,
+            refund_amount: charge.amount_refunded ? charge.amount_refunded / 100 : null,
+            refunded_at: new Date().toISOString(),
+          } as any)
+          .eq('stripe_payment_intent_id', charge.payment_intent as any);
       }
     }
 

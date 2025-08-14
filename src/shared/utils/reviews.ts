@@ -271,11 +271,12 @@ export const reviewDisplay = {
     return !!(review.detailedRatings && Object.keys(review.detailedRatings).length > 0);
   },
 
-  getTagsByColor: (tags: ReviewTag[]) => {
+  getTagsByColor: (tags?: ReviewTag[]) => {
+    const safeTags: ReviewTag[] = Array.isArray(tags) ? tags : [];
     return {
-      positive: tags.filter(tag => getReviewTagColor(tag) === 'positive'),
-      neutral: tags.filter(tag => getReviewTagColor(tag) === 'neutral'),
-      negative: tags.filter(tag => getReviewTagColor(tag) === 'negative')
+      positive: safeTags.filter(tag => getReviewTagColor(tag) === 'positive'),
+      neutral: safeTags.filter(tag => getReviewTagColor(tag) === 'neutral'),
+      negative: safeTags.filter(tag => getReviewTagColor(tag) === 'negative')
     };
   },
 

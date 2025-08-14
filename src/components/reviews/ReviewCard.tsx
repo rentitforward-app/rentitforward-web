@@ -40,12 +40,15 @@ export function ReviewCard({
   const canDelete = isReviewer && onDelete;
   const canRespond = isReviewee && onRespond && !review.response;
 
-  const tagsByColor = reviewDisplay.getTagsByColor(review.tags);
+  const tagsByColor = reviewDisplay.getTagsByColor(review.tags ?? []);
   const hasDetailedRatings = reviewDisplay.shouldShowDetailedRatings(review);
 
   const comment = review.comment || '';
   const shouldTruncate = comment.length > 150;
   const displayComment = showFullComment ? comment : reviewFormatting.truncateComment(comment);
+
+  const reviewerName = review.reviewer?.name || 'User';
+  const reviewerAvatar = review.reviewer?.avatar || '';
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
@@ -53,23 +56,23 @@ export function ReviewCard({
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="relative w-10 h-10">
-            {review.reviewer.avatar ? (
+            {reviewerAvatar ? (
               <Image
-                src={review.reviewer.avatar}
-                alt={review.reviewer.name}
+                src={reviewerAvatar}
+                alt={reviewerName}
                 fill
                 className="rounded-full object-cover"
               />
             ) : (
               <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
                 <span className="text-gray-600 font-medium">
-                  {review.reviewer.name.charAt(0).toUpperCase()}
+                  {reviewerName.charAt(0).toUpperCase()}
                 </span>
               </div>
             )}
           </div>
           <div>
-            <h4 className="font-medium text-gray-900">{review.reviewer.name}</h4>
+            <h4 className="font-medium text-gray-900">{reviewerName}</h4>
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <span>{reviewFormatting.formatRelativeTime(review.createdAt)}</span>
               {review.isEdited && (
@@ -133,13 +136,13 @@ export function ReviewCard({
       </div>
 
       {/* Booking Info */}
-      {showBookingInfo && (
+      {showBookingInfo && review.booking && (
         <div className="mb-3 p-3 bg-gray-50 rounded-md">
           <p className="text-sm text-gray-600">
             <span className="font-medium">Booking:</span> {review.booking.listingTitle}
           </p>
           <p className="text-sm text-gray-500">
-            {reviewFormatting.formatDate(review.booking.startDate)} - {reviewFormatting.formatDate(review.booking.endDate)}
+            {review.booking.startDate && reviewFormatting.formatDate(review.booking.startDate)} - {review.booking.endDate && reviewFormatting.formatDate(review.booking.endDate)}
           </p>
         </div>
       )}
@@ -162,7 +165,7 @@ export function ReviewCard({
       )}
 
       {/* Tags */}
-      {review.tags.length > 0 && (
+      {Array.isArray(review.tags) && review.tags.length > 0 && (
         <div className="mb-4">
           <div className="flex flex-wrap gap-2">
             {/* Positive tags */}

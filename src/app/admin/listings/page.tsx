@@ -74,9 +74,12 @@ export default function AdminListingsPage() {
     if (adminLoading) return;
     
     if (!user || !isAdmin) {
+      console.log('❌ User or admin check failed:', { user: !!user, isAdmin });
       window.location.href = '/login';
       return;
     }
+    
+
     
     // Debounce search
     const timeoutId = setTimeout(() => {
@@ -91,19 +94,11 @@ export default function AdminListingsPage() {
     try {
       setLoading(true);
       
-      // Build the query
+      // Build the query with proper join syntax
       let query = supabase
         .from('listings')
         .select(`
-          id,
-          title,
-          description,
-          category,
-          price_per_day,
-          images,
-          approval_status,
-          created_at,
-          rejection_reason,
+          *,
           profiles!owner_id (
             full_name,
             email
@@ -152,7 +147,10 @@ export default function AdminListingsPage() {
 
       const { data, error, count } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Query error:', error);
+        throw error;
+      }
 
       const formattedData = data?.map(listing => ({
         ...listing,
@@ -171,6 +169,7 @@ export default function AdminListingsPage() {
 
   const fetchStats = async () => {
     try {
+      
       // Get total count for all statuses
       const { count: totalCount } = await supabase
         .from('listings')
@@ -181,7 +180,7 @@ export default function AdminListingsPage() {
         .select('*', { count: 'exact', head: true })
         .eq('approval_status', 'approved');
 
-      const { count: pendingCount } = await supabase
+      const { count: pendingCount, error: pendingError } = await supabase
         .from('listings')
         .select('*', { count: 'exact', head: true })
         .eq('approval_status', 'pending');
@@ -190,6 +189,8 @@ export default function AdminListingsPage() {
         .from('listings')
         .select('*', { count: 'exact', head: true })
         .eq('approval_status', 'rejected');
+
+
 
       setStatsCount({
         total: totalCount || 0,
@@ -202,83 +203,141 @@ export default function AdminListingsPage() {
     }
   };
 
-  const sendNotificationToOwner = async (listingId: string, ownerId: string, action: 'approve' | 'reject', listingTitle: string, reason?: string) => {
+  const sendNotificationToOwner = async (listingId: string, ownerId: string, action: 'approve' | 'reject', listingTitle: string, ownerEmail: string, ownerName: string, reason?: string, previousStatus?: string) => {
     try {
       // Validate required parameters
-      if (!listingId || !ownerId || !listingTitle || !action) {
+      if (!listingId || !ownerId || !listingTitle || !action || !ownerEmail) {
         console.error('Missing required parameters for notification:', {
           listingId: !!listingId,
           ownerId: !!ownerId,
           listingTitle: !!listingTitle,
-          action: !!action
+          action: !!action,
+          ownerEmail: !!ownerEmail
         });
         return;
       }
 
-      // For now, let's skip notifications due to permission issues and just log success
-      console.log('Would send notification:', {
+      console.log('📧 Sending email notification:', {
         action,
         listingTitle,
-        ownerId,
-        reason
+        ownerEmail,
+        ownerName,
+        previousStatus
       });
+
+      // Send email notification
+      const { sendListingEmail } = await import('@/lib/email-service');
       
-      toast.success(`Listing ${action}d successfully (notification skipped due to permissions)`);
-      return;
+      let emailResult;
+      let emailType: 'approval' | 'rejection' | 'disable' | 'reapproval';
+      let emailData: any;
 
-      // TODO: Fix notification permissions and re-enable this code
-      /*
-      const notificationData = {
-        user_id: ownerId,
-        title: action === 'approve' ? 'Listing Approved!' : 'Listing Rejected',
-        message: action === 'approve' 
-          ? `Your listing "${listingTitle}" has been approved and is now live on the platform.`
-          : `Your listing "${listingTitle}" has been rejected. ${reason ? `Reason: ${reason}` : 'Please review and resubmit.'}`,
-        type: 'listing' as const,
-        related_id: listingId,
-      };
-
-      console.log('Attempting to send notification with data:', JSON.stringify(notificationData, null, 2));
-
-      // Check authentication before sending notification
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log('Session before notification:', {
-        hasSession: !!sessionData?.session,
-        userId: sessionData?.session?.user?.id,
-        email: sessionData?.session?.user?.email
-      });
-
-      if (!sessionData?.session) {
-        console.error('No valid session found for notification');
-        toast.error('Authentication expired. Please refresh and try again.');
-        return;
+      if (action === 'approve') {
+        if (previousStatus === 'rejected') {
+          // Re-approval scenario
+          emailType = 'reapproval';
+          emailData = {
+            ownerName: ownerName || 'Valued User',
+            listingTitle,
+            listingId,
+            viewListingUrl: `${window.location.origin}/listings/${listingId}`,
+            dashboardUrl: `${window.location.origin}/dashboard`,
+          };
+        } else {
+          // Initial approval scenario
+          emailType = 'approval';
+          emailData = {
+            ownerName: ownerName || 'Valued User',
+            listingTitle,
+            listingId,
+            viewListingUrl: `${window.location.origin}/listings/${listingId}`,
+            dashboardUrl: `${window.location.origin}/dashboard`,
+          };
+        }
+      } else { // action === 'reject'
+        if (previousStatus === 'approved') {
+          // Disabling an approved listing
+          emailType = 'disable';
+          emailData = {
+            ownerName: ownerName || 'Valued User',
+            listingTitle,
+            listingId,
+            disableReason: reason || 'Please review your listing and make necessary updates.',
+            editListingUrl: `${window.location.origin}/dashboard/listings/${listingId}/edit`,
+            supportUrl: `${window.location.origin}/help`,
+          };
+        } else {
+          // Initial rejection of pending listing
+          emailType = 'rejection';
+          emailData = {
+            ownerName: ownerName || 'Valued User',
+            listingTitle,
+            listingId,
+            rejectionReason: reason || 'Please review your listing and make necessary updates.',
+            editListingUrl: `${window.location.origin}/dashboard/listings/${listingId}/edit`,
+            supportUrl: `${window.location.origin}/help`,
+          };
+        }
       }
 
-      const { data: notificationResult, error: notificationError } = await supabase
-        .from('notifications')
-        .insert(notificationData)
-        .select();
+      emailResult = await sendListingEmail(emailType, ownerEmail, emailData);
 
-      if (notificationError) {
-        console.error('Full Supabase notification error object:', notificationError);
-        console.error('Error type:', typeof notificationError);
-        console.error('Error properties:', Object.keys(notificationError));
-        console.error('Stringified error:', JSON.stringify(notificationError, null, 2));
-        console.error('Failed notification data:', JSON.stringify(notificationData, null, 2));
-        
-        // Try to extract meaningful error message
-        const errorMessage = notificationError?.message || 'Unknown notification error';
-        console.error('Extracted error message:', errorMessage);
-        
-        toast.error(`Failed to send notification: ${errorMessage}`);
+      if (emailResult.success) {
+        console.log('✅ Email sent successfully:', emailResult.messageId);
+        toast.success(`Listing ${action}d and owner notified via email`);
       } else {
-        console.log('Notification sent successfully:', notificationResult);
-        toast.success('Owner notified successfully');
+        console.error('❌ Email failed:', emailResult.error);
+        toast.error(`Listing ${action}d successfully, but email notification failed`);
       }
-      */
+
+      // Also try to send in-app notification (if available)
+      try {
+        let notificationTitle: string;
+        let notificationMessage: string;
+
+        if (action === 'approve') {
+          if (previousStatus === 'rejected') {
+            notificationTitle = 'Listing Re-approved!';
+            notificationMessage = `Great news! Your listing "${listingTitle}" has been re-approved and is now live on the platform.`;
+          } else {
+            notificationTitle = 'Listing Approved!';
+            notificationMessage = `Your listing "${listingTitle}" has been approved and is now live on the platform.`;
+          }
+        } else { // action === 'reject'
+          if (previousStatus === 'approved') {
+            notificationTitle = 'Listing Disabled';
+            notificationMessage = `Your listing "${listingTitle}" has been disabled. ${reason ? `Reason: ${reason}` : 'Please review and make necessary updates.'}`;
+          } else {
+            notificationTitle = 'Listing Rejected';
+            notificationMessage = `Your listing "${listingTitle}" has been rejected. ${reason ? `Reason: ${reason}` : 'Please review and resubmit.'}`;
+          }
+        }
+
+        const notificationData = {
+          user_id: ownerId,
+          title: notificationTitle,
+          message: notificationMessage,
+          type: 'listing' as const,
+          related_id: listingId,
+        };
+
+        const { data: notificationResult, error: notificationError } = await supabase
+          .from('notifications')
+          .insert(notificationData)
+          .select();
+
+        if (notificationError) {
+          console.warn('In-app notification failed:', notificationError.message);
+        } else {
+          console.log('✅ In-app notification sent:', notificationResult);
+        }
+      } catch (error) {
+        console.warn('In-app notification error:', error);
+      }
+
     } catch (error) {
       console.error('Unexpected error sending notification:', error);
-      toast.error('Failed to send notification');
+      toast.error(`Listing ${action}d, but notification failed`);
     }
   };
 
@@ -329,9 +388,10 @@ export default function AdminListingsPage() {
         updateData.rejection_reason = reason;
       }
 
-      // Clear rejection reason when approving
+      // Clear rejection reason and activate listing when approving
       if (action === 'approve') {
         updateData.rejection_reason = null;
+        updateData.is_active = true; // Make listing active when approved
       }
 
       console.log('Update data:', JSON.stringify(updateData, null, 2));
@@ -353,19 +413,16 @@ export default function AdminListingsPage() {
       console.log('Updated listing successfully:', data);
       
       // Send notification to the listing owner
-      const { data: ownerData, error: ownerError } = await supabase
-        .from('listings')
-        .select('owner_id')
-        .eq('id', listingId)
-        .single();
+      const ownerEmail = listing.owner_profile?.email;
+      const ownerName = listing.owner_profile?.full_name;
+      const ownerId = (listing as any).owner_id;
 
-      if (ownerError) {
-        console.error('Error fetching owner data:', ownerError);
-      } else if (ownerData?.owner_id) {
-        console.log('Sending notification to owner:', ownerData.owner_id);
-        await sendNotificationToOwner(listingId, ownerData.owner_id, action, listing.title, reason);
+      if (ownerEmail && ownerId) {
+        console.log('Sending notification to owner:', ownerId, ownerEmail);
+        await sendNotificationToOwner(listingId, ownerId, action, listing.title, ownerEmail, ownerName, reason, listing.approval_status);
       } else {
-        console.warn('No owner data found for listing:', listingId);
+        console.warn('Missing owner data for listing:', listingId, { ownerEmail, ownerId });
+        toast.error(`Listing ${action}d successfully, but owner notification failed (missing contact info)`);
       }
 
       toast.success(`Listing ${action}d successfully`);

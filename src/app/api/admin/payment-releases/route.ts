@@ -1,55 +1,99 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
+import { EmailService } from '@/lib/email-service';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
-// Email notification function
+// Email notification function (styled similar to booking confirmation emails)
 async function sendPaymentReleaseEmail(booking: any, amount: number, transferId: string | null) {
   const ownerEmail = booking.owner?.email || booking.profiles?.email;
   const ownerName = booking.owner?.full_name || booking.profiles?.full_name || 'Owner';
   const listingTitle = booking.listing?.title || booking.listings?.title || 'Your listing';
-  
+
   if (!ownerEmail) {
     throw new Error('Owner email not found');
   }
 
-  const emailSubject = `Payment Released - ${listingTitle}`;
-  const emailBody = `
-Dear ${ownerName},
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
-Great news! Your payment for the rental of "${listingTitle}" has been released.
-
-📋 Booking Details:
-• Booking ID: ${booking.id}
-• Amount Released: $${amount.toFixed(2)}
-• Transfer ID: ${transferId || 'N/A'}
-• Release Date: ${new Date().toLocaleDateString()}
-
-💰 The payment has been transferred to your connected Stripe account and should appear in your bank account within 1-2 business days.
-
-If you have any questions, please contact our support team.
-
-Thank you for using Rent It Forward!
-
-Best regards,
-The Rent It Forward Team
-`;
-
-  console.log('Sending email notification:', {
-    to: ownerEmail,
-    subject: emailSubject,
-    transferId,
-    amount
+  const startDate = new Date(booking.start_date).toLocaleDateString('en-AU', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+  const endDate = new Date(booking.end_date).toLocaleDateString('en-AU', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
-  // For now, just log the email (in production, integrate with your email service)
-  console.log(`EMAIL NOTIFICATION:\nTo: ${ownerEmail}\nSubject: ${emailSubject}\nBody: ${emailBody}`);
-  
-  // TODO: Replace with actual email service integration
-  // Examples: Resend, SendGrid, AWS SES, etc.
+  const emailSubject = `Payment Released - ${listingTitle}`;
+
+  const emailBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Payment Released</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #44D62C; color: white; padding: 20px; text-align: center; }
+    .content { background: #f9f9f9; padding: 20px; }
+    .details { background: white; padding: 15px; margin: 15px 0; border-radius: 5px; }
+    .footer { background: #333; color: white; padding: 20px; text-align: center; }
+    .button { background: #44D62C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0; }
+  </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>💸 Payment Released</h1>
+        <p>Great news, ${ownerName}! Your payout has been released.</p>
+      </div>
+
+      <div class="content">
+        <h2>Release Details</h2>
+        <div class="details">
+          <h3>${listingTitle}</h3>
+          <p><strong>Payout Amount:</strong> $${amount.toFixed(2)} AUD</p>
+          <p><strong>Transfer ID:</strong> ${transferId || 'N/A'}</p>
+          <p><strong>Release Date:</strong> ${new Date().toLocaleDateString('en-AU')}</p>
+          <p><strong>Booking ID:</strong> ${booking.id}</p>
+        </div>
+
+        <h3>Booking Period</h3>
+        <div class="details">
+          <p>📅 <strong>Start:</strong> ${startDate}</p>
+          <p>📅 <strong>End:</strong> ${endDate}</p>
+        </div>
+
+        <p>
+          <a href="${baseUrl}/dashboard/bookings/${booking.id}" class="button">View Booking</a>
+        </p>
+      </div>
+
+      <div class="footer">
+        <p>Funds are sent to your connected Stripe account. Bank settlement typically takes 1–2 business days.</p>
+        <p>Questions? Contact us at support@rentitforward.com.au</p>
+        <p>© 2024 Rent It Forward - Sustainable Sharing Platform</p>
+      </div>
+    </div>
+  </body>
+</html>
+  `.trim();
+
+  const emailService = new EmailService();
+  const result = await emailService.sendEmail({
+    to: ownerEmail,
+    subject: emailSubject,
+    html: emailBody,
+    text: emailBody.replace(/<[^>]*>/g, ''),
+  });
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to send payout email');
+  }
 }
 
 // GET - Fetch bookings eligible for payment release
@@ -125,22 +169,26 @@ export async function GET(request: NextRequest) {
     const processedBookings = (bookings || []).map(booking => {
       const platformCommission = booking.subtotal * PLATFORM_COMMISSION_RATE;
       const ownerPayout = booking.subtotal - platformCommission;
-      
+
+      const listingNode: any = Array.isArray(booking.listings) ? booking.listings[0] : booking.listings;
+      const renterNode: any = Array.isArray(booking.renter) ? booking.renter[0] : booking.renter;
+      const ownerNode: any = Array.isArray(booking.owner) ? booking.owner[0] : booking.owner;
+
       return {
         id: booking.id,
         status: booking.status,
         listing: {
-          title: booking.listings?.title || 'Unknown Listing',
-          daily_rate: booking.listings?.price_per_day || 0,
+          title: listingNode?.title || 'Unknown Listing',
+          daily_rate: listingNode?.price_per_day || 0,
         },
         renter: {
-          full_name: booking.renter?.full_name || 'Unknown Renter',
-          email: booking.renter?.email || '',
+          full_name: renterNode?.full_name || 'Unknown Renter',
+          email: renterNode?.email || '',
         },
         owner: {
-          full_name: booking.owner?.full_name || 'Unknown Owner',
-          email: booking.owner?.email || '',
-          stripe_account_id: booking.owner?.stripe_account_id || '',
+          full_name: ownerNode?.full_name || 'Unknown Owner',
+          email: ownerNode?.email || '',
+          stripe_account_id: ownerNode?.stripe_account_id || '',
         },
         start_date: booking.start_date,
         end_date: booking.end_date,
@@ -155,18 +203,23 @@ export async function GET(request: NextRequest) {
         payment_status: 'completed',
         completed_at: booking.completed_at,
         admin_released_at: booking.admin_released_at,
-        has_stripe_account: !!booking.owner?.stripe_account_id,
+        has_stripe_account: !!ownerNode?.stripe_account_id,
       };
     });
 
-    // For now, all completed bookings are eligible for immediate release
-    // In the future, you could add business rules like waiting periods
-    const eligibleBookings = processedBookings.filter(booking => 
-      booking.has_stripe_account // Only eligible if owner has Stripe Connect account
+    // Determine eligibility strictly: not released, completed, owner receipt confirmed, and has Stripe account
+    const eligibleBookings = processedBookings.filter((booking) =>
+      !booking.admin_released_at &&
+      booking.status === 'completed' &&
+      !!booking.owner_receipt_confirmed_at &&
+      booking.has_stripe_account
     );
 
+    // Count pending as those not yet released (regardless of stripe account)
+    const pendingCount = processedBookings.filter((b) => !b.admin_released_at).length;
+
     return NextResponse.json({
-      total: processedBookings.length,
+      total: pendingCount,
       eligible_for_release: eligibleBookings.length,
       bookings: processedBookings,
       eligible_bookings: eligibleBookings,
@@ -231,7 +284,7 @@ export async function POST(request: NextRequest) {
           .from('bookings')
           .select(`
             *,
-            owner:profiles!bookings_owner_id_fkey(stripe_account_id),
+            owner:profiles!bookings_owner_id_fkey(full_name, email, stripe_account_id),
             listing:listings(title, price_per_day)
           `)
           .eq('id', bookingId)
@@ -280,7 +333,7 @@ export async function POST(request: NextRequest) {
             transferId = transfer.id;
             transferNote = `Stripe transfer completed: ${transfer.id}`;
             console.log(`✅ STRIPE TRANSFER SUCCESSFUL: ${transfer.id} for $${ownerPayout} to ${booking.owner.stripe_account_id}`);
-          } catch (stripeError) {
+          } catch (stripeError: any) {
             console.error(`❌ STRIPE TRANSFER FAILED for booking ${bookingId}:`, stripeError);
             
             // For testing: Still proceed with marking as released
@@ -290,7 +343,7 @@ export async function POST(request: NextRequest) {
               transferId = `test_transfer_${Date.now()}`;
               console.log(`✅ TEST MODE: Simulated transfer for $${ownerPayout} - booking marked as released`);
             } else {
-              transferNote = `❌ Stripe error: ${stripeError.message}`;
+              transferNote = `❌ Stripe error: ${stripeError?.message || 'Unknown error'}`;
               console.error(`❌ UNHANDLED STRIPE ERROR:`, stripeError);
             }
           }
@@ -320,6 +373,25 @@ export async function POST(request: NextRequest) {
           amount: ownerPayout,
           message: transferNote,
         });
+
+        // Update payments row with payout info if exists
+        try {
+          const { data: paymentRow } = await supabase
+            .from('payments')
+            .select('id')
+            .eq('booking_id', bookingId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          if (paymentRow) {
+            await supabase
+              .from('payments')
+              .update({ payout_id: transferId, payout_date: new Date().toISOString() } as any)
+              .eq('id', paymentRow.id);
+          }
+        } catch (pErr) {
+          console.warn('Failed to update payments row with payout info', pErr);
+        }
 
         // Send email notification to owner
         try {
