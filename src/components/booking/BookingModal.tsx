@@ -12,6 +12,7 @@ import { PricingBreakdown } from './PricingBreakdown';
 import { DateRangeSelection } from '@/lib/calendar-utils';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
+import { IdentityVerificationGate } from '@/components/IdentityVerificationGate';
 
 // Form validation schema
 const bookingSchema = z.object({
@@ -344,13 +345,15 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
                     </div>
 
                     {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={isBooking || !selectedDates.startDate || !selectedDates.endDate}
-                      className="w-full bg-[#44D62C] hover:bg-[#3AB827] text-white py-3 px-4 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                    >
-                      {isBooking ? 'Processing...' : 'Request to Book'}
-                    </button>
+                    <IdentityVerificationGate action="rent">
+                      <button
+                        type="submit"
+                        disabled={isBooking || !selectedDates.startDate || !selectedDates.endDate}
+                        className="w-full bg-[#44D62C] hover:bg-[#3AB827] text-white py-3 px-4 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                      >
+                        {isBooking ? 'Processing...' : 'Request to Book'}
+                      </button>
+                    </IdentityVerificationGate>
                   </form>
                 </div>
               </div>

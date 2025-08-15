@@ -9,17 +9,15 @@ import {
   CheckCircle, 
   AlertCircle, 
   Clock, 
-  Upload, 
   Eye, 
   ExternalLink,
   Shield,
   CreditCard,
-  FileText,
-  Camera,
   RefreshCw,
   AlertTriangle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { IdentityVerification } from './IdentityVerification';
 
 interface VerificationStatus {
   connected: boolean;
@@ -64,10 +62,7 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
   const [status, setStatus] = useState<VerificationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedFiles, setSelectedFiles] = useState<{
-    front?: File;
-    back?: File;
-  }>({});
+
 
   // Fetch verification status
   const fetchStatus = useCallback(async () => {
@@ -168,76 +163,7 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
     }
   };
 
-  // Handle file selection
-  const handleFileSelect = (type: 'front' | 'back', event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type and size
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select an image file');
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        toast.error('File size must be less than 10MB');
-        return;
-      }
-      
-      setSelectedFiles(prev => ({ ...prev, [type]: file }));
-    }
-  };
 
-  // Upload verification documents
-  const uploadDocuments = async (documentType: 'identity_document' | 'address_document') => {
-    if (!selectedFiles.front) {
-      toast.error('Please select a front image');
-      return;
-    }
-
-    setActionLoading(`upload_${documentType}`);
-    
-    try {
-      // Convert files to base64
-      const frontBase64 = await fileToBase64(selectedFiles.front);
-      const backBase64 = selectedFiles.back ? await fileToBase64(selectedFiles.back) : undefined;
-
-      const response = await fetch('/api/payments/stripe/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'upload_verification_document',
-          document_type: documentType,
-          front_image: frontBase64,
-          back_image: backBase64,
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        toast.success('Documents uploaded successfully!');
-        setSelectedFiles({});
-        fetchStatus();
-      } else {
-        toast.error(data.error || 'Failed to upload documents');
-      }
-    } catch (error) {
-      toast.error('Failed to upload documents');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Helper function to convert file to base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        resolve(base64.split(',')[1]); // Remove data:image/jpeg;base64, prefix
-      };
-      reader.onerror = error => reject(error);
-    });
-  };
 
   // Get status badge
   const getStatusBadge = (status: string) => {
@@ -280,6 +206,9 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Identity Verification */}
+      <IdentityVerification onVerificationComplete={fetchStatus} />
+
       {/* Overview Card */}
       <Card>
         <CardHeader>
@@ -397,98 +326,7 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
         </CardContent>
       </Card>
 
-      {/* Document Upload */}
-      {status?.connected && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <FileText className="w-5 h-5 mr-2" />
-              Document Verification
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Identity Document */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Identity Document</p>
-                    <p className="text-sm text-gray-600">Driver's license, passport, or government ID</p>
-                  </div>
-                  {getStatusBadge(status.verification?.document_verification?.status || 'unverified')}
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Front of Document</label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileSelect('front', e)}
-                        className="hidden"
-                        id="front-upload"
-                      />
-                      <label htmlFor="front-upload" className="cursor-pointer">
-                        {selectedFiles.front ? (
-                          <div className="space-y-2">
-                            <CheckCircle className="w-8 h-8 text-green-500 mx-auto" />
-                            <p className="text-sm font-medium">{selectedFiles.front.name}</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <Camera className="w-8 h-8 text-gray-400 mx-auto" />
-                            <p className="text-sm text-gray-600">Click to upload front</p>
-                          </div>
-                        )}
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Back of Document</label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileSelect('back', e)}
-                        className="hidden"
-                        id="back-upload"
-                      />
-                      <label htmlFor="back-upload" className="cursor-pointer">
-                        {selectedFiles.back ? (
-                          <div className="space-y-2">
-                            <CheckCircle className="w-8 h-8 text-green-500 mx-auto" />
-                            <p className="text-sm font-medium">{selectedFiles.back.name}</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <Camera className="w-8 h-8 text-gray-400 mx-auto" />
-                            <p className="text-sm text-gray-600">Click to upload back</p>
-                          </div>
-                        )}
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <Button 
-                  onClick={() => uploadDocuments('identity_document')}
-                  disabled={!selectedFiles.front || actionLoading === 'upload_identity_document'}
-                  className="w-full"
-                >
-                  {actionLoading === 'upload_identity_document' ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Upload className="w-4 h-4 mr-2" />
-                  )}
-                  Upload Identity Document
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Requirements */}
       {status?.requirements && (

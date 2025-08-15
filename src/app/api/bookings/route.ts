@@ -110,6 +110,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot book your own listing' }, { status: 400 });
     }
 
+    // Check if renter has completed identity verification
+    const { data: renterProfile, error: renterProfileError } = await supabase
+      .from('profiles')
+      .select('identity_verified, identity_verified_at')
+      .eq('id', user.id)
+      .single();
+
+    if (renterProfileError || !renterProfile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
+    if (!renterProfile.identity_verified) {
+      return NextResponse.json({ 
+        error: 'Identity verification required',
+        code: 'IDENTITY_VERIFICATION_REQUIRED',
+        message: 'You must complete identity verification before renting items. Please visit your settings to verify your identity.'
+      }, { status: 403 });
+    }
+
     // Calculate dates and pricing
     const startDate = new Date(bookingData.start_date);
     const endDate = new Date(bookingData.end_date);
