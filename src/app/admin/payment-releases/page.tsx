@@ -39,6 +39,20 @@ interface BookingForRelease {
     email: string;
     stripe_account_id: string;
   };
+  payment: {
+    id: string;
+    amount: number;
+    platform_fee: number;
+    stripe_fee: number;
+    net_amount: number;
+    status: string;
+    stripe_payment_intent_id: string;
+    payout_id?: string;
+    payout_date?: string;
+    refund_id?: string;
+    refund_amount?: number;
+    refunded_at?: string;
+  } | null;
   start_date: string;
   end_date: string;
   total_amount: number;
@@ -50,10 +64,17 @@ interface BookingForRelease {
   return_confirmed_at: string;
   owner_receipt_confirmed_at: string;
   payment_status: string;
+  payout_status: string;
   completed_at: string;
   admin_released_at?: string;
   has_stripe_account: boolean;
+  has_payment_intent: boolean;
+  has_payment: boolean;
   has_issues?: boolean;
+  // Payout calculation fields
+  platform_fee: number;
+  stripe_fee: number;
+  net_payout_amount: number;
 }
 
 interface PaymentReleaseData {
@@ -148,15 +169,27 @@ export default function PaymentReleasesPage() {
     router.push(`/admin/bookings/${bookingId}`);
   };
 
-  const RELEASE_STATUS_OPTIONS = [
+  const PAYOUT_STATUS_OPTIONS = [
     { value: 'all', label: 'All Statuses' },
-    { value: 'pending_release', label: 'Pending Release' },
-    { value: 'ready_release', label: 'Ready for Release' },
-    { value: 'released', label: 'Payment Released' },
+    { value: 'awaiting_completion', label: 'Awaiting Completion' },
+    { value: 'ready_for_payout', label: 'Ready for Payout' },
+    { value: 'manual_payout_required', label: 'Manual Payout Required' },
+    { value: 'released', label: 'Payout Released' },
     { value: 'in_progress', label: 'In Progress' },
     { value: 'return_pending', label: 'Return Pending' },
     { value: 'disputed', label: 'Disputed' },
     { value: 'cancelled', label: 'Cancelled' },
+  ];
+
+  const PAYMENT_STATUS_OPTIONS = [
+    { value: 'all', label: 'All Payment Statuses' },
+    { value: 'no_payment', label: 'No Payment Record' },
+    { value: 'pending', label: 'Payment Pending' },
+    { value: 'processing', label: 'Payment Processing' },
+    { value: 'succeeded', label: 'Payment Succeeded' },
+    { value: 'failed', label: 'Payment Failed' },
+    { value: 'cancelled', label: 'Payment Cancelled' },
+    { value: 'refunded', label: 'Payment Refunded' },
   ];
 
   const SORT_OPTIONS = [
@@ -179,18 +212,8 @@ export default function PaymentReleasesPage() {
     }
 
     if (statusFilter !== 'all') {
-      // Map booking states to filter status
-      let bookingStatus = booking.status; // Start with actual booking status
-      
-      if (booking.admin_released_at) {
-        bookingStatus = 'released';
-      } else if (booking.status === 'completed' && booking.owner_receipt_confirmed_at) {
-        bookingStatus = 'ready_release';
-      } else if (booking.status === 'completed' && !booking.owner_receipt_confirmed_at) {
-        bookingStatus = 'pending_release';
-      }
-      
-      if (bookingStatus !== statusFilter) return false;
+      // Use the new payout_status field from API
+      if (booking.payout_status !== statusFilter) return false;
     }
 
     return true;
@@ -207,39 +230,42 @@ export default function PaymentReleasesPage() {
     }
   }) || [];
 
-  const getStatusBadge = (booking: BookingForRelease) => {
-    // Check if payment has been released to owner
-    if (booking.admin_released_at) {
-      return <Badge className="bg-purple-100 text-purple-800"><DollarSign className="w-3 h-3 mr-1" />Payment Released</Badge>;
+  const getPayoutStatusBadge = (booking: BookingForRelease) => {
+    switch (booking.payout_status) {
+      case 'released':
+        return <Badge className="bg-purple-100 text-purple-800"><DollarSign className="w-3 h-3 mr-1" />Payout Released</Badge>;
+      case 'ready_for_payout':
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Ready for Payout</Badge>;
+      case 'manual_payout_required':
+        return <Badge className="bg-yellow-100 text-yellow-800"><AlertTriangle className="w-3 h-3 mr-1" />Manual Payout Required</Badge>;
+      case 'awaiting_completion':
+        return <Badge className="bg-blue-100 text-blue-800"><Clock className="w-3 h-3 mr-1" />Awaiting Completion</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-600"><Info className="w-3 h-3 mr-1" />{booking.payout_status}</Badge>;
     }
-    
-    // Check booking status and return confirmation
-    if (booking.status === 'completed' && booking.owner_receipt_confirmed_at) {
-      return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Ready for Release</Badge>;
+  };
+
+  const getPaymentStatusBadge = (booking: BookingForRelease) => {
+    if (!booking.payment) {
+      return <Badge className="bg-gray-100 text-gray-800"><X className="w-3 h-3 mr-1" />No Payment Record</Badge>;
     }
-    
-    if (booking.status === 'completed' && !booking.owner_receipt_confirmed_at) {
-      return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />Pending Owner Receipt</Badge>;
+
+    switch (booking.payment.status) {
+      case 'succeeded':
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Payment Succeeded</Badge>;
+      case 'pending':
+        return <Badge className="bg-orange-100 text-orange-800"><Clock className="w-3 h-3 mr-1" />Payment Pending</Badge>;
+      case 'processing':
+        return <Badge className="bg-blue-100 text-blue-800"><Clock className="w-3 h-3 mr-1" />Payment Processing</Badge>;
+      case 'failed':
+        return <Badge className="bg-red-100 text-red-800"><X className="w-3 h-3 mr-1" />Payment Failed</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-gray-100 text-gray-800"><X className="w-3 h-3 mr-1" />Payment Cancelled</Badge>;
+      case 'refunded':
+        return <Badge className="bg-orange-100 text-orange-800"><DollarSign className="w-3 h-3 mr-1" />Payment Refunded</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-600"><Info className="w-3 h-3 mr-1" />{booking.payment.status}</Badge>;
     }
-    
-    if (booking.status === 'return_pending') {
-      return <Badge className="bg-blue-100 text-blue-800"><Package className="w-3 h-3 mr-1" />Return Pending</Badge>;
-    }
-    
-    if (booking.status === 'in_progress') {
-      return <Badge className="bg-orange-100 text-orange-800"><Clock className="w-3 h-3 mr-1" />In Progress</Badge>;
-    }
-    
-    if (booking.status === 'disputed') {
-      return <Badge className="bg-red-100 text-red-800"><AlertTriangle className="w-3 h-3 mr-1" />Disputed</Badge>;
-    }
-    
-    if (booking.status === 'cancelled') {
-      return <Badge className="bg-gray-100 text-gray-800"><X className="w-3 h-3 mr-1" />Cancelled</Badge>;
-    }
-    
-    // Default status
-    return <Badge className="bg-blue-100 text-blue-800"><Info className="w-3 h-3 mr-1" />{booking.status}</Badge>;
   };
 
   const formatDate = (dateString: string) => {
@@ -286,10 +312,10 @@ export default function PaymentReleasesPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Payment Releases</h1>
-            <p className="text-gray-600 mt-1">Manage payment releases and disputes</p>
-          </div>
+                  <div>
+          <h1 className="text-3xl font-bold">Owner Payouts</h1>
+          <p className="text-gray-600 mt-1">Release payouts to owners after completed bookings</p>
+        </div>
           <div className="flex gap-2">
             <Button onClick={fetchPaymentReleases} variant="outline">
               <RefreshCw className="w-4 h-4 mr-2" />
@@ -334,7 +360,7 @@ export default function PaymentReleasesPage() {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                 >
-                  {RELEASE_STATUS_OPTIONS.map(option => (
+                  {PAYOUT_STATUS_OPTIONS.map(option => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -362,11 +388,11 @@ export default function PaymentReleasesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-700">Total Pending</h3>
+          <h3 className="text-lg font-semibold text-gray-700">Pending Payouts</h3>
           <p className="text-3xl font-bold text-blue-600">{data?.total || 0}</p>
         </Card>
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-700">Ready for Release</h3>
+          <h3 className="text-lg font-semibold text-gray-700">Ready for Payout</h3>
           <p className="text-3xl font-bold text-green-600">{data?.eligible_for_release || 0}</p>
         </Card>
         <Card className="p-6">
@@ -387,7 +413,7 @@ export default function PaymentReleasesPage() {
               disabled={processing}
               className="bg-green-600 hover:bg-green-700"
             >
-              {processing ? 'Processing...' : `Release ${selectedBookings.length} Payment${selectedBookings.length !== 1 ? 's' : ''}`}
+              {processing ? 'Processing...' : `Release ${selectedBookings.length} Payout${selectedBookings.length !== 1 ? 's' : ''}`}
             </Button>
             <Button variant="outline" size="sm">
               Mark as Disputed
@@ -418,8 +444,10 @@ export default function PaymentReleasesPage() {
                 <th className="px-4 py-3 text-left">Timeline</th>
                 <th className="px-4 py-3 text-left">Participants</th>
                 <th className="px-4 py-3 text-left">Financial</th>
+                <th className="px-4 py-3 text-left">Net Payout</th>
                 <th className="px-4 py-3 text-left">Return Status</th>
                 <th className="px-4 py-3 text-left">Payment Status</th>
+                <th className="px-4 py-3 text-left">Payout Status</th>
                 <th className="px-4 py-3 text-left">Actions</th>
               </tr>
             </thead>
@@ -490,6 +518,23 @@ export default function PaymentReleasesPage() {
                       </div>
                     </td>
                     
+                    {/* Net Payout Column */}
+                    <td className="px-4 py-3">
+                      <div className="text-sm">
+                        <div className="font-medium text-green-600">
+                          ${booking.net_payout_amount?.toFixed(2) || (booking.total_amount - booking.platform_commission).toFixed(2)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          After {((booking.platform_commission / booking.total_amount) * 100).toFixed(1)}% fee
+                        </div>
+                        {booking.admin_released_at && (
+                          <div className="text-xs text-green-600 mt-1">
+                            ✓ Released
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    
                     {/* Return Status Column */}
                     <td className="px-4 py-3">
                       <div className="text-sm">
@@ -514,7 +559,12 @@ export default function PaymentReleasesPage() {
                     
                     {/* Payment Status Column */}
                     <td className="px-4 py-3">
-                      {getStatusBadge(booking)}
+                      {getPaymentStatusBadge(booking)}
+                    </td>
+                    
+                    {/* Payout Status Column */}
+                    <td className="px-4 py-3">
+                      {getPayoutStatusBadge(booking)}
                     </td>
                     
                     {/* Actions Column */}

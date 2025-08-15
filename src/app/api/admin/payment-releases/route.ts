@@ -7,8 +7,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
-// Email notification function (styled similar to booking confirmation emails)
-async function sendPaymentReleaseEmail(booking: any, amount: number, transferId: string | null) {
+// Email notification function
+async function sendPayoutReleaseEmail(booking: any, payment: any, amount: number, payoutId: string | null) {
   const ownerEmail = booking.owner?.email || booking.profiles?.email;
   const ownerName = booking.owner?.full_name || booking.profiles?.full_name || 'Owner';
   const listingTitle = booking.listing?.title || booking.listings?.title || 'Your listing';
@@ -27,14 +27,14 @@ async function sendPaymentReleaseEmail(booking: any, amount: number, transferId:
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
-  const emailSubject = `Payment Released - ${listingTitle}`;
+  const emailSubject = `Payout Released - ${listingTitle}`;
 
   const emailBody = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Payment Released</title>
+  <title>Payout Released</title>
   <style>
     body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -48,16 +48,18 @@ async function sendPaymentReleaseEmail(booking: any, amount: number, transferId:
   <body>
     <div class="container">
       <div class="header">
-        <h1>💸 Payment Released</h1>
+        <h1>💸 Payout Released</h1>
         <p>Great news, ${ownerName}! Your payout has been released.</p>
       </div>
 
       <div class="content">
-        <h2>Release Details</h2>
+        <h2>Payout Details</h2>
         <div class="details">
           <h3>${listingTitle}</h3>
-          <p><strong>Payout Amount:</strong> $${amount.toFixed(2)} AUD</p>
-          <p><strong>Transfer ID:</strong> ${transferId || 'N/A'}</p>
+          <p><strong>Net Payout:</strong> $${amount.toFixed(2)} AUD</p>
+          <p><strong>Platform Fee:</strong> $${(payment?.platform_fee || 0).toFixed(2)} AUD</p>
+          <p><strong>Stripe Fee:</strong> $${(payment?.stripe_fee || 0).toFixed(2)} AUD</p>
+          <p><strong>Payout ID:</strong> ${payoutId || 'Manual Release'}</p>
           <p><strong>Release Date:</strong> ${new Date().toLocaleDateString('en-AU')}</p>
           <p><strong>Booking ID:</strong> ${booking.id}</p>
         </div>
@@ -96,7 +98,7 @@ async function sendPaymentReleaseEmail(booking: any, amount: number, transferId:
   }
 }
 
-// GET - Fetch bookings eligible for payment release
+// GET - Fetch bookings with payment data for owner payout management
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -117,7 +119,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Fetch ALL bookings with payments - show complete payment history
+    // Fetch bookings with their payment records for complete payout management
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select(`
@@ -133,7 +135,6 @@ export async function GET(request: NextRequest) {
         return_confirmed_by_owner,
         owner_receipt_confirmed_at,
         admin_released_at,
-        stripe_payment_intent_id,
         stripe_transfer_id,
         owner_id,
         renter_id,
@@ -152,10 +153,26 @@ export async function GET(request: NextRequest) {
           id,
           full_name,
           email
+        ),
+        payments (
+          id,
+          stripe_payment_intent_id,
+          amount,
+          currency,
+          status,
+          platform_fee,
+          stripe_fee,
+          net_amount,
+          payout_id,
+          payout_date,
+          refund_id,
+          refund_amount,
+          refunded_at,
+          created_at,
+          updated_at
         )
       `)
-      .in('status', ['completed', 'cancelled', 'disputed', 'in_progress', 'return_pending', 'confirmed'])
-      .not('stripe_payment_intent_id', 'is', null)
+      .in('status', ['completed', 'cancelled', 'disputed', 'in_progress', 'return_pending', 'confirmed', 'payment_pending'])
       .order('created_at', { ascending: false });
 
     if (bookingsError) {
@@ -167,12 +184,23 @@ export async function GET(request: NextRequest) {
     const PLATFORM_COMMISSION_RATE = 0.20;
     
     const processedBookings = (bookings || []).map(booking => {
-      const platformCommission = booking.subtotal * PLATFORM_COMMISSION_RATE;
-      const ownerPayout = booking.subtotal - platformCommission;
-
       const listingNode: any = Array.isArray(booking.listings) ? booking.listings[0] : booking.listings;
       const renterNode: any = Array.isArray(booking.renter) ? booking.renter[0] : booking.renter;
       const ownerNode: any = Array.isArray(booking.owner) ? booking.owner[0] : booking.owner;
+      const paymentNode: any = Array.isArray(booking.payments) ? booking.payments[0] : booking.payments;
+
+      // Calculate payout amounts
+      const platformCommission = booking.subtotal * PLATFORM_COMMISSION_RATE;
+      const ownerPayout = booking.subtotal - platformCommission;
+
+      // Determine payment and payout status
+      const hasPayment = !!paymentNode;
+      const hasPaymentIntent = !!(paymentNode?.stripe_payment_intent_id);
+      const paymentStatus = paymentNode?.status || 'no_payment';
+      const payoutStatus = booking.admin_released_at ? 'released' : 
+                          (booking.status === 'completed' && booking.owner_receipt_confirmed_at) ? 
+                            (hasPayment ? 'ready_for_payout' : 'manual_payout_required') : 
+                          'awaiting_completion';
 
       return {
         id: booking.id,
@@ -190,32 +218,56 @@ export async function GET(request: NextRequest) {
           email: ownerNode?.email || '',
           stripe_account_id: ownerNode?.stripe_account_id || '',
         },
+        payment: paymentNode ? {
+          id: paymentNode.id,
+          amount: paymentNode.amount,
+          platform_fee: paymentNode.platform_fee || platformCommission,
+          stripe_fee: paymentNode.stripe_fee || 0,
+          net_amount: paymentNode.net_amount || ownerPayout,
+          status: paymentNode.status,
+          stripe_payment_intent_id: paymentNode.stripe_payment_intent_id,
+          payout_id: paymentNode.payout_id,
+          payout_date: paymentNode.payout_date,
+          refund_id: paymentNode.refund_id,
+          refund_amount: paymentNode.refund_amount,
+          refunded_at: paymentNode.refunded_at,
+        } : null,
         start_date: booking.start_date,
         end_date: booking.end_date,
-        total_amount: booking.total_amount,
-        subtotal: booking.subtotal,
-        service_fee: booking.service_fee,
-        deposit_amount: booking.deposit_amount || 0,
+        total_amount: parseFloat(booking.total_amount.toString()) || 0,
+        subtotal: parseFloat(booking.subtotal.toString()) || 0,
+        service_fee: parseFloat(booking.service_fee.toString()) || 0,
+        deposit_amount: parseFloat(booking.deposit_amount?.toString() || '0') || 0,
         platform_commission: platformCommission,
         owner_payout: ownerPayout,
         return_confirmed_at: booking.owner_receipt_confirmed_at || booking.completed_at,
         owner_receipt_confirmed_at: booking.owner_receipt_confirmed_at,
-        payment_status: 'completed',
         completed_at: booking.completed_at,
         admin_released_at: booking.admin_released_at,
+        // Status indicators
+        payment_status: paymentStatus,
+        payout_status: payoutStatus,
         has_stripe_account: !!ownerNode?.stripe_account_id,
+        has_payment_intent: hasPaymentIntent,
+        has_payment: hasPayment,
+        // Payout calculation fields
+        platform_fee: platformCommission,
+        stripe_fee: paymentNode?.stripe_fee || 0,
+        net_payout_amount: paymentNode?.net_amount || ownerPayout,
       };
     });
 
-    // Determine eligibility strictly: not released, completed, owner receipt confirmed, and has Stripe account
+    // Determine payout eligibility: booking completed, returns confirmed, not yet paid out
+    // For bookings with payments: require Stripe account for automatic payout
+    // For bookings without payments: eligible for manual payout
     const eligibleBookings = processedBookings.filter((booking) =>
       !booking.admin_released_at &&
       booking.status === 'completed' &&
       !!booking.owner_receipt_confirmed_at &&
-      booking.has_stripe_account
+      (booking.has_payment ? booking.has_stripe_account : true)
     );
 
-    // Count pending as those not yet released (regardless of stripe account)
+    // Count pending payouts as completed bookings not yet paid out to owners
     const pendingCount = processedBookings.filter((b) => !b.admin_released_at).length;
 
     return NextResponse.json({
@@ -274,18 +326,29 @@ export async function POST(request: NextRequest) {
     const results = [];
     const errors = [];
 
-    // Process each booking release directly (no HTTP calls)
+    // Process each booking release
     for (const bookingId of booking_ids) {
       try {
-        console.log(`Processing payment release for booking ${bookingId}`);
+        console.log(`Processing payout release for booking ${bookingId}`);
         
-        // Get booking details
+        // Get booking details with payment information
         const { data: booking, error: bookingError } = await supabase
           .from('bookings')
           .select(`
             *,
             owner:profiles!bookings_owner_id_fkey(full_name, email, stripe_account_id),
-            listing:listings(title, price_per_day)
+            listing:listings(title, price_per_day),
+            payments (
+              id,
+              stripe_payment_intent_id,
+              amount,
+              platform_fee,
+              stripe_fee,
+              net_amount,
+              status,
+              payout_id,
+              payout_date
+            )
           `)
           .eq('id', bookingId)
           .single();
@@ -300,22 +363,25 @@ export async function POST(request: NextRequest) {
             booking_id: bookingId,
             success: true,
             message: 'Already released',
-            transfer_id: booking.stripe_transfer_id,
+            payout_id: booking.payments?.[0]?.payout_id || booking.stripe_transfer_id,
           });
           continue;
         }
+
+        // Get payment record
+        const payment = Array.isArray(booking.payments) ? booking.payments[0] : booking.payments;
 
         // Calculate amounts (20% platform commission)
         const PLATFORM_COMMISSION_RATE = 0.20;
         const platformCommission = booking.subtotal * PLATFORM_COMMISSION_RATE;
         const ownerPayout = booking.subtotal - platformCommission;
 
-        let transferId = null;
-        let transferNote = 'No Stripe account connected';
+        let payoutId = null;
+        let payoutNote = 'Manual release completed';
         
-        // Only create Stripe transfer if owner has connected account
+        // Create Stripe payout if owner has connected account (regardless of payment record for MVP)
         if (booking.owner?.stripe_account_id && ownerPayout > 0) {
-          console.log(`Creating Stripe transfer for $${ownerPayout} to account: ${booking.owner.stripe_account_id}`);
+          console.log(`Creating Stripe payout for $${ownerPayout} to account: ${booking.owner.stripe_account_id}`);
           
           try {
             const transfer = await stripe.transfers.create({
@@ -325,31 +391,34 @@ export async function POST(request: NextRequest) {
               description: `Payout for booking ${bookingId} - ${booking.listing?.title}`,
               metadata: {
                 booking_id: bookingId,
+                payment_id: payment?.id || 'no_payment_record',
                 owner_id: booking.owner_id,
-                release_type: 'manual_batch',
+                release_type: 'admin_batch',
                 admin_user_id: user.id,
               },
             });
-            transferId = transfer.id;
-            transferNote = `Stripe transfer completed: ${transfer.id}`;
-            console.log(`✅ STRIPE TRANSFER SUCCESSFUL: ${transfer.id} for $${ownerPayout} to ${booking.owner.stripe_account_id}`);
+            payoutId = transfer.id;
+            payoutNote = `Stripe payout completed: ${transfer.id}`;
+            console.log(`✅ STRIPE PAYOUT SUCCESSFUL: ${transfer.id} for $${ownerPayout} to ${booking.owner.stripe_account_id}`);
           } catch (stripeError: any) {
-            console.error(`❌ STRIPE TRANSFER FAILED for booking ${bookingId}:`, stripeError);
+            console.error(`❌ STRIPE PAYOUT FAILED for booking ${bookingId}:`, stripeError);
             
             // For testing: Still proceed with marking as released
             if (stripeError.code === 'balance_insufficient') {
-              // In test mode, simulate successful transfer
-              transferNote = '✅ Test mode: Payment released (simulated transfer due to insufficient test balance)';
-              transferId = `test_transfer_${Date.now()}`;
-              console.log(`✅ TEST MODE: Simulated transfer for $${ownerPayout} - booking marked as released`);
+              payoutNote = '✅ Test mode: Payout released (simulated due to insufficient test balance)';
+              payoutId = `test_payout_${Date.now()}`;
+              console.log(`✅ TEST MODE: Simulated payout for $${ownerPayout} - booking marked as released`);
             } else {
-              transferNote = `❌ Stripe error: ${stripeError?.message || 'Unknown error'}`;
+              payoutNote = `❌ Stripe error: ${stripeError?.message || 'Unknown error'}`;
               console.error(`❌ UNHANDLED STRIPE ERROR:`, stripeError);
             }
           }
+        } else if (!payment) {
+          payoutNote = 'Manual payout - no payment record found';
+          console.log(`⚠️ No payment record found - manual payout release`);
         } else {
-          transferNote = 'No Stripe account connected - payment marked as released';
-          console.log(`⚠️ No Stripe account for owner - marking as released without transfer`);
+          payoutNote = 'No Stripe account connected - manual payout release';
+          console.log(`⚠️ No Stripe account for owner - manual payout release`);
         }
 
         // Update booking in database
@@ -357,8 +426,7 @@ export async function POST(request: NextRequest) {
           .from('bookings')
           .update({
             admin_released_at: new Date().toISOString(),
-            stripe_transfer_id: transferId,
-            // Keep status as 'completed', just add release timestamp
+            stripe_transfer_id: payoutId,
           })
           .eq('id', bookingId);
 
@@ -369,43 +437,43 @@ export async function POST(request: NextRequest) {
         results.push({
           booking_id: bookingId,
           success: true,
-          transfer_id: transferId,
+          payout_id: payoutId,
           amount: ownerPayout,
-          message: transferNote,
+          message: payoutNote,
         });
 
-        // Update payments row with payout info if exists
-        try {
-          const { data: paymentRow } = await supabase
-            .from('payments')
-            .select('id')
-            .eq('booking_id', bookingId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-          if (paymentRow) {
-            await supabase
+        // Update payment record with payout info if exists
+        if (payment) {
+          try {
+            const { error: paymentUpdateError } = await supabase
               .from('payments')
-              .update({ payout_id: transferId, payout_date: new Date().toISOString() } as any)
-              .eq('id', paymentRow.id);
+              .update({
+                payout_id: payoutId,
+                payout_date: new Date().toISOString()
+              })
+              .eq('id', payment.id);
+            
+            if (paymentUpdateError) {
+              console.warn('Failed to update payment record with payout info:', paymentUpdateError);
+            }
+          } catch (pErr) {
+            console.warn('Failed to update payment record with payout info:', pErr);
           }
-        } catch (pErr) {
-          console.warn('Failed to update payments row with payout info', pErr);
         }
 
         // Send email notification to owner
         try {
-          await sendPaymentReleaseEmail(booking, ownerPayout, transferId);
-          console.log(`Email notification sent to owner: ${booking.owner?.stripe_account_id}`);
+          await sendPayoutReleaseEmail(booking, payment, ownerPayout, payoutId);
+          console.log(`Email notification sent to owner: ${booking.owner?.email}`);
         } catch (emailError) {
           console.error(`Failed to send email notification:`, emailError);
           // Don't fail the whole process if email fails
         }
 
-        console.log(`Successfully released funds for booking ${bookingId}`);
+        console.log(`Successfully released payout for booking ${bookingId}`);
         
       } catch (error) {
-        console.error(`Error releasing funds for booking ${bookingId}:`, error);
+        console.error(`Error releasing payout for booking ${bookingId}:`, error);
         errors.push({
           booking_id: bookingId,
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -431,15 +499,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Successfully released funds for ${results.length} bookings.`,
+      message: `Successfully released payouts for ${results.length} bookings.`,
       ...summary,
     });
 
   } catch (error) {
-    console.error('Error processing payment releases:', error);
+    console.error('Error processing payout releases:', error);
     return NextResponse.json(
       { 
-        error: 'Failed to process payment releases',
+        error: 'Failed to process payout releases',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

@@ -7,6 +7,8 @@ import { useAdmin } from '@/hooks/use-admin'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AuthenticatedLayout from '@/components/AuthenticatedLayout'
+import StripeConnectSetup from '@/components/stripe/StripeConnectSetup'
+import { useStripeConnect } from '@/hooks/useStripeConnect'
 
 const categories = [
   { 
@@ -68,6 +70,7 @@ interface RecentBooking {
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth()
   const { isAdmin, loading: adminLoading } = useAdmin()
+  const { status: stripeStatus, isLoading: stripeLoading } = useStripeConnect()
   const [stats, setStats] = useState({
     totalListings: 0,
     activeRentals: 0,
@@ -458,14 +461,33 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Stripe Connect Setup - Show if not fully set up */}
+        {!stripeLoading && (!stripeStatus?.has_account || !stripeStatus?.onboarding_completed || !stripeStatus?.payouts_enabled) && (
+          <div className="mb-6">
+            <StripeConnectSetup 
+              requiredForAction="create listings and receive payouts"
+              variant="card"
+              showTitle={false}
+            />
+          </div>
+        )}
+
         {/* Quick Actions */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
           <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            <Link href="/listings/create" className="btn-primary p-3 md:p-4 rounded-lg text-center hover:bg-green-600 transition-colors">
-              <Plus className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2" />
-              <span className="text-sm md:text-base font-medium">Create Listing</span>
-            </Link>
+            {stripeStatus?.has_account && stripeStatus?.onboarding_completed && stripeStatus?.payouts_enabled ? (
+              <Link href="/listings/create" className="btn-primary p-3 md:p-4 rounded-lg text-center hover:bg-green-600 transition-colors">
+                <Plus className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2" />
+                <span className="text-sm md:text-base font-medium">Create Listing</span>
+              </Link>
+            ) : (
+              <div className="bg-yellow-50 border-2 border-yellow-200 p-3 md:p-4 rounded-lg text-center">
+                <Shield className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2 text-yellow-600" />
+                <span className="text-sm md:text-base font-medium text-yellow-800">Setup Payouts</span>
+                <p className="text-xs text-yellow-600 mt-1">Required to list items</p>
+              </div>
+            )}
             <Link href="/listings" className="bg-indigo-500 text-white p-3 md:p-4 rounded-lg text-center hover:bg-indigo-600 transition-colors">
               <List className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-2" />
               <span className="text-sm md:text-base font-medium">My Listings</span>

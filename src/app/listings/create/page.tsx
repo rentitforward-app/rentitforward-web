@@ -27,6 +27,8 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import StripeConnectSetup from '@/components/stripe/StripeConnectSetup';
+import { useStripeConnect } from '@/hooks/useStripeConnect';
 import Image from 'next/image';
 
 // Declare Google Maps types
@@ -146,6 +148,7 @@ const steps = [
 function CreateListingContent() {
   const [user, setUser] = useState<any>(null);
   const [currentStep, setCurrentStep] = useState(1);
+  const { status: stripeStatus, isLoading: stripeLoading } = useStripeConnect();
   const [isLoading, setIsLoading] = useState(false);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
@@ -1518,8 +1521,18 @@ function CreateListingContent() {
           </div>
         </div>
 
-        {/* Form */}
-        <Card className="p-8">
+        {/* Stripe Connect Requirement Check */}
+        {!stripeLoading && (!stripeStatus?.has_account || !stripeStatus?.onboarding_completed || !stripeStatus?.payouts_enabled) ? (
+          <div className="mb-8">
+            <StripeConnectSetup 
+              requiredForAction="create listings and receive payouts"
+              variant="card"
+            />
+          </div>
+        ) : (
+          <>
+            {/* Form */}
+            <Card className="p-8">
           <form onSubmit={handleSubmit(onSubmit)}>
             {/* Step 1: Basic Details */}
             {currentStep === 1 && (
@@ -2389,7 +2402,9 @@ function CreateListingContent() {
               </div>
             </div>
           </form>
-        </Card>
+            </Card>
+          </>
+        )}
         </div>
       </div>
       
