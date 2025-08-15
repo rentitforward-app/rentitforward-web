@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   MessageCircle, 
@@ -58,7 +58,7 @@ interface Conversation {
   };
 }
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const [user, setUser] = useState<any>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -726,5 +726,17 @@ export default function MessagesPage() {
         </div>
       </div>
     </AuthenticatedLayout>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <MessagesPageContent />
+    </Suspense>
   );
 } 

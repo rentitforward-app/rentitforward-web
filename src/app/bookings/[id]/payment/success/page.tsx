@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { CheckCircle, Calendar, Home, Loader2, ArrowLeft, MessageCircle } from 'lucide-react';
@@ -28,7 +28,7 @@ interface Booking {
   };
 }
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const params = useParams();
@@ -322,5 +322,17 @@ export default function PaymentSuccessPage() {
         </div>
       </div>
     </AuthenticatedLayout>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
