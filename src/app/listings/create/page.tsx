@@ -71,6 +71,9 @@ const categories = {
   },
   'maker-craft-supplies': { 
     label: 'Maker & Craft Supplies'
+  },
+  'clothing-shoes-accessories': { 
+    label: 'Clothing, Shoes and Accessories'
   }
 };
 

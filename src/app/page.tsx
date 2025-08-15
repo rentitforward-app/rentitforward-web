@@ -77,6 +77,12 @@ const categories = [
     icon: '✂️', 
     slug: 'maker-craft-supplies',
     items: ['craft tools', 'art supplies', 'maker equipment', 'creative materials']
+  },
+  { 
+    name: 'Clothing, Shoes and Accessories', 
+    icon: '👕', 
+    slug: 'clothing-shoes-accessories',
+    items: ['designer clothes', 'formal wear', 'shoes', 'jewelry', 'accessories']
   }
 ]
 

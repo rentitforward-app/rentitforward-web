@@ -78,7 +78,8 @@ const categories = {
   'Sports & Fitness Equipment': { label: 'Sports & Fitness Equipment', icon: '🏃', dbValue: 'sports_fitness_equipment' },
   'Musical Instruments & Gear': { label: 'Musical Instruments & Gear', icon: '🎸', dbValue: 'musical_instruments_gear' },
   'Costumes & Props': { label: 'Costumes & Props', icon: '🎭', dbValue: 'costumes_props' },
-  'Maker & Craft Supplies': { label: 'Maker & Craft Supplies', icon: '✂️', dbValue: 'maker_craft_supplies' }
+  'Maker & Craft Supplies': { label: 'Maker & Craft Supplies', icon: '✂️', dbValue: 'maker_craft_supplies' },
+  'Clothing, Shoes and Accessories': { label: 'Clothing, Shoes and Accessories', icon: '👕', dbValue: 'clothing_shoes_accessories' }
 };
 
 const australianStates = [

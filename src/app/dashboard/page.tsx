@@ -47,6 +47,12 @@ const categories = [
     slug: 'tools-equipment',
     items: ['pressure washers', 'generators', 'lawn equipment', 'construction tools']
   },
+  { 
+    name: 'Clothing, Shoes & Accessories', 
+    icon: '👕', 
+    slug: 'clothing-shoes-accessories',
+    items: ['designer clothes', 'formal wear', 'shoes', 'jewelry', 'accessories']
+  },
 ]
 
 // Define types for our data
