@@ -11,7 +11,6 @@ import {
   DollarSign, 
   MessageCircle, 
   Phone,
-  Mail,
   Package,
   CheckCircle,
   XCircle,
@@ -780,12 +779,7 @@ export default function EnhancedBookingsPage() {
                                 {contactPerson.phone}
                               </a>
                             )}
-                            {contactPerson?.email && (
-                              <a href={`mailto:${contactPerson.email}`} className="flex items-center hover:text-green-600">
-                                <Mail className="w-4 h-4 mr-1" />
-                                {contactPerson.email}
-                              </a>
-                            )}
+                            {/* Email contact removed - users should communicate through internal messaging */}
                           </div>
                         </div>
 
@@ -806,7 +800,11 @@ export default function EnhancedBookingsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => router.push('/messages')}
+                              onClick={() => {
+                                // Navigate to chat with the appropriate person
+                                const otherUserId = userRole === 'as_owner' ? booking.renter_id : booking.owner_id;
+                                router.push(`/messages?with=${otherUserId}&booking=${booking.id}`);
+                              }}
                             >
                               <MessageCircle className="w-4 h-4 mr-1" />
                               Message

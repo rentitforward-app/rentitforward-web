@@ -20,7 +20,6 @@ import {
   Download, 
   Package, 
   Plus, 
-  Mail, 
   MessageCircle, 
   Eye,
   Camera,
@@ -438,11 +437,11 @@ export default function BookingsPage() {
             phone: booking.renter?.phone_number || '',
             avatar_url: booking.renter?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${booking.renter?.id || 'default'}`
           } : {
-            id: booking.listings.profiles?.id || 'unknown',
+            id: booking.listings?.owner_id || 'unknown',
             full_name: booking.listings.profiles?.full_name || 'Unknown User',
             email: booking.listings.profiles?.email || '',
             phone: booking.listings.profiles?.phone_number || '',
-            avatar_url: booking.listings.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${booking.listings.profiles?.id || 'default'}`
+            avatar_url: booking.listings.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${booking.listings?.owner_id || 'default'}`
           }
         };
       });
@@ -1306,15 +1305,11 @@ export default function BookingsPage() {
 
                       {/* Common actions for both roles */}
                       <Button
-                        onClick={() => window.open(`mailto:${booking.owner.email}`)}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Mail className="w-4 h-4 mr-1" />
-                        Email
-                      </Button>
-                      <Button
-                        onClick={() => router.push(`/messages?user=${booking.owner.id}`)}
+                        onClick={() => {
+                          // The booking.owner field contains the other party's info
+                          // (renter info if user is owner, owner info if user is renter)
+                          router.push(`/messages?with=${booking.owner.id}&booking=${booking.id}`);
+                        }}
                         variant="outline"
                         size="sm"
                       >

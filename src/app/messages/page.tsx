@@ -69,6 +69,7 @@ export default function MessagesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   useEffect(() => {
@@ -87,6 +88,118 @@ export default function MessagesPage() {
       markAsRead(selectedConversation.id);
     }
   }, [selectedConversation]);
+
+  // Handle URL parameters for auto-selecting conversations
+  useEffect(() => {
+    const withUserId = searchParams.get('with');
+    const bookingId = searchParams.get('booking');
+    
+    if (withUserId && conversations.length > 0 && !selectedConversation) {
+      // Look for existing conversation with this user
+      const existingConversation = conversations.find(conv => 
+        conv.other_user.id === withUserId || 
+        (conv.booking_id === bookingId && bookingId)
+      );
+      
+      if (existingConversation) {
+        setSelectedConversation(existingConversation);
+      } else if (bookingId) {
+        // If no existing conversation but we have booking context, create a new one
+        createConversationFromBooking(withUserId, bookingId);
+      }
+    }
+  }, [conversations, searchParams, selectedConversation]);
+
+  const createConversationFromBooking = async (otherUserId: string, bookingId: string) => {
+    try {
+      // First, fetch the booking details to get listing information
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          listing_id,
+          listings!listing_id (
+            id,
+            title,
+            images,
+            price_per_day
+          )
+        `)
+        .eq('id', bookingId)
+        .single();
+
+      if (bookingError || !booking) {
+        console.error('Failed to fetch booking:', bookingError);
+        toast.error('Failed to start conversation. Booking not found.');
+        return;
+      }
+
+      // Fetch the other user's profile
+      const { data: otherUserProfile, error: userError } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .eq('id', otherUserId)
+        .single();
+
+      if (userError || !otherUserProfile) {
+        console.error('Failed to fetch user profile:', userError);
+        toast.error('Failed to start conversation. User not found.');
+        return;
+      }
+
+      // Create a new conversation
+      const { data: newConversation, error: convError } = await supabase
+        .from('conversations')
+        .insert({
+          listing_id: booking.listing_id,
+          booking_id: bookingId,
+          participants: [user.id, otherUserId],
+          last_message: '',
+          last_message_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (convError || !newConversation) {
+        console.error('Failed to create conversation:', convError);
+        toast.error('Failed to start conversation.');
+        return;
+      }
+
+      // Create the conversation object in the format expected by the UI
+      const formattedConversation: Conversation = {
+        id: newConversation.id,
+        created_at: newConversation.created_at,
+        updated_at: newConversation.updated_at,
+        listing_id: newConversation.listing_id,
+        booking_id: newConversation.booking_id,
+        participants: newConversation.participants,
+        last_message: '',
+        last_message_at: newConversation.last_message_at,
+        unread_count: 0,
+        other_user: {
+          id: otherUserProfile.id,
+          full_name: otherUserProfile.full_name,
+          avatar_url: otherUserProfile.avatar_url,
+        },
+        listing: {
+          id: booking.listings.id,
+          title: booking.listings.title,
+          images: booking.listings.images,
+          price_per_day: booking.listings.price_per_day,
+        },
+      };
+
+      // Add to conversations list and select it
+      setConversations(prev => [formattedConversation, ...prev]);
+      setSelectedConversation(formattedConversation);
+      
+      toast.success('Conversation started!');
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      toast.error('Failed to start conversation.');
+    }
+  };
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();

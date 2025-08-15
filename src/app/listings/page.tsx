@@ -15,7 +15,6 @@ import {
   Star,
   MessageCircle,
   Phone,
-  Mail,
   CheckCircle,
   AlertCircle,
   XCircle,
@@ -1263,15 +1262,10 @@ export default function MyListingsPage() {
 
                           {/* Common actions */}
                           <Button
-                            onClick={() => window.open(`mailto:${booking.renter.email}`)}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Mail className="w-4 h-4 mr-1" />
-                            Email
-                          </Button>
-                          <Button
-                            onClick={() => router.push(`/messages?user=${booking.renter.id}`)}
+                            onClick={() => {
+                              // Navigate to chat with the renter (this page shows owner's view of bookings)
+                              router.push(`/messages?with=${booking.renter.id}&booking=${booking.id}`);
+                            }}
                             variant="outline"
                             size="sm"
                           >
