@@ -283,7 +283,7 @@ export default function PaymentSuccessPage() {
             
             <div className="mt-4 pt-3 border-t border-blue-200 space-y-2">
               <Link 
-                href="/messages"
+                href={`/messages?with=${booking.listings.owner_id}&booking=${booking.id}`}
                 className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <MessageCircle className="h-4 w-4" />
