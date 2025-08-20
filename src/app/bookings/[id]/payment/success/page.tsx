@@ -275,10 +275,9 @@ function PaymentSuccessContent() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-semibold text-blue-900 mb-2">What's Next?</h3>
             <ul className="text-blue-800 space-y-1">
-              <li>• You'll receive a confirmation email shortly</li>
               <li>• The host will be notified of your booking</li>
-              <li>• Your payment is held securely in escrow until item return</li>
-              <li>• Message the host to coordinate pickup details</li>
+              <li>• Your payment is held securely until it's returned</li>
+              <li>• Message each other to organise pickup and drop-off</li>
             </ul>
             
             <div className="mt-4 pt-3 border-t border-blue-200 space-y-2">
