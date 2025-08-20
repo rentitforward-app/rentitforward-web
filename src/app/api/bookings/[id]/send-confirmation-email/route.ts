@@ -209,10 +209,9 @@ function generateRenterConfirmationEmail(data: EmailData, startDate: string, end
 
             <h3>What's Next?</h3>
             <ul>
-                <li>🔔 You'll receive a confirmation email shortly</li>
                 <li>💬 The host will be notified of your booking</li>
-                <li>🔒 Your payment is held securely in escrow until item return</li>
-                <li>📞 Message your host for coordination details</li>
+                <li>🔒 Your payment is held securely until it's returned</li>
+                <li>📞 Message each other to organise pickup and drop-off</li>
             </ul>
 
             <h3>Host Contact</h3>
@@ -228,10 +227,10 @@ function generateRenterConfirmationEmail(data: EmailData, startDate: string, end
                 </a>
             </p>
 
-            <h3>Escrow Protection</h3>
+            <h3>Payment Protection</h3>
             <ul>
-                <li>✅ Your payment is protected by Stripe Connect</li>
-                <li>✅ Funds are held in escrow until successful item return</li>
+                <li>✅ Your payment is protected by our secure payment system</li>
+                <li>✅ Funds are held securely until successful item return</li>
                 <li>✅ Platform fee and owner payment are automatically separated</li>
                 <li>✅ Security deposit will be refunded after item return</li>
             </ul>
@@ -293,7 +292,7 @@ function generateOwnerConfirmationEmail(data: EmailData, startDate: string, endD
             <h3>Next Steps</h3>
             <ul>
                 <li>🏠 Prepare the item for pickup/delivery</li>
-                <li>💬 Message the renter to coordinate pickup details</li>
+                <li>💬 Message each other to organise pickup and drop-off</li>
                 <li>📋 Review rental rules and item condition</li>
                 <li>🔄 Payment will be released after successful return</li>
             </ul>
@@ -306,7 +305,7 @@ function generateOwnerConfirmationEmail(data: EmailData, startDate: string, endD
 
             <h3>Payment Information</h3>
             <div class="booking-details">
-                <p><strong>Status:</strong> Payment confirmed and held in escrow</p>
+                <p><strong>Status:</strong> Payment confirmed and held securely</p>
                 <p><strong>Release:</strong> Funds will be transferred to your account after successful rental completion</p>
                 <p><strong>Platform Fee:</strong> Our commission is automatically deducted</p>
             </div>
