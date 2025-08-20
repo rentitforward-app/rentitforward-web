@@ -67,6 +67,7 @@ function MessagesPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -109,6 +110,169 @@ function MessagesPageContent() {
       }
     }
   }, [conversations, searchParams, selectedConversation]);
+
+  // Check if a user is online
+  const isUserOnline = (userId: string): boolean => {
+    return onlineUsers.has(userId);
+  };
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    const messagesContainer = document.getElementById('messages-container');
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  }, [messages]);
+
+  // Real-time subscriptions for live message updates
+  useEffect(() => {
+    if (!user) return;
+
+    // Subscribe to new messages in all conversations
+    const messagesSubscription = supabase
+      .channel('messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=in.(${conversations.map(c => c.id).join(',')})`
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          const newMessage = payload.new as Message;
+          
+          // Add new message to current conversation if it matches
+          if (selectedConversation && newMessage.conversation_id === selectedConversation.id) {
+            setMessages(prev => [...prev, newMessage]);
+            
+            // Mark as read if we're the receiver
+            if (newMessage.sender_id !== user.id) {
+              markAsRead(selectedConversation.id);
+              
+              // Play notification sound for new messages (optional)
+              // Uncomment the line below if you want sound notifications
+              // new Audio('/notification.mp3').play().catch(() => {});
+            }
+          }
+          
+          // Update conversation list with new message
+          setConversations(prev => 
+            prev.map(conv => 
+              conv.id === newMessage.conversation_id
+                ? {
+                    ...conv,
+                    last_message: newMessage.content,
+                    last_message_at: newMessage.created_at,
+                    unread_count: conv.unread_count + (newMessage.sender_id !== user.id ? 1 : 0),
+                    updated_at: new Date().toISOString()
+                  }
+                : conv
+            ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=in.(${conversations.map(c => c.id).join(',')})`
+        },
+        (payload) => {
+          console.log('Message updated:', payload);
+          const updatedMessage = payload.new as Message;
+          
+          // Update message in current conversation if it matches
+          if (selectedConversation && updatedMessage.conversation_id === selectedConversation.id) {
+            setMessages(prev => 
+              prev.map(msg => 
+                msg.id === updatedMessage.id ? updatedMessage : msg
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to conversation updates
+    const conversationsSubscription = supabase
+      .channel('conversations')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversations',
+          filter: `id=in.(${conversations.map(c => c.id).join(',')})`
+        },
+        (payload) => {
+          console.log('Conversation updated:', payload);
+          const updatedConversation = payload.new;
+          
+          // Update conversation in list
+          setConversations(prev => 
+            prev.map(conv => 
+              conv.id === updatedConversation.id
+                ? { ...conv, ...updatedConversation }
+                : conv
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      messagesSubscription.unsubscribe();
+      conversationsSubscription.unsubscribe();
+    };
+  }, [user, conversations, selectedConversation]);
+
+  // Track online users using presence
+  useEffect(() => {
+    if (!user) return;
+
+    // Set up presence tracking
+    const presenceChannel = supabase.channel('online-users', {
+      config: {
+        presence: {
+          key: user.id,
+        },
+      },
+    });
+
+    // Track when users come online
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        const onlineUserIds = Object.keys(state);
+        setOnlineUsers(new Set(onlineUserIds));
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        setOnlineUsers(prev => new Set([...prev, key]));
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        setOnlineUsers(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(key);
+          return newSet;
+        });
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          // Join the presence channel
+          await presenceChannel.track({ user_id: user.id, online_at: new Date().toISOString() });
+        }
+      });
+
+    // Cleanup on unmount
+    return () => {
+      presenceChannel.unsubscribe();
+    };
+  }, [user]);
 
   const createConversationFromBooking = async (otherUserId: string, bookingId: string) => {
     try {
@@ -183,10 +347,10 @@ function MessagesPageContent() {
           avatar_url: otherUserProfile.avatar_url,
         },
         listing: {
-          id: booking.listings.id,
-          title: booking.listings.title,
-          images: booking.listings.images,
-          price_per_day: booking.listings.price_per_day,
+          id: (booking.listings as any).id,
+          title: (booking.listings as any).title,
+          images: (booking.listings as any).images,
+          price_per_day: (booking.listings as any).price_per_day,
         },
       };
 
@@ -425,6 +589,9 @@ function MessagesPageContent() {
     setNewMessage(''); // Clear input immediately for better UX
     setIsSending(true);
 
+    // Show typing indicator (optional - can be removed if not needed)
+    // This would require adding a typing indicator state and UI
+
     // Optimistic update - add message to UI immediately
     const tempMessage: Message = {
       id: `temp-${Date.now()}`,
@@ -575,7 +742,7 @@ function MessagesPageContent() {
                         }`}
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="flex-shrink-0">
+                          <div className="flex-shrink-0 relative">
                             {conversation.other_user.avatar_url ? (
                               <Image
                                 src={conversation.other_user.avatar_url}
@@ -588,6 +755,10 @@ function MessagesPageContent() {
                               <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
                                 <User className="w-6 h-6 text-gray-600" />
                               </div>
+                            )}
+                            {/* Online indicator for conversation list */}
+                            {isUserOnline(conversation.other_user.id) && (
+                              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -625,7 +796,7 @@ function MessagesPageContent() {
                   <div className="p-4 border-b">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0 relative">
                           {selectedConversation.other_user.avatar_url ? (
                             <Image
                               src={selectedConversation.other_user.avatar_url}
@@ -639,12 +810,27 @@ function MessagesPageContent() {
                               <User className="w-5 h-5 text-gray-600" />
                             </div>
                           )}
+                          {/* Online indicator - only show if user is actually online */}
+                          {selectedConversation && isUserOnline(selectedConversation.other_user.id) && (
+                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                          )}
                         </div>
                         <div>
                           <h3 className="text-lg font-medium text-gray-900">
                             {selectedConversation.other_user.full_name}
                           </h3>
                           <p className="text-sm text-gray-600">{selectedConversation.listing.title}</p>
+                          {/* Online status - only show if user is actually online */}
+                          {selectedConversation && isUserOnline(selectedConversation.other_user.id) ? (
+                            <p className="text-xs text-green-600 flex items-center">
+                              <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
+                              Online
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-500">
+                              Last seen recently
+                            </p>
+                          )}
                         </div>
                       </div>
                       <Button
@@ -658,8 +844,8 @@ function MessagesPageContent() {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.map((message) => (
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4" id="messages-container">
+                    {messages.map((message, index) => (
                       <div
                         key={message.id}
                         className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
@@ -689,6 +875,8 @@ function MessagesPageContent() {
                         </div>
                       </div>
                     ))}
+                    
+                    {/* Removed redundant live updates indicator - online status in header already shows real-time connection */}
                   </div>
 
                   {/* Message Input */}

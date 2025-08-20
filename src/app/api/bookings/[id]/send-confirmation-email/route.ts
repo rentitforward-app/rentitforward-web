@@ -212,7 +212,7 @@ function generateRenterConfirmationEmail(data: EmailData, startDate: string, end
                 <li>🔔 You'll receive a confirmation email shortly</li>
                 <li>💬 The host will be notified of your booking</li>
                 <li>🔒 Your payment is held securely in escrow until item return</li>
-                <li>📞 Check your messages for coordination details</li>
+                <li>📞 Message your host for coordination details</li>
             </ul>
 
             <h3>Host Contact</h3>
