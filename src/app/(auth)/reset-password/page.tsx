@@ -102,9 +102,42 @@ function ResetPasswordForm() {
             return;
           }
           
-          // If no session but we have a code, allow the user to proceed
+          // If no session but we have a code, try to establish a session
+          console.log('No session found but code present, attempting to establish session...');
+          
+          try {
+            // Try to exchange the code for a session
+            const { data: exchangeData, error: exchangeError } = await supabase.auth.verifyOtp({
+              token_hash: code,
+              type: 'recovery'
+            });
+            
+            console.log('Code exchange result:', {
+              success: !!exchangeData.session,
+              error: exchangeError?.message,
+              userId: exchangeData.session?.user?.id
+            });
+            
+            if (exchangeData.session) {
+              console.log('Session established from code exchange');
+              setIsCheckingSession(false);
+              setSessionError(null);
+              return;
+            }
+            
+            if (exchangeError) {
+              console.error('Code exchange failed:', exchangeError);
+              // Don't fail immediately, allow the user to proceed
+              // The password update will handle the validation
+            }
+          } catch (exchangeException) {
+            console.error('Exception during code exchange:', exchangeException);
+            // Don't fail immediately, allow the user to proceed
+          }
+          
+          // Allow the user to proceed even if session establishment failed
           // The password update will handle the validation
-          console.log('No session found but code present, allowing user to proceed');
+          console.log('Allowing user to proceed with password reset');
           setIsCheckingSession(false);
           setSessionError(null);
           return;
@@ -226,12 +259,32 @@ function ResetPasswordForm() {
       // If we have a recovery code, try to update password with the code
       if (code && type === 'recovery') {
         console.log('Attempting password update with recovery code');
-        updateResult = await supabase.auth.updateUser({
-          password: data.password,
-        });
+        
+        // First try to establish a session with the code
+        try {
+          const { data: exchangeData, error: exchangeError } = await supabase.auth.verifyOtp({
+            token_hash: code,
+            type: 'recovery'
+          });
+          
+          if (exchangeData.session) {
+            console.log('Session established for password update');
+            updateResult = await supabase.auth.updateUser({
+              password: data.password,
+            });
+          } else {
+            console.error('Failed to establish session for password update:', exchangeError);
+            toast.error('Invalid or expired reset link. Please request a new password reset.');
+            return;
+          }
+        } catch (exchangeError) {
+          console.error('Exception establishing session for password update:', exchangeError);
+          toast.error('Invalid or expired reset link. Please request a new password reset.');
+          return;
+        }
       } else {
         // Otherwise, try normal password update (requires session)
-        console.log('Attempting password update with session');
+        console.log('Attempting password update with existing session');
         updateResult = await supabase.auth.updateUser({
           password: data.password,
         });
