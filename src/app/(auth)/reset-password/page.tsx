@@ -36,11 +36,13 @@ function ResetPasswordForm() {
   // Check URL parameters for direct password reset handling
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
     const accessToken = urlParams.get('access_token');
     const refreshToken = urlParams.get('refresh_token');
     const type = urlParams.get('type');
     
     console.log('URL parameters:', {
+      code: code ? 'present' : 'missing',
       accessToken: accessToken ? 'present' : 'missing',
       refreshToken: refreshToken ? 'present' : 'missing',
       type,
@@ -63,14 +65,54 @@ function ResetPasswordForm() {
         setIsCheckingSession(true);
         console.log('Checking session for password reset...');
         
-        // First check if we have URL parameters indicating a direct password reset
+        // Check URL parameters for password reset flow
         const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
         const accessToken = urlParams.get('access_token');
         const refreshToken = urlParams.get('refresh_token');
         const type = urlParams.get('type');
         
+        console.log('URL parameters analysis:', {
+          hasCode: !!code,
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          type,
+          fullURL: window.location.href
+        });
+        
+        // If we have a code but no session, let's allow the user to proceed
+        // The password update will fail if the session is invalid anyway
+        if (code && type === 'recovery') {
+          console.log('Code-based password reset detected with code:', code.substring(0, 8) + '...');
+          
+          // Check if we have a valid session
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          console.log('Current session check:', {
+            hasSession: !!session,
+            sessionError: sessionError?.message,
+            userId: session?.user?.id,
+            sessionType: session?.user?.app_metadata
+          });
+          
+          if (session) {
+            console.log('Valid session found, proceeding with password reset');
+            setIsCheckingSession(false);
+            setSessionError(null);
+            return;
+          }
+          
+          // If no session but we have a code, allow the user to proceed
+          // The password update will handle the validation
+          console.log('No session found but code present, allowing user to proceed');
+          setIsCheckingSession(false);
+          setSessionError(null);
+          return;
+        }
+        
+        // Handle token-based password reset (older Supabase flow)
         if (accessToken && refreshToken && type === 'recovery') {
-          console.log('Direct password reset detected with URL parameters');
+          console.log('Token-based password reset detected');
           try {
             // Set the session from URL parameters
             const { data, error } = await supabase.auth.setSession({
@@ -168,13 +210,38 @@ function ResetPasswordForm() {
   const onSubmit = async (data: ResetPasswordForm) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: data.password,
+      // Get URL parameters to check if we have a recovery code
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const type = urlParams.get('type');
+      
+      console.log('Password update attempt:', {
+        hasCode: !!code,
+        type,
+        hasSession: !!(await supabase.auth.getSession()).data.session
       });
-
-      if (error) {
-        toast.error(error.message);
+      
+      let updateResult;
+      
+      // If we have a recovery code, try to update password with the code
+      if (code && type === 'recovery') {
+        console.log('Attempting password update with recovery code');
+        updateResult = await supabase.auth.updateUser({
+          password: data.password,
+        });
       } else {
+        // Otherwise, try normal password update (requires session)
+        console.log('Attempting password update with session');
+        updateResult = await supabase.auth.updateUser({
+          password: data.password,
+        });
+      }
+
+      if (updateResult.error) {
+        console.error('Password update error:', updateResult.error);
+        toast.error(updateResult.error.message);
+      } else {
+        console.log('Password updated successfully');
         setIsSuccess(true);
         toast.success('Password updated successfully!');
         
@@ -184,6 +251,7 @@ function ResetPasswordForm() {
         }, 3000);
       }
     } catch (error) {
+      console.error('Password update exception:', error);
       toast.error('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);

@@ -36,21 +36,29 @@ export default function ForgotPasswordPage() {
     try {
       // Use environment variable for the redirect URL to ensure it works in all environments
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      const redirectUrl = `${baseUrl}/reset-password`;
       
-      console.log('Password reset redirect URL:', `${baseUrl}/reset-password`);
+      console.log('Password reset configuration:', {
+        email: data.email,
+        redirectUrl,
+        baseUrl,
+        currentOrigin: window.location.origin
+      });
       
       // Try direct redirect approach first
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${baseUrl}/reset-password`,
+        redirectTo: redirectUrl,
       });
 
       if (error) {
+        console.error('Password reset error:', error);
         toast.error(error.message);
       } else {
         setIsSubmitted(true);
         toast.success('Password reset email sent! Please check your inbox.');
       }
     } catch (error) {
+      console.error('Password reset exception:', error);
       toast.error('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
