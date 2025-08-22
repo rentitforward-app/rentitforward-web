@@ -84,6 +84,7 @@ export default function TestPasswordResetPage() {
         alert(`Error: ${error.message}`);
       } else {
         alert('Password reset email sent successfully! Check your email and click the link to test the flow.');
+        console.log('Password reset email sent with redirect URL:', redirectUrl);
       }
     } catch (error) {
       alert(`Exception: ${error instanceof Error ? error.message : 'Unknown error'}`);
