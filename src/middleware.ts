@@ -43,7 +43,9 @@ export async function middleware(request: NextRequest) {
     '/listings',
     '/auth',
     '/forgot-password',
-    '/reset-password'
+    '/reset-password',
+    '/auth/callback',
+    '/auth/auth-code-error'
   ]
 
   // Define protected routes that require authentication

@@ -72,7 +72,7 @@ export default function TestPasswordResetPage() {
     
     try {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-      const redirectUrl = `${baseUrl}/reset-password`;
+      const redirectUrl = `${baseUrl}/auth/callback?type=recovery`;
       
       console.log('Testing password reset with:', { email, redirectUrl });
       
@@ -83,7 +83,7 @@ export default function TestPasswordResetPage() {
       if (error) {
         alert(`Error: ${error.message}`);
       } else {
-        alert('Password reset email sent successfully!');
+        alert('Password reset email sent successfully! Check your email and click the link to test the flow.');
       }
     } catch (error) {
       alert(`Exception: ${error instanceof Error ? error.message : 'Unknown error'}`);

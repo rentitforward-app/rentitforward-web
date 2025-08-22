@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Lock, CheckCircle } from 'lucide-react';
@@ -15,7 +15,7 @@ const resetPasswordSchema = z.object({
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain at least one uppercase letter, one lowercase letter, and one number'),
-  confirmPassword: z.string(),
+  confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -23,483 +23,278 @@ const resetPasswordSchema = z.object({
 
 type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
-function ResetPasswordForm() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
-  
-  // Check URL parameters for direct password reset handling
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const accessToken = urlParams.get('access_token');
-    const refreshToken = urlParams.get('refresh_token');
-    const type = urlParams.get('type');
-    
-    console.log('URL parameters:', {
-      code: code ? 'present' : 'missing',
-      accessToken: accessToken ? 'present' : 'missing',
-      refreshToken: refreshToken ? 'present' : 'missing',
-      type,
-      fullURL: window.location.href
-    });
-  }, []);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    watch,
   } = useForm<ResetPasswordForm>({
     resolver: zodResolver(resetPasswordSchema),
   });
 
-  useEffect(() => {
-    // Check if user has a valid session for password reset
-    const checkSession = async () => {
-      try {
-        setIsCheckingSession(true);
-        console.log('Checking session for password reset...');
-        
-        // Check URL parameters for password reset flow
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const accessToken = urlParams.get('access_token');
-        const refreshToken = urlParams.get('refresh_token');
-        const type = urlParams.get('type');
-        
-        console.log('URL parameters analysis:', {
-          hasCode: !!code,
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken,
-          type,
-          fullURL: window.location.href
-        });
-        
-        // If we have a code but no session, let's allow the user to proceed
-        // The password update will fail if the session is invalid anyway
-        if (code && type === 'recovery') {
-          console.log('Code-based password reset detected with code:', code.substring(0, 8) + '...');
-          
-          // Check if we have a valid session
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          console.log('Current session check:', {
-            hasSession: !!session,
-            sessionError: sessionError?.message,
-            userId: session?.user?.id,
-            sessionType: session?.user?.app_metadata
-          });
-          
-          if (session) {
-            console.log('Valid session found, proceeding with password reset');
-            setIsCheckingSession(false);
-            setSessionError(null);
-            return;
-          }
-          
-          // If no session but we have a code, try to establish a session
-          console.log('No session found but code present, attempting to establish session...');
-          
-          try {
-            // Try to exchange the code for a session
-            const { data: exchangeData, error: exchangeError } = await supabase.auth.verifyOtp({
-              token_hash: code,
-              type: 'recovery'
-            });
-            
-            console.log('Code exchange result:', {
-              success: !!exchangeData.session,
-              error: exchangeError?.message,
-              userId: exchangeData.session?.user?.id
-            });
-            
-            if (exchangeData.session) {
-              console.log('Session established from code exchange');
-              setIsCheckingSession(false);
-              setSessionError(null);
-              return;
-            }
-            
-            if (exchangeError) {
-              console.error('Code exchange failed:', exchangeError);
-              // Don't fail immediately, allow the user to proceed
-              // The password update will handle the validation
-            }
-          } catch (exchangeException) {
-            console.error('Exception during code exchange:', exchangeException);
-            // Don't fail immediately, allow the user to proceed
-          }
-          
-          // Allow the user to proceed even if session establishment failed
-          // The password update will handle the validation
-          console.log('Allowing user to proceed with password reset');
-          setIsCheckingSession(false);
-          setSessionError(null);
-          return;
-        }
-        
-        // Handle token-based password reset (older Supabase flow)
-        if (accessToken && refreshToken && type === 'recovery') {
-          console.log('Token-based password reset detected');
-          try {
-            // Set the session from URL parameters
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            
-            if (error) {
-              console.error('Error setting session from URL parameters:', error);
-              setIsCheckingSession(false);
-              setSessionError('Invalid or expired reset link. Please request a new password reset.');
-              toast.error('Invalid or expired reset link. Please request a new password reset.');
-              setTimeout(() => router.push('/forgot-password'), 3000);
-              return;
-            }
-            
-            if (data.session) {
-              console.log('Session established from URL parameters');
-              setIsCheckingSession(false);
-              setSessionError(null);
-              return;
-            }
-          } catch (error) {
-            console.error('Exception setting session from URL parameters:', error);
-          }
-        }
-        
-        // Fallback to checking existing session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        console.log('Session check result:', {
-          hasSession: !!session,
-          error: error?.message,
-          user: session?.user?.id,
-          sessionType: session?.user?.app_metadata,
-          expires_at: session?.expires_at
-        });
-        
-        if (error) {
-          console.error('Session error:', error);
-          let errorMessage = 'Invalid or expired reset link. Please request a new password reset.';
-          
-          if (error.message.includes('expired')) {
-            errorMessage = 'Your reset link has expired. Reset links are valid for 1 hour only.';
-          } else if (error.message.includes('invalid')) {
-            errorMessage = 'This reset link is invalid. It may have been used already.';
-          }
-          
-          setIsCheckingSession(false);
-          setSessionError(errorMessage);
-          toast.error(errorMessage);
-          
-          setTimeout(() => {
-            router.push('/forgot-password');
-          }, 3000);
-          return;
-        }
-        
-        if (!session) {
-          console.log('No session found - this appears to be direct access without valid reset parameters');
-          const errorMessage = 'No valid session found. The reset link may have expired or been used already.';
-          setIsCheckingSession(false);
-          setSessionError(errorMessage);
-          toast.error(errorMessage);
-          
-          setTimeout(() => {
-            router.push('/forgot-password');
-          }, 3000);
-          return;
-        }
-        
-        // Check if this is actually a password reset session
-        console.log('Valid session found, checking session type...');
-        
-        // Valid session found
-        setIsCheckingSession(false);
-        setSessionError(null);
-        
-      } catch (error) {
-        console.error('Error checking session:', error);
-        const errorMessage = 'Unable to verify reset link. Please try requesting a new password reset.';
-        setIsCheckingSession(false);
-        setSessionError(errorMessage);
-        toast.error(errorMessage);
-        
-        setTimeout(() => {
-          router.push('/forgot-password');
-        }, 3000);
-      }
-    };
+  const password = watch('password');
 
-    checkSession();
-  }, [router, supabase.auth]);
+  useEffect(() => {
+    // Check for required tokens in URL parameters
+    const accessToken = searchParams.get('access_token');
+    const refreshToken = searchParams.get('refresh_token');
+    const type = searchParams.get('type');
+
+    console.log('Reset password page loaded with params:', {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      type,
+      fullURL: window.location.href
+    });
+
+    if (!accessToken || !refreshToken || type !== 'recovery') {
+      // Check URL hash as fallback (for older Supabase versions)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const hashAccessToken = hashParams.get('access_token');
+      const hashRefreshToken = hashParams.get('refresh_token');
+      
+      console.log('Hash parameters check:', {
+        hasHashAccessToken: !!hashAccessToken,
+        hasHashRefreshToken: !!hashRefreshToken
+      });
+
+      if (!hashAccessToken || !hashRefreshToken) {
+        setError('Invalid or expired reset link. Please request a new password reset.');
+        console.error('No valid tokens found in URL parameters or hash');
+      }
+    }
+  }, [searchParams]);
 
   const onSubmit = async (data: ResetPasswordForm) => {
     setIsLoading(true);
+    setError(null);
+    
     try {
-      // Get URL parameters to check if we have a recovery code
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      const type = urlParams.get('type');
+      // Extract tokens from URL parameters
+      let accessToken = searchParams.get('access_token');
+      let refreshToken = searchParams.get('refresh_token');
       
-      console.log('Password update attempt:', {
-        hasCode: !!code,
-        type,
-        hasSession: !!(await supabase.auth.getSession()).data.session
-      });
-      
-      let updateResult;
-      
-      // If we have a recovery code, try to update password with the code
-      if (code && type === 'recovery') {
-        console.log('Attempting password update with recovery code');
-        
-        // First try to establish a session with the code
-        try {
-          const { data: exchangeData, error: exchangeError } = await supabase.auth.verifyOtp({
-            token_hash: code,
-            type: 'recovery'
-          });
-          
-          if (exchangeData.session) {
-            console.log('Session established for password update');
-            updateResult = await supabase.auth.updateUser({
-              password: data.password,
-            });
-          } else {
-            console.error('Failed to establish session for password update:', exchangeError);
-            toast.error('Invalid or expired reset link. Please request a new password reset.');
-            return;
-          }
-        } catch (exchangeError) {
-          console.error('Exception establishing session for password update:', exchangeError);
-          toast.error('Invalid or expired reset link. Please request a new password reset.');
-          return;
-        }
-      } else {
-        // Otherwise, try normal password update (requires session)
-        console.log('Attempting password update with existing session');
-        updateResult = await supabase.auth.updateUser({
-          password: data.password,
-        });
+      // Fallback to hash parameters if URL parameters are not available
+      if (!accessToken || !refreshToken) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        accessToken = hashParams.get('access_token');
+        refreshToken = hashParams.get('refresh_token');
       }
 
-      if (updateResult.error) {
-        console.error('Password update error:', updateResult.error);
-        toast.error(updateResult.error.message);
-      } else {
-        console.log('Password updated successfully');
-        setIsSuccess(true);
-        toast.success('Password updated successfully!');
-        
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          router.push('/login?message=Password updated successfully');
-        }, 3000);
+      if (!accessToken || !refreshToken) {
+        throw new Error('No valid authentication tokens found');
       }
+
+      console.log('Setting session with tokens for password update');
+
+      // Set the Supabase session with the tokens
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Failed to establish session. Please request a new password reset.');
+      }
+
+      if (!sessionData.session) {
+        throw new Error('No session established. Please request a new password reset.');
+      }
+
+      console.log('Session established successfully, updating password');
+
+      // Update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: data.password
+      });
+
+      if (updateError) {
+        console.error('Password update error:', updateError);
+        throw new Error(updateError.message);
+      }
+
+      console.log('Password updated successfully');
+      setIsSuccess(true);
+      toast.success('Password updated successfully!');
+
     } catch (error) {
-      console.error('Password update exception:', error);
-      toast.error('Something went wrong. Please try again.');
+      console.error('Password reset error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update password. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show loading state while checking session
-  if (isCheckingSession) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#44D62C]"></div>
-            </div>
-            <h2 className="mt-6 text-2xl font-bold text-gray-900">
-              Verifying reset link...
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Please wait while we verify your password reset link.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleSignIn = () => {
+    router.push('/login');
+  };
 
-  // Show error state if session validation failed
-  if (sessionError) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <Card className="w-full max-w-md p-8">
           <div className="text-center">
-            <div className="flex justify-center">
-              <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center">
-                <span className="text-red-600 text-2xl">✕</span>
-              </div>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+              <Lock className="h-6 w-6 text-red-600" />
             </div>
-            <h2 className="mt-6 text-2xl font-bold text-gray-900">
-              Reset Link Issue
-            </h2>
-            <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">
-              {sessionError}
+            
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Reset Link Error
+            </h1>
+            
+            <p className="text-gray-600 mb-6">
+              {error}
             </p>
-            <div className="mt-6 space-y-4">
-              <button 
+            
+            <div className="space-y-3">
+              <Button
                 onClick={() => router.push('/forgot-password')}
-                className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#44D62C] hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C]"
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
               >
-                Request New Password Reset
-              </button>
+                Request New Reset Link
+              </Button>
               
-              <p className="text-xs text-gray-500 text-center">
-                Auto-redirecting in 3 seconds...
-              </p>
+              <Button
+                onClick={handleSignIn}
+                variant="outline"
+                className="w-full"
+              >
+                Back to Sign In
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <Card className="w-full max-w-md p-8">
           <div className="text-center">
-            <div className="flex justify-center">
-              <CheckCircle className="h-16 w-16 text-green-500" />
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
+              <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-              Password updated!
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Your password has been successfully updated. You will be redirected to the login page shortly.
+            
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Password Updated Successfully!
+            </h1>
+            
+            <p className="text-gray-600 mb-6">
+              Your password has been updated. You can now sign in with your new password.
             </p>
+            
+            <Button
+              onClick={handleSignIn}
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+            >
+              Sign In with New Password
+            </Button>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="flex justify-center">
-            <div className="text-3xl font-bold text-[#44D62C]">
-              Rent It Forward
-            </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <Card className="w-full max-w-md p-8">
+        <div className="text-center mb-6">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
+            <Lock className="h-6 w-6 text-green-600" />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Set new password
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Reset Your Password
+          </h1>
+          
+          <p className="text-gray-600">
             Enter your new password below
           </p>
         </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-4">
-            {/* New Password */}
-            <div>
-              <label htmlFor="password" className="sr-only">
-                New Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  {...register('password')}
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  className={`appearance-none relative block w-full px-3 py-2 pl-10 pr-10 border ${
-                    errors.password ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                  placeholder="New password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-              )}
-            </div>
 
-            {/* Confirm Password */}
-            <div>
-              <label htmlFor="confirmPassword" className="sr-only">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  {...register('confirmPassword')}
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  className={`appearance-none relative block w-full px-3 py-2 pl-10 pr-10 border ${
-                    errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#44D62C] focus:border-[#44D62C] focus:z-10 sm:text-sm`}
-                  placeholder="Confirm new password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-              )}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              New Password
+            </label>
+            <div className="relative">
+              <input
+                {...register('password')}
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Enter your new password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5 text-gray-400" />
+                ) : (
+                  <Eye className="h-5 w-5 text-gray-400" />
+                )}
+              </button>
             </div>
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+            )}
           </div>
 
           <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#44D62C] hover:bg-[#3AB827] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#44D62C] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Updating...' : 'Update password'}
-            </button>
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm New Password
+            </label>
+            <div className="relative">
+              <input
+                {...register('confirmPassword')}
+                type={showConfirmPassword ? 'text' : 'password'}
+                id="confirmPassword"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Confirm your new password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="h-5 w-5 text-gray-400" />
+                ) : (
+                  <Eye className="h-5 w-5 text-gray-400" />
+                )}
+              </button>
+            </div>
+            {errors.confirmPassword && (
+              <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+            )}
           </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
-export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
-      </div>
-    }>
-      <ResetPasswordForm />
-    </Suspense>
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg disabled:opacity-50"
+          >
+            {isLoading ? 'Updating Password...' : 'Update Password'}
+          </Button>
+        </form>
+      </Card>
+    </div>
   );
 } 

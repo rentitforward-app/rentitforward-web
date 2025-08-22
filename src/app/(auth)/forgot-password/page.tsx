@@ -47,19 +47,16 @@ export default function ForgotPasswordPage() {
         baseUrl = baseUrl.replace('http:', 'https:');
       }
       
-      const redirectUrl = `${baseUrl}/reset-password`;
+      // Use the correct callback format for password reset
+      const redirectUrl = `${baseUrl}/auth/callback?type=recovery`;
       
       console.log('Password reset configuration:', {
         email: data.email,
         redirectUrl,
         baseUrl,
-        currentOrigin: window.location.origin,
-        protocol: window.location.protocol,
-        envAppUrl: process.env.NEXT_PUBLIC_APP_URL,
-        envBaseUrl: process.env.NEXT_PUBLIC_BASE_URL
+        currentOrigin: window.location.origin
       });
       
-      // Send password reset email
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
         redirectTo: redirectUrl,
       });
@@ -68,12 +65,12 @@ export default function ForgotPasswordPage() {
         console.error('Password reset error:', error);
         toast.error(error.message);
       } else {
+        toast.success('Password reset email sent! Check your inbox.');
         setIsSubmitted(true);
-        toast.success('Password reset email sent! Please check your inbox.');
       }
     } catch (error) {
       console.error('Password reset exception:', error);
-      toast.error('Something went wrong. Please try again.');
+      toast.error('Failed to send password reset email. Please try again.');
     } finally {
       setIsLoading(false);
     }
