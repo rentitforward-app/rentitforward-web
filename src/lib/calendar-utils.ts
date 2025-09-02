@@ -44,7 +44,8 @@ export interface AvailabilityResponse {
  * @returns Duration in days
  */
 export function calculateDuration(startDate: Date, endDate: Date): number {
-  return differenceInDays(endDate, startDate);
+  // Inclusive duration: pickup in the morning of start date and return at night of end date
+  return differenceInDays(endDate, startDate) + 1;
 }
 
 /**

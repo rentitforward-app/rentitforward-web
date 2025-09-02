@@ -178,8 +178,8 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
 
     setIsCreatingBooking(true);
     try {
-      // Calculate booking details
-      const totalDays = Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24));
+      // Calculate booking details (inclusive duration)
+      const totalDays = Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       
       // Safe price parsing
       let pricePerDay = 0;
@@ -319,9 +319,9 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
 
   if (!isOpen) return null;
 
-  // Calculate pricing for display
+  // Calculate pricing for display (inclusive duration)
   const totalDays = selectedDates.startDate && selectedDates.endDate 
-    ? Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
     : 0;
   
   // Pricing calculation is working correctly

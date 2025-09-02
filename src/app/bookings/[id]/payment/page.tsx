@@ -200,7 +200,26 @@ export default function PaymentPage() {
     if (!booking) return 0;
     const start = new Date(booking.start_date);
     const end = new Date(booking.end_date);
-    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    // Inclusive duration for payment summary
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  };
+
+  // Recalculate pricing based on current inclusive day counting
+  const getRecalculatedPricing = () => {
+    if (!booking) return { subtotal: 0, servicefee: 0, total: 0 };
+    
+    const days = getTotalDays();
+    const subtotal = booking.listing.price_per_day * days;
+    const serviceFeePct = 0.15; // 15% service fee
+    const serviceFeePlatform = 0.029 + 0.30; // 2.9% + $0.30 Stripe fee
+    const serviceFeeCombined = subtotal * serviceFeePct + serviceFeePlatform;
+    const total = subtotal + serviceFeeCombined + (booking.deposit_amount || 0);
+    
+    return {
+      subtotal,
+      serviceFeeCombined,
+      total
+    };
   };
 
   if (isLoading) {
@@ -330,24 +349,31 @@ export default function PaymentPage() {
               
               {/* Price Breakdown */}
               <div className="space-y-3 mb-6">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">
-                    {formatPrice(booking.listing.price_per_day)} × {getTotalDays()} {getTotalDays() === 1 ? 'day' : 'days'}
-                  </span>
-                  <span>{formatPrice(booking.subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Service fee</span>
-                  <span>{formatPrice(booking.service_fee)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Security deposit</span>
-                  <span>{formatPrice(booking.deposit_amount)}</span>
-                </div>
-                <div className="border-t pt-3 flex justify-between text-lg font-semibold">
-                  <span>Total</span>
-                  <span>{formatPrice(booking.total_amount)}</span>
-                </div>
+                {(() => {
+                  const recalculated = getRecalculatedPricing();
+                  return (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">
+                          {formatPrice(booking.listing.price_per_day)} × {getTotalDays()} {getTotalDays() === 1 ? 'day' : 'days'}
+                        </span>
+                        <span>{formatPrice(recalculated.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Service fee</span>
+                        <span>{formatPrice(recalculated.serviceFeeCombined)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Security deposit</span>
+                        <span>{formatPrice(booking.deposit_amount || 0)}</span>
+                      </div>
+                      <div className="border-t pt-3 flex justify-between text-lg font-semibold">
+                        <span>Total</span>
+                        <span>{formatPrice(recalculated.total)}</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Status */}
@@ -375,7 +401,7 @@ export default function PaymentPage() {
                 ) : (
                   <div className="flex items-center space-x-2">
                     <CreditCard className="h-5 w-5" />
-                    <span>Pay {formatPrice(booking.total_amount)}</span>
+                    <span>Pay {formatPrice(getRecalculatedPricing().total)}</span>
                   </div>
                 )}
               </Button>
@@ -384,7 +410,16 @@ export default function PaymentPage() {
                 Secure payment powered by Stripe
               </p>
               
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-xs text-green-800 font-medium mb-1">
+                  ✓ Updated pricing with inclusive day counting
+                </p>
+                <p className="text-xs text-green-700">
+                  Rental days now include both pickup and return days for maximum flexibility
+                </p>
+              </div>
+              
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                 <p className="text-xs text-gray-600">
                   * Service fee helps us provide a safe and reliable platform
                 </p>

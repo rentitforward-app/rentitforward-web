@@ -132,7 +132,8 @@ export async function POST(request: NextRequest) {
     // Calculate dates and pricing
     const startDate = new Date(bookingData.start_date);
     const endDate = new Date(bookingData.end_date);
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    // Inclusive total days (pickup morning of start, return night of end)
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     if (totalDays <= 0) {
       return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });

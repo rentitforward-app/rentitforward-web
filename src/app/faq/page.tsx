@@ -51,6 +51,10 @@ const faqs: FAQItem[] = [
   {
     question: "Can I rent items for business use?",
     answer: "Yes, you can rent items for business purposes. Make sure to communicate this with the item owner and check if they're comfortable with commercial use. Some items may have different rates for business rentals."
+  },
+  {
+    question: "How are rental days counted?",
+    answer: "We use inclusive day counting, meaning both your pickup day and return day count as full rental days. For example, if you select August 27th to August 29th, that's 3 rental days total: pickup on the 27th (morning), full day on the 28th, and return by end of day on the 29th. This gives you maximum flexibility to collect items in the morning and return them by evening of your selected dates."
   }
 ]
 

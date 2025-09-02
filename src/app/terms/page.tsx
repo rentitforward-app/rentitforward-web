@@ -151,7 +151,40 @@ export default function TermsPage() {
             </ul>
 
             {/* Continue with updated payment and fees section from previous edit */}
-            <h2 className="text-2xl font-bold text-secondary mb-4">6. Payments and Fees</h2>
+            <h2 className="text-2xl font-bold text-secondary mb-4">6. Rental Duration and Pickup/Return Policy</h2>
+            <h3 className="text-xl font-semibold text-secondary mb-3">6.1 How Rental Days Are Counted</h3>
+            <div className="bg-green-50 p-4 rounded-lg mb-4">
+              <p className="text-gray-700 mb-2">
+                <strong>Inclusive Day Counting:</strong> Rental duration is calculated inclusively, meaning both the pickup day and return day count as full rental days.
+              </p>
+              <p className="text-gray-700 mb-2">
+                <strong>Example:</strong> If you select August 27th to August 29th:
+              </p>
+              <ul className="list-disc list-inside text-gray-700 ml-4 space-y-1">
+                <li>Day 1: August 27th (pickup day) - Item available from morning</li>
+                <li>Day 2: August 28th (full day)</li>
+                <li>Day 3: August 29th (return day) - Return by end of day</li>
+                <li><strong>Total: 3 rental days</strong></li>
+              </ul>
+            </div>
+
+            <h3 className="text-xl font-semibold text-secondary mb-3">6.2 Pickup and Return Times</h3>
+            <ul className="list-disc list-inside text-gray-600 mb-4 space-y-2">
+              <li><strong>Pickup:</strong> Items can be collected from the morning of the start date (specific times arranged with lender)</li>
+              <li><strong>Return:</strong> Items must be returned by the end of the return date (typically by 6 PM unless otherwise agreed)</li>
+              <li><strong>Flexibility:</strong> Exact pickup and return times should be coordinated directly with the item owner</li>
+              <li><strong>Late Returns:</strong> May incur additional charges as per the lender's policy</li>
+            </ul>
+
+            <h3 className="text-xl font-semibold text-secondary mb-3">6.3 Pricing Based on Duration</h3>
+            <ul className="list-disc list-inside text-gray-600 mb-6 space-y-2">
+              <li>All pricing is calculated based on the inclusive day count described above</li>
+              <li>Daily rates apply to each full day of the rental period</li>
+              <li>Service fees and insurance are calculated based on the total rental duration</li>
+              <li>Security deposits (if applicable) are independent of rental duration</li>
+            </ul>
+
+            <h2 className="text-2xl font-bold text-secondary mb-4">7. Payments and Fees</h2>
             <h3 className="text-xl font-semibold text-secondary mb-3">Fee Structure:</h3>
             <ul className="list-disc list-inside text-gray-600 mb-4 space-y-2">
               <li><strong>Renters:</strong> Pay a 15% service fee on the base rental price</li>
@@ -177,8 +210,8 @@ export default function TermsPage() {
               <li>Failed payments may result in booking cancellation and potential account suspension</li>
             </ul>
 
-            <h2 className="text-2xl font-bold text-secondary mb-4">7. Cancellations, Refunds, and Australian Consumer Law</h2>
-            <h3 className="text-xl font-semibold text-secondary mb-3">7.1 Cancellation Policy</h3>
+            <h2 className="text-2xl font-bold text-secondary mb-4">8. Cancellations, Refunds, and Australian Consumer Law</h2>
+            <h3 className="text-xl font-semibold text-secondary mb-3">8.1 Cancellation Policy</h3>
             <ul className="list-disc list-inside text-gray-600 mb-4 space-y-2">
               <li>Cancellations 24+ hours before rental start: Full refund minus processing fees</li>
               <li>Cancellations within 24 hours: Subject to Lender's cancellation policy</li>
@@ -186,7 +219,7 @@ export default function TermsPage() {
               <li>Force majeure events: Cancellations handled on case-by-case basis</li>
             </ul>
 
-            <h3 className="text-xl font-semibold text-secondary mb-3">7.2 Consumer Guarantees</h3>
+            <h3 className="text-xl font-semibold text-secondary mb-3">8.2 Consumer Guarantees</h3>
             <div className="bg-yellow-50 p-4 rounded-lg mb-4">
               <p className="text-gray-700">
                 <strong>Australian Consumer Law Protection:</strong> Under the Australian Consumer Law, 
@@ -196,8 +229,8 @@ export default function TermsPage() {
               </p>
             </div>
 
-            <h2 className="text-2xl font-bold text-secondary mb-4">8. Insurance, Damage, and Liability</h2>
-            <h3 className="text-xl font-semibold text-secondary mb-3">8.1 Insurance Coverage</h3>
+            <h2 className="text-2xl font-bold text-secondary mb-4">9. Insurance, Damage, and Liability</h2>
+            <h3 className="text-xl font-semibold text-secondary mb-3">9.1 Insurance Coverage</h3>
             <ul className="list-disc list-inside text-gray-600 mb-4 space-y-2">
               <li>Optional damage protection insurance available for additional fee</li>
               <li>Users encouraged to maintain their own comprehensive insurance</li>
@@ -205,7 +238,7 @@ export default function TermsPage() {
               <li>High-value items may require mandatory insurance or higher deposits</li>
             </ul>
 
-            <h3 className="text-xl font-semibold text-secondary mb-3">8.2 Damage and Loss Procedures</h3>
+            <h3 className="text-xl font-semibold text-secondary mb-3">9.2 Damage and Loss Procedures</h3>
             <ul className="list-disc list-inside text-gray-600 mb-4 space-y-2">
               <li>Document item condition with photos before and after each rental</li>
               <li>Report damage, loss, or theft immediately to Platform and relevant authorities</li>
@@ -213,7 +246,7 @@ export default function TermsPage() {
               <li>Disputes resolved through our internal process before external legal action</li>
             </ul>
 
-            <h3 className="text-xl font-semibold text-secondary mb-3">8.3 Limitation of Platform Liability</h3>
+            <h3 className="text-xl font-semibold text-secondary mb-3">9.3 Limitation of Platform Liability</h3>
             <div className="bg-gray-50 p-4 rounded-lg mb-6">
               <p className="text-gray-700 text-sm">
                 <strong>Important:</strong> To the extent permitted by law, including the Australian Consumer Law, 
@@ -223,21 +256,21 @@ export default function TermsPage() {
               </p>
             </div>
 
-            <h2 className="text-2xl font-bold text-secondary mb-4">9. Intellectual Property Rights</h2>
-            <h3 className="text-xl font-semibold text-secondary mb-3">9.1 Platform Content</h3>
+            <h2 className="text-2xl font-bold text-secondary mb-4">10. Intellectual Property Rights</h2>
+            <h3 className="text-xl font-semibold text-secondary mb-3">10.1 Platform Content</h3>
             <p className="text-gray-600 mb-4">
               All Platform content, including software, text, graphics, logos, and trademarks, is owned by 
               Rent It Forward Pty Ltd or our licensors and protected by Australian and international copyright 
               and trademark laws.
             </p>
 
-            <h3 className="text-xl font-semibold text-secondary mb-3">9.2 User Content License</h3>
+            <h3 className="text-xl font-semibold text-secondary mb-3">10.2 User Content License</h3>
             <p className="text-gray-600 mb-6">
               By uploading content to our Platform, you grant us a non-exclusive, worldwide, royalty-free 
               license to use, reproduce, and display your content for Platform operation and marketing purposes.
             </p>
 
-            <h2 className="text-2xl font-bold text-secondary mb-4">10. Privacy and Data Protection</h2>
+            <h2 className="text-2xl font-bold text-secondary mb-4">11. Privacy and Data Protection</h2>
             <p className="text-gray-600 mb-4">
               Your privacy is protected under the Privacy Act 1988 (Cth) and our Privacy Policy. We collect, 
               use, and disclose personal information in accordance with Australian privacy laws.
@@ -247,8 +280,8 @@ export default function TermsPage() {
               which forms part of these Terms.
             </p>
 
-            <h2 className="text-2xl font-bold text-secondary mb-4">11. Platform Rules and Account Management</h2>
-            <h3 className="text-xl font-semibold text-secondary mb-3">11.1 Platform Integrity</h3>
+            <h2 className="text-2xl font-bold text-secondary mb-4">12. Platform Rules and Account Management</h2>
+            <h3 className="text-xl font-semibold text-secondary mb-3">12.1 Platform Integrity</h3>
             <ul className="list-disc list-inside text-gray-600 mb-4 space-y-2">
               <li>All transactions must be conducted through our Platform</li>
               <li>Users may not circumvent our fee structure or payment systems</li>
@@ -256,7 +289,7 @@ export default function TermsPage() {
               <li>We may verify user information and item authenticity at any time</li>
             </ul>
 
-            <h3 className="text-xl font-semibold text-secondary mb-3">11.2 Account Suspension and Termination</h3>
+            <h3 className="text-xl font-semibold text-secondary mb-3">12.2 Account Suspension and Termination</h3>
             <ul className="list-disc list-inside text-gray-600 mb-6 space-y-2">
               <li>We may suspend or terminate accounts for policy violations</li>
               <li>You may terminate your account at any time with proper notice</li>
@@ -264,14 +297,14 @@ export default function TermsPage() {
               <li>We will provide reasonable notice except in cases of serious violations</li>
             </ul>
 
-            <h2 className="text-2xl font-bold text-secondary mb-4">12. Dispute Resolution</h2>
-            <h3 className="text-xl font-semibold text-secondary mb-3">12.1 Internal Dispute Resolution</h3>
+            <h2 className="text-2xl font-bold text-secondary mb-4">13. Dispute Resolution</h2>
+            <h3 className="text-xl font-semibold text-secondary mb-3">13.1 Internal Dispute Resolution</h3>
             <p className="text-gray-600 mb-4">
               We provide an internal dispute resolution process for conflicts between users. This includes 
               mediation services, evidence review, and binding decisions on platform-related disputes.
             </p>
 
-            <h3 className="text-xl font-semibold text-secondary mb-3">12.2 External Dispute Resolution</h3>
+            <h3 className="text-xl font-semibold text-secondary mb-3">13.2 External Dispute Resolution</h3>
             <p className="text-gray-600 mb-4">
               If internal resolution fails, disputes may be referred to:
             </p>
@@ -281,13 +314,13 @@ export default function TermsPage() {
               <li>Courts of competent jurisdiction in Australia</li>
             </ul>
 
-            <h3 className="text-xl font-semibold text-secondary mb-3">12.3 Governing Law</h3>
+            <h3 className="text-xl font-semibold text-secondary mb-3">13.3 Governing Law</h3>
             <p className="text-gray-600 mb-6">
               These Terms are governed by the laws of Australia and the state/territory where you reside. 
               Any legal proceedings must be commenced in the appropriate Australian court.
             </p>
 
-            <h2 className="text-2xl font-bold text-secondary mb-4">13. Changes to Terms</h2>
+            <h2 className="text-2xl font-bold text-secondary mb-4">14. Changes to Terms</h2>
             <p className="text-gray-600 mb-4">
               We may modify these Terms at any time. Material changes will be communicated via:
             </p>
@@ -301,14 +334,14 @@ export default function TermsPage() {
               Continued use constitutes acceptance of modified Terms.
             </p>
 
-            <h2 className="text-2xl font-bold text-secondary mb-4">14. Severability and Interpretation</h2>
+            <h2 className="text-2xl font-bold text-secondary mb-4">15. Severability and Interpretation</h2>
             <p className="text-gray-600 mb-6">
               If any provision of these Terms is found to be unenforceable, the remaining provisions will 
               continue in full force. Terms are to be interpreted fairly and reasonably, with consideration 
               for both parties' legitimate interests.
             </p>
 
-            <h2 className="text-2xl font-bold text-secondary mb-4">15. Contact Information and Complaints</h2>
+            <h2 className="text-2xl font-bold text-secondary mb-4">16. Contact Information and Complaints</h2>
             <p className="text-gray-600 mb-6">
               For questions, complaints, or legal notices, contact us:
             </p>

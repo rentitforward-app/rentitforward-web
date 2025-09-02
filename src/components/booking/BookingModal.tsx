@@ -91,8 +91,8 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
 
     setIsBooking(true);
     try {
-      // Calculate booking details
-      const totalDays = Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24));
+      // Calculate booking details (inclusive duration)
+      const totalDays = Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const pricePerDay = parseFloat(listing.price_per_day.toString());
       const subtotal = pricePerDay * totalDays;
       const serviceFee = parseFloat((subtotal * 0.15).toFixed(2)); // 15% service fee
@@ -262,7 +262,7 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
                     <div className="text-right">
                       <p className="text-sm text-gray-500">Duration</p>
                       <p className="font-semibold text-gray-900">
-                        {Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
+                        {Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1} days
                       </p>
                     </div>
                   </div>
@@ -273,7 +273,7 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Price Breakdown</h3>
                   <PricingBreakdown
                     basePrice={parseFloat((listing.price_per_day || listing.price || 0).toString())}
-                    duration={Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24))}
+                    duration={Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1}
                     hasWeeklyRate={!!listing.price_weekly}
                     weeklyRate={listing.price_weekly ? parseFloat(listing.price_weekly.toString()) : undefined}
                     hasInsurance={includeInsurance}
