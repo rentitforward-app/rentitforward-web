@@ -205,13 +205,38 @@ export async function POST(request: NextRequest) {
               currency: 'aud',
               product_data: {
                 name: 'Service Fee',
-                description: 'Platform service fee',
+                description: 'Platform service fee (15%)',
               },
               unit_amount: booking.service_fee * 100, // Service fee in cents
             },
             quantity: 1,
           },
-          {
+          // Add insurance fee if selected
+          ...(booking.insurance_fee > 0 ? [{
+            price_data: {
+              currency: 'aud',
+              product_data: {
+                name: 'Damage Protection',
+                description: 'Optional damage protection coverage (10%)',
+              },
+              unit_amount: booking.insurance_fee * 100, // Insurance fee in cents
+            },
+            quantity: 1,
+          }] : []),
+          // Add delivery fee if delivery method selected
+          ...(booking.delivery_fee > 0 ? [{
+            price_data: {
+              currency: 'aud',
+              product_data: {
+                name: 'Delivery Fee',
+                description: 'Delivery service fee',
+              },
+              unit_amount: booking.delivery_fee * 100, // Delivery fee in cents
+            },
+            quantity: 1,
+          }] : []),
+          // Add security deposit if applicable
+          ...(booking.deposit_amount > 0 ? [{
             price_data: {
               currency: 'aud',
               product_data: {
@@ -221,7 +246,7 @@ export async function POST(request: NextRequest) {
               unit_amount: booking.deposit_amount * 100, // Deposit in cents
             },
             quantity: 1,
-          },
+          }] : []),
         ],
         metadata: {
           bookingId,
@@ -298,13 +323,38 @@ export async function POST(request: NextRequest) {
                 currency: 'aud',
                 product_data: {
                   name: 'Service Fee',
-                  description: 'Platform service fee',
+                  description: 'Platform service fee (15%)',
                 },
                 unit_amount: booking.service_fee * 100,
               },
               quantity: 1,
             },
-            {
+            // Add insurance fee if selected
+            ...(booking.insurance_fee > 0 ? [{
+              price_data: {
+                currency: 'aud',
+                product_data: {
+                  name: 'Damage Protection',
+                  description: 'Optional damage protection coverage (10%)',
+                },
+                unit_amount: booking.insurance_fee * 100,
+              },
+              quantity: 1,
+            }] : []),
+            // Add delivery fee if delivery method selected
+            ...(booking.delivery_fee > 0 ? [{
+              price_data: {
+                currency: 'aud',
+                product_data: {
+                  name: 'Delivery Fee',
+                  description: 'Delivery service fee',
+                },
+                unit_amount: booking.delivery_fee * 100,
+              },
+              quantity: 1,
+            }] : []),
+            // Add security deposit if applicable
+            ...(booking.deposit_amount > 0 ? [{
               price_data: {
                 currency: 'aud',
                 product_data: {
@@ -314,7 +364,7 @@ export async function POST(request: NextRequest) {
                 unit_amount: booking.deposit_amount * 100,
               },
               quantity: 1,
-            },
+            }] : []),
           ],
           metadata: {
             bookingId,

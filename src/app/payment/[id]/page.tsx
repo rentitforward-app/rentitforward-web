@@ -18,6 +18,7 @@ interface Booking {
   subtotal: number;
   service_fee: number;
   insurance_fee: number;
+  delivery_fee?: number;
   total_amount: number;
   status: string;
   delivery_method: string;
@@ -296,6 +297,13 @@ export default function PaymentPage() {
                         Damage protection
                       </span>
                       <span>{formatPrice(booking.insurance_fee)}</span>
+                    </div>
+                  )}
+                  
+                  {booking.delivery_fee && booking.delivery_fee > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Delivery fee</span>
+                      <span>{formatPrice(booking.delivery_fee)}</span>
                     </div>
                   )}
                 </div>

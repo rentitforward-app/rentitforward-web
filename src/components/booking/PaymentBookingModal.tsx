@@ -198,7 +198,8 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
       const subtotal = pricePerDay * totalDays;
       const serviceFee = parseFloat((subtotal * 0.15).toFixed(2));
       const insuranceFee = includeInsurance ? parseFloat((subtotal * 0.10).toFixed(2)) : 0;
-      const totalAmount = subtotal + serviceFee + insuranceFee;
+      const deliveryFee = data.deliveryMethod === 'delivery' ? 20.00 : 0; // $20 delivery fee
+      const totalAmount = subtotal + serviceFee + insuranceFee + deliveryFee;
 
       // Check if user is trying to book their own listing
       if (user.id === listing.owner_id) {
@@ -254,6 +255,7 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
           subtotal: subtotal,
           service_fee: serviceFee,
           insurance_fee: insuranceFee,
+          delivery_fee: deliveryFee,
           deposit_amount: 0, // Security deposit (can be configured later)
           total_amount: totalAmount,
           delivery_method: data.deliveryMethod,

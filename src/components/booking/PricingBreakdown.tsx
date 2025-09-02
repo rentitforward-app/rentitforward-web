@@ -17,6 +17,7 @@ interface PricingBreakdownProps {
   hasInsurance?: boolean;
   onInsuranceChange?: (enabled: boolean) => void;
   securityDeposit?: number;
+  deliveryMethod?: 'pickup' | 'delivery';
   pointsBalance?: number;
   pointsApplied?: number;
   onPointsAppliedChange?: (points: number) => void;
@@ -28,6 +29,7 @@ interface PricingCalculation {
   baseAmount: number;
   serviceFee: number;
   insuranceFee: number;
+  deliveryFee: number;
   securityDeposit: number;
   pointsDiscount: number;
   totalRenterPays: number;
@@ -43,6 +45,7 @@ export function PricingBreakdown({
   hasInsurance = false,
   onInsuranceChange,
   securityDeposit = 0,
+  deliveryMethod = 'pickup',
   pointsBalance = 0,
   pointsApplied = 0,
   onPointsAppliedChange,
@@ -66,25 +69,27 @@ export function PricingBreakdown({
     const serviceFee = baseAmount * PRICING_CONSTANTS.SERVICE_FEE_PERCENTAGE; // 15%
     const platformCommission = baseAmount * PRICING_CONSTANTS.PLATFORM_COMMISSION_PERCENTAGE; // 20%
     const insuranceFee = hasInsurance ? baseAmount * PRICING_CONSTANTS.INSURANCE_PERCENTAGE : 0; // 10%
+    const deliveryFee = deliveryMethod === 'delivery' ? 20.00 : 0; // $20 delivery fee
     
     // Calculate points discount
     const pointsDiscount = pointsApplied * PRICING_CONSTANTS.POINTS_TO_DOLLAR_RATE;
     
     // Calculate totals
-    const totalRenterPays = baseAmount + serviceFee + insuranceFee + securityDeposit - pointsDiscount;
+    const totalRenterPays = baseAmount + serviceFee + insuranceFee + deliveryFee + securityDeposit - pointsDiscount;
     const ownerEarns = baseAmount - platformCommission;
 
     return {
       baseAmount,
       serviceFee,
       insuranceFee,
+      deliveryFee,
       securityDeposit,
       pointsDiscount,
       totalRenterPays,
       ownerEarns,
       platformCommission,
     };
-  }, [basePrice, weeklyRate, duration, hasWeeklyRate, hasInsurance, securityDeposit, pointsApplied]);
+  }, [basePrice, weeklyRate, duration, hasWeeklyRate, hasInsurance, deliveryMethod, securityDeposit, pointsApplied]);
 
   const handleInsuranceToggle = (enabled: boolean) => {
     onInsuranceChange?.(enabled);
@@ -201,6 +206,14 @@ export function PricingBreakdown({
           </div>
         )}
 
+        {/* Delivery Fee */}
+        {deliveryMethod === 'delivery' && (
+          <div className="flex justify-between items-center">
+            <span className="text-sm">Delivery fee</span>
+            <span className="font-medium">{formatPrice(pricing.deliveryFee)}</span>
+          </div>
+        )}
+
         {/* Security Deposit */}
         {securityDeposit > 0 && (
           <div className="flex justify-between items-center">
@@ -271,6 +284,7 @@ export function PricingBreakdown({
         <div className="text-xs text-gray-500 space-y-1">
           <p>• Service fee helps us run a safe and reliable platform</p>
           {hasInsurance && <p>• Insurance fee provides damage protection coverage</p>}
+          {deliveryMethod === 'delivery' && <p>• Delivery fee covers transportation to your location</p>}
           {securityDeposit > 0 && <p>• Security deposit is refunded after item return in good condition</p>}
           <p>• All prices are in AUD and include GST where applicable</p>
         </div>

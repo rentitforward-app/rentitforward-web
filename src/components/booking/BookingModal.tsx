@@ -97,7 +97,8 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
       const subtotal = pricePerDay * totalDays;
       const serviceFee = parseFloat((subtotal * 0.15).toFixed(2)); // 15% service fee
       const insuranceFee = includeInsurance ? parseFloat((subtotal * 0.10).toFixed(2)) : 0; // 10% insurance
-      const totalAmount = subtotal + serviceFee + insuranceFee;
+      const deliveryFee = data.deliveryMethod === 'delivery' ? 20.00 : 0; // $20 delivery fee
+      const totalAmount = subtotal + serviceFee + insuranceFee + deliveryFee;
 
       // Check if user is trying to book their own listing
       if (user.id === listing.owner_id) {
@@ -142,6 +143,7 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
           subtotal: subtotal,
           service_fee: serviceFee,
           insurance_fee: insuranceFee,
+          delivery_fee: deliveryFee,
           total_amount: totalAmount,
           delivery_method: data.deliveryMethod && ['pickup', 'delivery'].includes(data.deliveryMethod) ? data.deliveryMethod : 'pickup',
           delivery_address: data.deliveryMethod === 'delivery' ? data.deliveryAddress || null : null,
@@ -278,6 +280,7 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
                     weeklyRate={listing.price_weekly ? parseFloat(listing.price_weekly.toString()) : undefined}
                     hasInsurance={includeInsurance}
                     onInsuranceChange={setIncludeInsurance}
+                    deliveryMethod={watchDeliveryMethod}
                     securityDeposit={listing.security_deposit ? parseFloat(listing.security_deposit.toString()) : 0}
                   />
                 </div>
