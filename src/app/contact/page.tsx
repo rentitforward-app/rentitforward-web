@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Mail, Send, CheckCircle, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import ReCAPTCHA from 'react-google-recaptcha'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
@@ -12,6 +13,10 @@ interface FormData {
   email: string
   subject: string
   message: string
+  timestamp: string
+  jsEnabled: string
+  website: string
+  confirm_email: string
 }
 
 interface FormStatus {
@@ -20,18 +25,33 @@ interface FormStatus {
 }
 
 export default function ContactPage() {
+  
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
     email: '',
     subject: '',
-    message: ''
+    message: '',
+    timestamp: '',
+    jsEnabled: 'false',
+    website: '',
+    confirm_email: ''
   })
 
   const [status, setStatus] = useState<FormStatus>({
     type: 'idle',
     message: ''
   })
+
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [formStartTime, setFormStartTime] = useState<number>(0)
+  const recaptchaRef = useRef<ReCAPTCHA>(null)
+
+  // Set JavaScript enabled and form start time
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, jsEnabled: 'true' }))
+    setFormStartTime(Date.now())
+  }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -41,18 +61,59 @@ export default function ContactPage() {
     }))
   }
 
+  const handleCaptchaChange = (token: string | null) => {
+    setCaptchaToken(token)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Update timestamp before submission
+    const currentTime = Date.now()
+    const submissionTime = currentTime - formStartTime
+    
+    // Check if submission is too fast (less than 3 seconds)
+    if (submissionTime < 3000) {
+      setStatus({
+        type: 'error',
+        message: 'Please take your time filling out the form. Submission too fast.'
+      })
+      return
+    }
+
+    // Check if reCAPTCHA is completed
+    if (!captchaToken) {
+      setStatus({
+        type: 'error',
+        message: 'Please complete the reCAPTCHA verification.'
+      })
+      return
+    }
+
+    // Check if JavaScript is enabled
+    if (formData.jsEnabled !== 'true') {
+      setStatus({
+        type: 'error',
+        message: 'JavaScript must be enabled to submit this form.'
+      })
+      return
+    }
     
     setStatus({ type: 'loading', message: 'Sending your message...' })
 
     try {
+      const submissionData = {
+        ...formData,
+        timestamp: currentTime.toString(),
+        captchaToken
+      }
+
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submissionData),
       })
 
       const result = await response.json()
@@ -62,14 +123,26 @@ export default function ContactPage() {
           type: 'success',
           message: 'Thank you! Your message has been sent successfully. We\'ll get back to you soon.'
         })
-        // Reset form
+        
+        // Reset form and captcha
         setFormData({
           firstName: '',
           lastName: '',
           email: '',
           subject: '',
-          message: ''
+          message: '',
+          timestamp: '',
+          jsEnabled: 'true',
+          website: '',
+          confirm_email: ''
         })
+        setCaptchaToken(null)
+        if (recaptchaRef.current) {
+          recaptchaRef.current.reset()
+        }
+        
+        // Reset form start time
+        setFormStartTime(Date.now())
       } else {
         setStatus({
           type: 'error',
@@ -84,7 +157,13 @@ export default function ContactPage() {
     }
   }
 
-  const isFormValid = formData.firstName && formData.lastName && formData.email && formData.subject && formData.message
+  const isFormValid = formData.firstName && 
+                     formData.lastName && 
+                     formData.email && 
+                     formData.subject && 
+                     formData.message && 
+                     captchaToken &&
+                     formData.jsEnabled === 'true'
 
   return (
     <div>
@@ -136,6 +215,8 @@ export default function ContactPage() {
                     <p className="text-lg"><strong>ABN:</strong> 79 150 200 910</p>
                   </div>
                 </div>
+
+
               </div>
             </div>
 
@@ -146,6 +227,30 @@ export default function ContactPage() {
                   <h2 className="text-3xl font-bold text-gray-900 mb-8">Send us a Message</h2>
                 
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Honeypot Fields - Hidden from users, visible to bots */}
+                    <div className="absolute left-[-9999px] opacity-0 pointer-events-none">
+                      <input
+                        type="text"
+                        name="website"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        aria-hidden="true"
+                        className="w-0 h-0 overflow-hidden"
+                      />
+                      <input
+                        type="email"
+                        name="confirm_email"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        aria-hidden="true"
+                        className="w-0 h-0 overflow-hidden"
+                      />
+                    </div>
+
+                    {/* Hidden security fields */}
+                    <input type="hidden" name="timestamp" value={formData.timestamp} />
+                    <input type="hidden" name="jsEnabled" value={formData.jsEnabled} />
+
                     <div className="grid md:grid-cols-2 gap-6">
                     <div>
                         <label htmlFor="firstName" className="block text-sm font-semibold text-gray-700 mb-3">
@@ -160,6 +265,9 @@ export default function ContactPage() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                         placeholder="Your first name"
                         required
+                        maxLength={50}
+                        pattern="[A-Za-z\s'-]+"
+                        title="Please enter a valid first name (letters, spaces, hyphens, apostrophes only)"
                       />
                     </div>
                     <div>
@@ -175,6 +283,9 @@ export default function ContactPage() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                         placeholder="Your last name"
                         required
+                        maxLength={50}
+                        pattern="[A-Za-z\s'-]+"
+                        title="Please enter a valid last name (letters, spaces, hyphens, apostrophes only)"
                       />
                     </div>
                   </div>
@@ -192,6 +303,9 @@ export default function ContactPage() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                       placeholder="your.email@example.com"
                       required
+                      maxLength={100}
+                      pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                      title="Please enter a valid email address"
                     />
                   </div>
 
@@ -208,15 +322,15 @@ export default function ContactPage() {
                         required
                       >
                       <option value="">Select a topic</option>
-                      <option value="general">General Question</option>
-                      <option value="booking">Booking Support</option>
-                      <option value="listing">Listing Help</option>
-                      <option value="payment">Payment Issue</option>
-                      <option value="safety">Safety Concern</option>
-                      <option value="bug">Technical Issue</option>
-                        <option value="partnership">Partnership Inquiry</option>
-                        <option value="feedback">Feedback & Suggestions</option>
-                      <option value="other">Other</option>
+                      <option value="General Question">General Question</option>
+                      <option value="Booking Support">Booking Support</option>
+                      <option value="Listing Help">Listing Help</option>
+                      <option value="Payment Issue">Payment Issue</option>
+                      <option value="Safety Concern">Safety Concern</option>
+                      <option value="Technical Issue">Technical Issue</option>
+                        <option value="Partnership Inquiry">Partnership Inquiry</option>
+                        <option value="Feedback & Suggestions">Feedback & Suggestions</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
 
@@ -233,6 +347,21 @@ export default function ContactPage() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none"
                       placeholder="Tell us how we can help you..."
                       required
+                      maxLength={1000}
+                      title="Please enter your message (maximum 1000 characters)"
+                    />
+                    <div className="text-right text-sm text-gray-500 mt-1">
+                      {formData.message.length}/1000 characters
+                    </div>
+                  </div>
+
+                  {/* reCAPTCHA */}
+                  <div className="flex justify-center">
+                    <ReCAPTCHA
+                      ref={recaptchaRef}
+                      sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+                      onChange={handleCaptchaChange}
+                      className="mb-4"
                     />
                   </div>
 
@@ -282,7 +411,7 @@ export default function ContactPage() {
                   View FAQ
                 </Link>
               </Button>
-              <Button variant="outline" size="lg" asChild className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white text-lg px-8 py-4">
+              <Button variant="outline" size="lg" asChild className="border-green-600 text-green-600 hover:bg-green-700 hover:text-white text-lg px-8 py-4">
                 <Link href="/how-it-works">
                   How It Works
                 </Link>
