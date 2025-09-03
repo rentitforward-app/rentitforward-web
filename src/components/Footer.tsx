@@ -24,14 +24,15 @@ export default function Footer() {
         <div className="grid md:grid-cols-4 gap-8">
           <div>
             <h4 className="font-semibold mb-6 text-lg">Rent It Forward</h4>
+            <p className="text-gray-400 text-sm mb-4">ABN 79 150 200 910</p>
             <p className="text-gray-300 mb-6 leading-relaxed">
               Share More, Buy Less. Building a sustainable community through sharing.
             </p>
             <p className="text-gray-400 text-sm mb-2">
-              Address: Australia
+              Reach us at: <a href="mailto:hello@rentitforward.com.au" className="text-green-400 hover:text-green-300 transition-colors">hello@rentitforward.com.au</a>
             </p>
             <p className="text-gray-400 text-sm">
-              hello@rentitforward.com.au
+              Proudly Australian Owned and Operated
             </p>
           </div>
           
@@ -71,7 +72,7 @@ export default function Footer() {
               <p className="text-gray-300 text-sm">Download our app:</p>
               <div className="space-y-3">
                 <Link href="#" className="block">
-                  <div className="bg-black rounded-lg px-4 py-3 hover:bg-gray-800 transition-colors flex items-center space-x-3">
+                  <div className="bg-gray-700 rounded-lg px-4 py-3 hover:bg-gray-600 transition-colors flex items-center space-x-3">
                     <Image 
                       src="/images/apple-store-icon.png" 
                       alt="Apple Logo" 
@@ -86,7 +87,7 @@ export default function Footer() {
                   </div>
                 </Link>
                 <Link href="#" className="block">
-                  <div className="bg-black rounded-lg px-4 py-3 hover:bg-gray-800 transition-colors flex items-center space-x-3">
+                  <div className="bg-gray-700 rounded-lg px-4 py-3 hover:bg-gray-600 transition-colors flex items-center space-x-3">
                     <Image 
                       src="/images/google-play-icon.png" 
                       alt="Google Play Logo" 
