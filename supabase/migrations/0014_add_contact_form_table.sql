@@ -45,3 +45,4 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_contact_form_submissions_updated_at 
   BEFORE UPDATE ON contact_form_submissions 
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+

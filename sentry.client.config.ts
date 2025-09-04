@@ -1,11 +1,11 @@
-// This file configures the initialization of Sentry for server-side features.
-// The config you add here will be used whenever the server handles a request.
+// This file configures the initialization of Sentry on the browser side.
+// The config you add here will be used whenever a users loads a page in their browser.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
@@ -19,6 +19,25 @@ Sentry.init({
   // Configure release tracking
   release: process.env.VERCEL_GIT_COMMIT_SHA || '1.0.0',
 
+  // Replay can be used to record user sessions
+  replaysSessionSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  replaysOnErrorSampleRate: 1.0,
+
+  // Add more context data to events
+  sendDefaultPii: true,
+
+  // Configure integrations
+  integrations: [
+    Sentry.replayIntegration({
+      // Mask all text content
+      maskAllText: true,
+      // Block all media
+      blockAllMedia: true,
+    }),
+    Sentry.browserTracingIntegration(),
+    Sentry.extraErrorDataIntegration(),
+  ],
+
   // Add custom tags and context
   beforeSend(event) {
     // Add custom tags
@@ -26,32 +45,34 @@ Sentry.init({
       ...event.tags,
       platform: 'web',
       app: 'rentitforward-web',
-      runtime: 'server',
     };
 
     // Add custom context
     event.contexts = {
       ...event.contexts,
       runtime: {
-        name: 'node',
-        version: process.version,
+        name: 'browser',
+        version: navigator.userAgent,
       },
     };
 
     // Filter out sensitive data in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('Sentry Server Event:', event);
+      console.log('Sentry Event:', event);
     }
 
     return event;
   },
 
-  // Configure integrations for server-side
-  integrations: [
-    Sentry.extraErrorDataIntegration(),
-    Sentry.nodeContextIntegration(),
-  ],
-
   // Configure session tracking
   autoSessionTracking: true,
-}); 
+
+  // Configure error boundaries
+  beforeBreadcrumb(breadcrumb) {
+    // Filter out noisy breadcrumbs
+    if (breadcrumb.category === 'console' && breadcrumb.level === 'log') {
+      return null;
+    }
+    return breadcrumb;
+  },
+});
