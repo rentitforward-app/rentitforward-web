@@ -91,8 +91,8 @@ module.exports = withSentryConfig(
     // https://github.com/getsentry/sentry-webpack-plugin#options
 
     // Suppresses source map uploading logs during build
-    silent: true,
-    org: "digital-linked",
+    silent: !process.env.CI,
+    org: "rent-it-forward",
     project: "rentitforward-web",
   },
   {
@@ -120,4 +120,4 @@ module.exports = withSentryConfig(
     // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
     automaticVercelMonitors: true,
   }
-); 
+);

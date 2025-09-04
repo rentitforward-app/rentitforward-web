@@ -55,7 +55,7 @@ module.exports = withSentryConfig(
 
 ### Configuration Files
 
-1. **`sentry.client.config.ts`**: Client-side configuration for browser errors
+1. **`instrumentation-client.ts`**: Client-side configuration for browser errors (Next.js 15+ recommended)
 2. **`sentry.server.config.ts`**: Server-side configuration for API routes and SSR
 3. **`sentry.edge.config.ts`**: Edge runtime configuration for middleware
 
@@ -206,6 +206,7 @@ The Sentry project is configured for the email account: `rentitforward.app@gmail
 1. **DSN not found**: Check environment variables and configuration files
 2. **Events not appearing**: Verify network connectivity and DSN validity
 3. **Performance impact**: Adjust sampling rates if needed
+4. **Deprecation warning**: If you see a warning about `sentry.client.config.ts`, the configuration has been moved to `instrumentation-client.ts` (already fixed)
 
 ### Debug Mode
 
