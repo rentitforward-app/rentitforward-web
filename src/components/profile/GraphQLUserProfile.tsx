@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import { useUserProfile, useCurrentUserProfile, useUpdateUserProfile } from '@/hooks/graphql/useUserProfile';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';

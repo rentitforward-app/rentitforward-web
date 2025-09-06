@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/payment-calculations';

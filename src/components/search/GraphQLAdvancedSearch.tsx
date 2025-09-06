@@ -10,9 +10,9 @@ import {
   useSearchHistory,
   usePersonalizedSearch
 } from '@/hooks/graphql/useAdvancedSearch';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 // Note: Slider and Switch components not available, using simplified alternatives

@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 import { Bell, BellOff, CheckCircle, AlertCircle, Mail, CreditCard, Star, Megaphone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';

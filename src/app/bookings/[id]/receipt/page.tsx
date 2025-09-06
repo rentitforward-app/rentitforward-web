@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { PaymentReceipt } from '@/components/receipts/PaymentReceipt';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Download, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useReceiptPDF } from '@/hooks/useReceiptPDF';
