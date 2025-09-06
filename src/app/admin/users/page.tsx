@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Users, 
   Search, 
@@ -47,6 +48,9 @@ interface User {
   bookings_as_owner_count: number;
   total_earned?: number;
   total_spent?: number;
+  is_banned?: boolean;
+  ban_reason?: string;
+  ban_expires_at?: string;
 }
 
 type SortOption = 'created_at' | 'updated_at' | 'rating' | 'listings_count';
@@ -62,6 +66,11 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  
+  const router = useRouter();
   const supabase = createClient();
   const { isAdmin, loading: adminLoading } = useAdmin();
 
@@ -74,6 +83,17 @@ export default function AdminUsers() {
   useEffect(() => {
     filterAndSortUsers();
   }, [users, searchTerm, sortBy, filterBy]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy, filterBy, itemsPerPage]);
 
   const loadUsers = async () => {
     try {
@@ -97,26 +117,58 @@ export default function AdminUsers() {
 
       if (error) {
         console.error('Error loading users:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        return;
+      }
+
+      if (!data) {
+        console.log('No user data returned from Supabase');
+        setUsers([]);
+        return;
+      }
+
+      console.log('Loaded users from Supabase:', data.length);
+
+      // If no users found, show empty state
+      if (data.length === 0) {
+        console.log('No users found in database');
+        setUsers([]);
         return;
       }
 
       // Get listings count for each user
       const usersWithStats = await Promise.all(
         data.map(async (user) => {
-          const [listingsResponse, renterBookingsResponse, ownerBookingsResponse] = await Promise.all([
-            supabase.from('listings').select('id').eq('owner_id', user.id),
-            supabase.from('bookings').select('id').eq('renter_id', user.id),
-            supabase.from('bookings').select('id').eq('owner_id', user.id),
-          ]);
+          try {
+            const [listingsResponse, renterBookingsResponse, ownerBookingsResponse] = await Promise.allSettled([
+              supabase.from('listings').select('id').eq('owner_id', user.id),
+              supabase.from('bookings').select('id').eq('renter_id', user.id),
+              supabase.from('bookings').select('id').eq('owner_id', user.id),
+            ]);
 
-          return {
-            ...user,
-            listings_count: listingsResponse.data?.length || 0,
-            bookings_as_renter_count: renterBookingsResponse.data?.length || 0,
-            bookings_as_owner_count: ownerBookingsResponse.data?.length || 0,
-            total_earned: 0, // Would need to calculate from payments
-            total_spent: 0, // Would need to calculate from payments
-          };
+            const listingsCount = listingsResponse.status === 'fulfilled' ? listingsResponse.value.data?.length || 0 : 0;
+            const renterBookingsCount = renterBookingsResponse.status === 'fulfilled' ? renterBookingsResponse.value.data?.length || 0 : 0;
+            const ownerBookingsCount = ownerBookingsResponse.status === 'fulfilled' ? ownerBookingsResponse.value.data?.length || 0 : 0;
+
+            return {
+              ...user,
+              listings_count: listingsCount,
+              bookings_as_renter_count: renterBookingsCount,
+              bookings_as_owner_count: ownerBookingsCount,
+              total_earned: 0, // Would need to calculate from payments
+              total_spent: 0, // Would need to calculate from payments
+            };
+          } catch (userError) {
+            console.error(`Error processing user ${user.id}:`, userError);
+            return {
+              ...user,
+              listings_count: 0,
+              bookings_as_renter_count: 0,
+              bookings_as_owner_count: 0,
+              total_earned: 0,
+              total_spent: 0,
+            };
+          }
         })
       );
 
@@ -163,22 +215,6 @@ export default function AdminUsers() {
     setFilteredUsers(filtered);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'admin':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Admin</span>;
-      case 'user':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">User</span>;
-      default:
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Unknown</span>;
-    }
-  };
-
-  const getTrustScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 bg-green-100';
-    if (score >= 60) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-AU', {
@@ -191,6 +227,36 @@ export default function AdminUsers() {
   const handleUserAction = (user: User, action: string) => {
     console.log(`${action} user:`, user);
     // Implement user actions here
+  };
+
+  // Pagination helper functions
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+  };
+
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const startPage = Math.max(1, currentPage - 2);
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
   };
 
   if (isLoading) {
@@ -323,10 +389,7 @@ export default function AdminUsers() {
                   User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trust Score
+                  ID Verification
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Activity
@@ -335,22 +398,31 @@ export default function AdminUsers() {
                   Earnings
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Login
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  Join Date
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
+              {currentUsers.map((user) => (
+                <tr 
+                  key={user.id} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => router.push(`/admin/users/${user.id}`)}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 flex-shrink-0">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <Users className="h-5 w-5 text-blue-600" />
-                        </div>
+                        {user.avatar_url ? (
+                          <img
+                            src={user.avatar_url}
+                            alt={user.full_name}
+                            className="h-10 w-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Users className="h-5 w-5 text-blue-600" />
+                          </div>
+                        )}
                       </div>
                       <div className="ml-4">
                         <div className="flex items-center">
@@ -359,6 +431,9 @@ export default function AdminUsers() {
                           </div>
                           {user.verified && (
                             <CheckCircle className="ml-2 h-4 w-4 text-green-500" />
+                          )}
+                          {user.is_banned && (
+                            <Ban className="ml-2 h-4 w-4 text-red-500" />
                           )}
                         </div>
                         <div className="text-sm text-gray-500">{user.email}</div>
@@ -369,11 +444,18 @@ export default function AdminUsers() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(user.role)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTrustScoreColor(user.rating)}`}>
-                      {user.rating}%
+                    <div className="flex items-center">
+                      {user.identity_verified ? (
+                        <div className="flex items-center text-green-600">
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          <span className="text-sm font-medium">Verified</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-red-600">
+                          <XCircle className="w-4 h-4 mr-1" />
+                          <span className="text-sm font-medium">Not Verified</span>
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -397,36 +479,7 @@ export default function AdminUsers() {
                     <div className="text-xs text-gray-500">Spent: {formatCurrency(user.total_spent || 0)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {format(new Date(user.updated_at), 'MMM d, yyyy')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setShowUserModal(true);
-                        }}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleUserAction(user, 'edit')}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleUserAction(user, user.role === 'admin' ? 'remove' : 'promote')}
-                        className={user.role === 'admin' ? 'text-red-600 border-red-200 hover:bg-red-50' : 'text-green-600 border-green-200 hover:bg-green-50'}
-                      >
-                        {user.role === 'admin' ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                      </Button>
-                    </div>
+                    {format(new Date(user.created_at), 'MMM d, yyyy')}
                   </td>
                 </tr>
               ))}
@@ -434,7 +487,7 @@ export default function AdminUsers() {
           </table>
         </div>
 
-        {filteredUsers.length === 0 && (
+        {currentUsers.length === 0 && filteredUsers.length === 0 && (
           <div className="text-center py-12">
             <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-sm font-medium text-gray-900 mb-1">No users found</h3>
@@ -442,6 +495,89 @@ export default function AdminUsers() {
           </div>
         )}
       </Card>
+
+      {/* Pagination Controls */}
+      {filteredUsers.length > 0 && (
+        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-lg">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div className="flex items-center space-x-4">
+              <p className="text-sm text-gray-700">
+                Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+                <span className="font-medium">{Math.min(endIndex, filteredUsers.length)}</span> of{' '}
+                <span className="font-medium">{filteredUsers.length}</span> users
+              </p>
+              <div className="flex items-center space-x-2">
+                <label htmlFor="items-per-page" className="text-sm text-gray-700">
+                  Show:
+                </label>
+                <select
+                  id="items-per-page"
+                  value={itemsPerPage}
+                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                  className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Previous</span>
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                {generatePageNumbers().map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                      page === currentPage
+                        ? 'z-10 bg-red-50 border-red-500 text-red-600'
+                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Next</span>
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* User Detail Modal */}
       {showUserModal && selectedUser && (
@@ -480,17 +616,19 @@ export default function AdminUsers() {
                     <h5 className="font-medium text-gray-900 mb-3">Account Info</h5>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Status:</span>
-                        {getStatusBadge(selectedUser.role)}
+                        <span className="text-gray-500">Role:</span>
+                        <span className="font-medium">{selectedUser.role}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Verified:</span>
-                        <span>{selectedUser.verified ? 'Yes' : 'No'}</span>
+                        <span className="text-gray-500">Email Verified:</span>
+                        <span className={selectedUser.verified ? 'text-green-600' : 'text-red-600'}>
+                          {selectedUser.verified ? 'Yes' : 'No'}
+                        </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Trust Score:</span>
-                        <span className={`font-medium ${getTrustScoreColor(selectedUser.rating)}`}>
-                          {selectedUser.rating}%
+                        <span className="text-gray-500">ID Verified:</span>
+                        <span className={selectedUser.identity_verified ? 'text-green-600' : 'text-red-600'}>
+                          {selectedUser.identity_verified ? 'Yes' : 'No'}
                         </span>
                       </div>
                       <div className="flex justify-between">
