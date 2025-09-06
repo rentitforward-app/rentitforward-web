@@ -20,6 +20,7 @@ import {
   Mail,
   Phone
 } from 'lucide-react';
+import { useReceiptPDF } from '@/hooks/useReceiptPDF';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -64,6 +65,7 @@ interface Booking {
   pickup_address?: string;
   special_instructions?: string;
   stripe_payment_intent_id?: string;
+  stripe_session_id?: string;
   created_at: string;
   listings: {
     title: string;
@@ -99,6 +101,7 @@ function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const supabase = createClient();
+  const { downloadReceipt, isGenerating } = useReceiptPDF();
   
   const bookingId = params.id as string;
   const sessionId = searchParams.get('session_id');
@@ -311,16 +314,16 @@ function PaymentSuccessContent() {
     <AuthenticatedLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
+        {/* Header */}
           <div className="mb-8">
-            <Link
-              href="/bookings"
+          <Link
+            href="/bookings"
               className="inline-flex items-center text-[#44D62C] hover:text-[#3AB827] font-medium mb-6 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Bookings
-            </Link>
-          </div>
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Bookings
+          </Link>
+        </div>
 
           {/* Success Header */}
           <div className="text-center mb-10">
@@ -331,13 +334,13 @@ function PaymentSuccessContent() {
               </div>
             </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-3">
-              Payment Successful!
-            </h1>
+            Payment Successful!
+          </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Your booking has been confirmed and payment processed securely. 
               You'll receive a confirmation email shortly.
-            </p>
-          </div>
+          </p>
+        </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Booking Details */}
@@ -348,8 +351,8 @@ function PaymentSuccessContent() {
                   <CardTitle className="flex items-center gap-3 text-xl">
                     <Calendar className="h-6 w-6 text-green-600" />
                     Booking Confirmation
-                  </CardTitle>
-                </CardHeader>
+            </CardTitle>
+          </CardHeader>
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex-1">
@@ -425,14 +428,14 @@ function PaymentSuccessContent() {
                           <User className="h-6 w-6 text-gray-500" />
                         )}
                       </div>
-                      <div>
+              <div>
                         <p className="font-medium text-gray-900">
                           {booking.owner_profile?.full_name || 'Host'}
                         </p>
                         <p className="text-sm text-gray-500">
                           {booking.owner_profile?.email}
-                        </p>
-                      </div>
+                </p>
+              </div>
                     </div>
                   </div>
                 </CardContent>
@@ -489,7 +492,7 @@ function PaymentSuccessContent() {
                 </CardContent>
               </Card>
             </div>
-
+            
             {/* Payment Breakdown Sidebar */}
             <div className="space-y-6">
               {/* Payment Summary */}
@@ -587,17 +590,17 @@ function PaymentSuccessContent() {
                         </div>
                       )}
                       <div className="border-t pt-3">
-                        <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center">
                           <span className="text-lg font-semibold text-gray-900">Total Paid</span>
-                          <span className="text-xl font-bold text-green-600">
-                            {formatPrice(booking.total_amount)}
-                          </span>
-                        </div>
-                      </div>
+                <span className="text-xl font-bold text-green-600">
+                  {formatPrice(booking.total_amount)}
+                </span>
+              </div>
+            </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+          </CardContent>
+        </Card>
 
               {/* Transaction Details */}
               <Card className="border-0 shadow-lg">
@@ -615,7 +618,9 @@ function PaymentSuccessContent() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Transaction ID</span>
-                      <span className="font-mono text-xs">{booking.stripe_payment_intent_id?.slice(-8) || 'N/A'}</span>
+                      <span className="font-mono text-xs">
+                        {(booking.stripe_payment_intent_id || booking.stripe_session_id)?.slice(-8) || 'N/A'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Date & Time</span>
@@ -632,19 +637,24 @@ function PaymentSuccessContent() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Currency</span>
                       <span className="font-medium">AUD</span>
-                    </div>
-                  </div>
-                  
+            </div>
+          </div>
+
                   <div className="mt-6 pt-6 border-t">
                     <Button 
                       variant="outline" 
                       className="w-full"
-                      onClick={() => window.print()}
+                      onClick={() => downloadReceipt(bookingId)}
+                      disabled={isGenerating}
                     >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Receipt
+                      {isGenerating ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      {isGenerating ? 'Generating PDF...' : 'Download Receipt'}
                     </Button>
-                  </div>
+          </div>
                 </CardContent>
               </Card>
 
@@ -654,17 +664,17 @@ function PaymentSuccessContent() {
                   onClick={() => router.push('/bookings')} 
                   className="w-full bg-[#44D62C] hover:bg-[#3AB827]"
                 >
-                  <Calendar className="h-4 w-4 mr-2" />
+              <Calendar className="h-4 w-4 mr-2" />
                   View All Bookings
-                </Button>
-                <Button 
-                  onClick={() => router.push('/browse')} 
-                  variant="outline" 
+            </Button>
+            <Button 
+              onClick={() => router.push('/browse')} 
+              variant="outline" 
                   className="w-full"
-                >
-                  <Home className="h-4 w-4 mr-2" />
-                  Browse More Items
-                </Button>
+            >
+              <Home className="h-4 w-4 mr-2" />
+              Browse More Items
+            </Button>
               </div>
             </div>
           </div>

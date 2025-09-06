@@ -3,11 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
 
   try {
+    // Await params
+    const { id } = await params;
+    
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -42,7 +45,7 @@ export async function GET(
           *
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (bookingError || !booking) {
@@ -90,7 +93,7 @@ export async function GET(
     const { data: pointsTransactions } = await supabase
       .from('points_transactions')
       .select('*')
-      .eq('booking_id', params.id);
+      .eq('booking_id', id);
 
     return NextResponse.json({
       booking,

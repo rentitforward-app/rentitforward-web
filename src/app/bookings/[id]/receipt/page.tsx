@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useReceiptPDF } from '@/hooks/useReceiptPDF';
 
 interface PaymentBreakdownData {
   booking: any;
@@ -27,6 +28,7 @@ export default function ReceiptPage() {
   const [data, setData] = useState<PaymentBreakdownData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { downloadReceipt, isGenerating } = useReceiptPDF();
 
   useEffect(() => {
     async function fetchPaymentBreakdown() {
@@ -53,9 +55,7 @@ export default function ReceiptPage() {
   }, [params.id]);
 
   const handleDownloadReceipt = () => {
-    // This would implement PDF generation
-    // For now, we'll use the browser's print functionality
-    window.print();
+    downloadReceipt(params.id as string);
   };
 
   if (loading) {
@@ -148,9 +148,13 @@ export default function ReceiptPage() {
               </div>
             </div>
             
-            <Button onClick={handleDownloadReceipt} className="hidden sm:flex">
-              <Download className="h-4 w-4 mr-2" />
-              Download Receipt
+            <Button onClick={handleDownloadReceipt} className="hidden sm:flex" disabled={isGenerating}>
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {isGenerating ? 'Generating PDF...' : 'Download Receipt'}
             </Button>
           </div>
         </div>
@@ -165,9 +169,13 @@ export default function ReceiptPage() {
 
         {/* Mobile Download Button */}
         <div className="mt-8 sm:hidden">
-          <Button onClick={handleDownloadReceipt} className="w-full">
-            <Download className="h-4 w-4 mr-2" />
-            Download Receipt
+          <Button onClick={handleDownloadReceipt} className="w-full" disabled={isGenerating}>
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {isGenerating ? 'Generating PDF...' : 'Download Receipt'}
           </Button>
         </div>
 
