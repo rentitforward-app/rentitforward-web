@@ -75,15 +75,20 @@ export async function POST(request: NextRequest) {
     const platformFee = Math.round(booking.subtotal * PLATFORM_RATES.COMMISSION_PERCENT * 100); // Convert to cents
     const totalAmount = booking.total_amount * 100; // Convert to cents
 
-    // Construct base URL from request or environment
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-      `${request.headers.get('x-forwarded-proto') || 'http'}://${request.headers.get('host')}`;
+    // Construct base URL - use request origin in development, env var in production
+    const requestHost = request.headers.get('host');
+    const isLocalDevelopment = requestHost?.includes('localhost') || requestHost?.includes('127.0.0.1');
+    
+    const baseUrl = isLocalDevelopment 
+      ? `${request.headers.get('x-forwarded-proto') || 'http'}://${requestHost}`
+      : (process.env.NEXT_PUBLIC_BASE_URL || `${request.headers.get('x-forwarded-proto') || 'https'}://${requestHost}`);
 
     // Debug logging for URL construction
     console.log('🔗 Payment Session URL Construction:');
+    console.log('- Request host:', requestHost);
+    console.log('- Is local development:', isLocalDevelopment);
     console.log('- NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL);
     console.log('- Request protocol:', request.headers.get('x-forwarded-proto'));
-    console.log('- Request host:', request.headers.get('host'));
     console.log('- Final baseUrl:', baseUrl);
     console.log('- Success URL will be:', `${baseUrl}/bookings/${bookingId}/payment/success?session_id={CHECKOUT_SESSION_ID}`);
 

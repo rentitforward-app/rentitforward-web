@@ -340,7 +340,8 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
   const subtotal = totalDays > 0 && pricePerDay > 0 ? pricePerDay * totalDays : 0;
   const serviceFee = subtotal > 0 ? parseFloat((subtotal * 0.15).toFixed(2)) : 0;
   const insuranceFee = includeInsurance && subtotal > 0 ? parseFloat((subtotal * 0.10).toFixed(2)) : 0;
-  const totalAmount = subtotal + serviceFee + insuranceFee;
+  const deliveryFee = watchDeliveryMethod === 'delivery' ? 20.00 : 0; // $20 delivery fee
+  const totalAmount = subtotal + serviceFee + insuranceFee + deliveryFee;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

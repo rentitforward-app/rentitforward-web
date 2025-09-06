@@ -3,6 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { Database } from '@/lib/supabase/types';
+import { 
+  calculatePaymentBreakdown, 
+  createPaymentBreakdownRecord,
+  calculateStripeAmounts,
+  validatePaymentBreakdown 
+} from '@/lib/payment-calculations';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -139,43 +145,68 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });
     }
 
-    // Calculate pricing
-    let subtotal = 0;
-    if (totalDays >= 30 && listing.monthly_rate) {
-      const months = Math.floor(totalDays / 30);
-      const remainingDays = totalDays % 30;
-      subtotal = (months * listing.monthly_rate) + (remainingDays * listing.price_per_day);
-    } else if (totalDays >= 7 && listing.price_weekly) {
-      const weeks = Math.floor(totalDays / 7);
-      const remainingDays = totalDays % 7;
-      subtotal = (weeks * listing.price_weekly) + (remainingDays * listing.price_per_day);
-    } else {
-      subtotal = totalDays * listing.price_per_day;
+    // Get user points for potential redemption
+    const { data: userPoints } = await supabase
+      .from('user_points')
+      .select('available_points')
+      .eq('user_id', user.id)
+      .single();
+
+    // Check if this is user's first rental
+    const { data: existingBookings } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('renter_id', user.id)
+      .eq('status', 'completed');
+
+    const isFirstRental = !existingBookings || existingBookings.length === 0;
+
+    // Calculate comprehensive payment breakdown using new system
+    const deliveryFee = bookingData.delivery_method === 'delivery' ? (bookingData.delivery_fee || 20) : 0;
+    
+    const paymentBreakdown = calculatePaymentBreakdown({
+      basePricePerDay: listing.price_per_day,
+      totalDays,
+      includeInsurance: bookingData.include_insurance || false,
+      insuranceFeePerDay: 7, // $7/day as per pricing doc
+      deliveryFee,
+      securityDeposit: listing.deposit || 0,
+      pointsToRedeem: bookingData.points_to_redeem || 0,
+      isFirstRental,
+      currency: 'AUD'
+    });
+
+    // Validate the calculation
+    const validation = validatePaymentBreakdown(paymentBreakdown);
+    if (!validation.isValid) {
+      console.error('Payment calculation validation failed:', validation.errors);
+      return NextResponse.json({ 
+        error: 'Payment calculation error', 
+        details: validation.errors 
+      }, { status: 500 });
     }
 
-    const serviceFee = subtotal * 0.05; // 5% service fee
-    const totalAmount = subtotal + serviceFee;
-
-    // Create booking record
+    // Create booking record with comprehensive payment data
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
-        listing_id: bookingData.listing_id, // ✅ Correct field name (not item_id)
+        listing_id: bookingData.listing_id,
         renter_id: user.id as string,
         owner_id: listing.owner_id,
         start_date: bookingData.start_date,
         end_date: bookingData.end_date,
-        price_per_day: listing.price_per_day, // ✅ Correct field name
-        subtotal,
-        service_fee: serviceFee,
-        total_amount: totalAmount,
-        deposit_amount: listing.deposit, // ✅ Correct field name (deposit_amount not deposit)
+        total_days: totalDays,
+        price_per_day: listing.price_per_day,
+        subtotal: paymentBreakdown.subtotal,
+        service_fee: paymentBreakdown.renterServiceFeeAmount,
+        delivery_fee: paymentBreakdown.deliveryFee,
+        total_amount: paymentBreakdown.renterTotalAmount,
+        deposit_amount: paymentBreakdown.securityDeposit,
         status: 'pending',
         delivery_method: bookingData.delivery_method,
         delivery_address: bookingData.delivery_address || null,
-        pickup_location: bookingData.pickup_location || null,
-        pickup_instructions: bookingData.pickup_instructions || null,
-        renter_message: bookingData.renter_message || null,
+        pickup_address: bookingData.pickup_location || null,
+        special_instructions: bookingData.pickup_instructions || null,
       })
       .select()
       .single();
@@ -183,6 +214,42 @@ export async function POST(request: NextRequest) {
     if (bookingError) {
       console.error('Error creating booking:', bookingError);
       return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 });
+    }
+
+    // Create detailed payment breakdown record
+    const paymentBreakdownRecord = createPaymentBreakdownRecord(booking.id, paymentBreakdown);
+    const { error: breakdownError } = await supabase
+      .from('payment_breakdowns')
+      .insert(paymentBreakdownRecord);
+
+    if (breakdownError) {
+      console.error('Error creating payment breakdown:', breakdownError);
+      // Don't fail the booking, but log the error
+    }
+
+    // Handle points redemption if applicable
+    if (bookingData.points_to_redeem > 0 && userPoints?.available_points >= bookingData.points_to_redeem) {
+      // Update user points
+      await supabase
+        .from('user_points')
+        .update({ 
+          available_points: userPoints.available_points - bookingData.points_to_redeem,
+          lifetime_redeemed: (userPoints.lifetime_redeemed || 0) + bookingData.points_to_redeem
+        })
+        .eq('user_id', user.id);
+
+      // Record points transaction
+      await supabase
+        .from('points_transactions')
+        .insert({
+          user_id: user.id,
+          booking_id: booking.id,
+          transaction_type: 'redeemed_booking',
+          points_amount: -bookingData.points_to_redeem,
+          description: `Redeemed ${bookingData.points_to_redeem} points for booking`,
+          reference_id: booking.id,
+          reference_type: 'booking'
+        });
     }
 
     // Get owner's Stripe account for Connect payments
@@ -198,15 +265,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Create Stripe payment intent with Connect
+    // Create Stripe payment intent with Connect using new calculation system
     try {
-      const totalAmountCents = Math.round((totalAmount + listing.deposit) * 100);
-      const platformFeeCents = Math.round(serviceFee * 100); // Platform keeps service fee
+      const stripeAmounts = calculateStripeAmounts(paymentBreakdown);
 
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: totalAmountCents,
+        amount: stripeAmounts.totalAmountCents,
         currency: 'aud',
-        application_fee_amount: platformFeeCents,
+        application_fee_amount: stripeAmounts.platformFeeCents,
         transfer_data: {
           destination: ownerProfile.stripe_account_id,
         },
@@ -215,11 +281,18 @@ export async function POST(request: NextRequest) {
           listing_id: listing.id,
           renter_id: user.id,
           owner_id: listing.owner_id,
-          total_amount: totalAmount.toString(),
-          service_fee: serviceFee.toString(),
-          deposit_amount: listing.deposit.toString(),
+          subtotal: paymentBreakdown.subtotal.toString(),
+          renter_service_fee: paymentBreakdown.renterServiceFeeAmount.toString(),
+          owner_commission: paymentBreakdown.ownerCommissionAmount.toString(),
+          owner_net_earnings: paymentBreakdown.ownerNetEarnings.toString(),
+          platform_revenue: paymentBreakdown.platformTotalRevenue.toString(),
+          insurance_fee: paymentBreakdown.insuranceFee.toString(),
+          deposit_amount: paymentBreakdown.securityDeposit.toString(),
+          points_redeemed: paymentBreakdown.pointsRedeemed.toString(),
+          points_credit_applied: paymentBreakdown.pointsCreditApplied.toString(),
+          calculation_version: paymentBreakdown.calculationVersion,
         },
-        description: `Rent It Forward: ${listing.title}`,
+        description: `Rent It Forward: ${listing.title} (${totalDays} days)`,
         on_behalf_of: ownerProfile.stripe_account_id,
       });
 
@@ -232,12 +305,49 @@ export async function POST(request: NextRequest) {
         } as any)
         .eq('id', booking.id);
 
+      // Create payment transaction records
+      const paymentTransactions = [
+        {
+          booking_id: booking.id,
+          payment_breakdown_id: paymentBreakdownRecord.booking_id, // This will be the ID from the inserted record
+          transaction_type: 'renter_payment',
+          amount: paymentBreakdown.renterTotalAmount,
+          stripe_payment_intent_id: paymentIntent.id,
+          status: 'pending',
+          description: `Renter payment for ${listing.title}`,
+          metadata: {
+            includes_insurance: paymentBreakdown.insuranceFee > 0,
+            includes_deposit: paymentBreakdown.securityDeposit > 0,
+            points_credit_applied: paymentBreakdown.pointsCreditApplied
+          }
+        }
+      ];
+
+      // Add separate transaction for deposit if applicable
+      if (paymentBreakdown.securityDeposit > 0) {
+        paymentTransactions.push({
+          booking_id: booking.id,
+          payment_breakdown_id: paymentBreakdownRecord.booking_id,
+          transaction_type: 'deposit_hold',
+          amount: paymentBreakdown.securityDeposit,
+          stripe_payment_intent_id: paymentIntent.id,
+          status: 'pending',
+          description: `Security deposit hold for ${listing.title}`,
+          metadata: { deposit_type: 'security' }
+        });
+      }
+
+      await supabase
+        .from('payment_transactions')
+        .insert(paymentTransactions);
+
       return NextResponse.json({
         booking: { 
           ...booking, 
           stripe_payment_intent_id: paymentIntent.id,
           payment_status: 'pending'
         },
+        payment_breakdown: paymentBreakdown,
         client_secret: paymentIntent.client_secret,
         requires_connect: true,
         stripe_account_id: ownerProfile.stripe_account_id,

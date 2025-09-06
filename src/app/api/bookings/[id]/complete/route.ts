@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { calculatePointsForAction } from '@/lib/payment-calculations';
 
 export async function POST(
   request: NextRequest,
@@ -105,6 +106,84 @@ export async function POST(
       } catch (notificationError) {
         console.error('Error creating notification:', notificationError);
       }
+    }
+
+    // Award points for first rental completion
+    try {
+      // Check if this is the renter's first completed rental
+      const { data: completedBookings } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('renter_id', booking.renter_id)
+        .eq('status', 'completed');
+
+      const isFirstRental = completedBookings && completedBookings.length === 1; // This booking is the first
+
+      if (isFirstRental) {
+        const pointsToAward = calculatePointsForAction('first_rental');
+        
+        // Get or create user points record
+        const { data: existingPoints } = await supabase
+          .from('user_points')
+          .select('*')
+          .eq('user_id', booking.renter_id)
+          .single();
+
+        if (existingPoints) {
+          // Update existing points
+          await supabase
+            .from('user_points')
+            .update({
+              total_points: existingPoints.total_points + pointsToAward,
+              available_points: existingPoints.available_points + pointsToAward,
+              lifetime_earned: existingPoints.lifetime_earned + pointsToAward,
+              last_activity_at: new Date().toISOString()
+            })
+            .eq('user_id', booking.renter_id);
+        } else {
+          // Create new points record
+          await supabase
+            .from('user_points')
+            .insert({
+              user_id: booking.renter_id,
+              total_points: pointsToAward,
+              available_points: pointsToAward,
+              lifetime_earned: pointsToAward
+            });
+        }
+
+        // Record points transaction
+        await supabase
+          .from('points_transactions')
+          .insert({
+            user_id: booking.renter_id,
+            booking_id: bookingId,
+            transaction_type: 'earned_first_rental',
+            points_amount: pointsToAward,
+            description: `Earned ${pointsToAward} points for completing your first rental`,
+            reference_id: bookingId,
+            reference_type: 'booking'
+          });
+
+        // Add points notification
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: booking.renter_id,
+            type: 'points_earned',
+            title: 'Points Earned!',
+            message: `Congratulations! You've earned ${pointsToAward} points (${(pointsToAward / 10).toFixed(2)} AUD credit) for completing your first rental.`,
+            data: {
+              points_earned: pointsToAward,
+              credit_value: pointsToAward / 10,
+              reason: 'first_rental',
+              booking_id: bookingId
+            }
+          });
+      }
+    } catch (pointsError) {
+      console.error('Error awarding points:', pointsError);
+      // Don't fail the completion if points awarding fails
     }
 
     // If auto-release is enabled, immediately trigger fund release

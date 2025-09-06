@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
           require_matching_selfie: true,
         },
       },
-      return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/settings?verification_complete=true`,
+      return_url: `${process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : process.env.NEXT_PUBLIC_BASE_URL}/settings?verification_complete=true`,
     });
 
     // Store verification session in database
