@@ -7,6 +7,7 @@ import { useAdmin } from '../../../hooks/use-admin';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
 
 interface Booking {
   id: string;
@@ -21,11 +22,18 @@ interface Booking {
   payment_status: 'pending' | 'paid' | 'refunded';
 }
 
+type SortOption = 'created_at' | 'start_date' | 'total_amount' | 'status';
+type FilterOption = 'all' | 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled';
+
 export default function AdminBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('created_at');
+  const [filterBy, setFilterBy] = useState<FilterOption>('all');
   
+  const router = useRouter();
   const supabase = createClient();
   const { isAdmin, loading: adminLoading } = useAdmin();
 
@@ -34,6 +42,10 @@ export default function AdminBookings() {
     if (!isAdmin) return;
     loadBookings();
   }, [isAdmin, adminLoading]);
+
+  useEffect(() => {
+    filterAndSortBookings();
+  }, [bookings, searchTerm, sortBy, filterBy]);
 
   const loadBookings = async () => {
     try {
@@ -80,6 +92,43 @@ export default function AdminBookings() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const filterAndSortBookings = () => {
+    let filtered = [...bookings];
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(booking =>
+        booking.item_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.renter_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.owner_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.id.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply status filter
+    if (filterBy !== 'all') {
+      filtered = filtered.filter(booking => booking.status === filterBy);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'created_at':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'start_date':
+          return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
+        case 'total_amount':
+          return b.total_amount - a.total_amount;
+        case 'status':
+          return a.status.localeCompare(b.status);
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredBookings(filtered);
   };
 
   const getStatusBadge = (status: string) => {
@@ -147,7 +196,7 @@ export default function AdminBookings() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Bookings</p>
-              <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{filteredBookings.length}</p>
             </div>
             <Calendar className="w-8 h-8 text-blue-600" />
           </div>
@@ -156,8 +205,8 @@ export default function AdminBookings() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500">In Progress</p>
-              <p className="text-2xl font-bold text-gray-900">{bookings.filter(b => b.status === 'in_progress').length}</p>
+              <p className="text-sm font-medium text-gray-500">Active</p>
+              <p className="text-2xl font-bold text-gray-900">{filteredBookings.filter(b => b.status === 'active').length}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
@@ -167,7 +216,7 @@ export default function AdminBookings() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">{bookings.filter(b => b.status === 'pending').length}</p>
+              <p className="text-2xl font-bold text-gray-900">{filteredBookings.filter(b => b.status === 'pending').length}</p>
             </div>
             <Clock className="w-8 h-8 text-yellow-600" />
           </div>
@@ -178,7 +227,7 @@ export default function AdminBookings() {
             <div>
               <p className="text-sm font-medium text-gray-500">Total Value</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(bookings.reduce((sum, b) => sum + b.total_amount, 0))}
+                {formatCurrency(filteredBookings.reduce((sum, b) => sum + b.total_amount, 0))}
               </p>
             </div>
             <DollarSign className="w-8 h-8 text-green-600" />
@@ -186,17 +235,43 @@ export default function AdminBookings() {
         </Card>
       </div>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <Card className="p-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search bookings..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-          />
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search bookings by title, renter, owner, or ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={filterBy}
+              onChange={(e) => setFilterBy(e.target.value as FilterOption)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              <option value="all">All Bookings</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              <option value="created_at">Sort by: Newest</option>
+              <option value="start_date">Sort by: Start Date</option>
+              <option value="total_amount">Sort by: Amount</option>
+              <option value="status">Sort by: Status</option>
+            </select>
+          </div>
         </div>
       </Card>
 
@@ -211,12 +286,16 @@ export default function AdminBookings() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Booking Created</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {bookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-gray-50">
+              {filteredBookings.map((booking) => (
+                <tr 
+                  key={booking.id} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => router.push(`/admin/bookings/${booking.id}`)}
+                >
                   <td className="px-6 py-4">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{booking.item_title}</div>
@@ -244,16 +323,35 @@ export default function AdminBookings() {
                   <td className="px-6 py-4">
                     {getStatusBadge(booking.status)}
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <Button size="sm" variant="outline">
-                      <Eye className="w-4 h-4" />
-                    </Button>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900">
+                      {format(new Date(booking.created_at), 'MMM d, yyyy')}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {format(new Date(booking.created_at), 'h:mm a')}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {filteredBookings.length === 0 && bookings.length > 0 && (
+          <div className="text-center py-12">
+            <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-sm font-medium text-gray-900 mb-1">No bookings found</h3>
+            <p className="text-sm text-gray-500">Try adjusting your search or filter criteria</p>
+          </div>
+        )}
+
+        {filteredBookings.length === 0 && bookings.length === 0 && (
+          <div className="text-center py-12">
+            <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-sm font-medium text-gray-900 mb-1">No bookings yet</h3>
+            <p className="text-sm text-gray-500">Bookings will appear here once users start making reservations</p>
+          </div>
+        )}
       </Card>
     </div>
   );
