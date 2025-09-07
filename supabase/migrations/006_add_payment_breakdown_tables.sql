@@ -206,3 +206,4 @@ CREATE POLICY "Admins can view all points transactions" ON points_transactions
             AND (email = 'admin@rentitforward.com' OR email = 'rentitforward.app@gmail.com')
         )
     );
+

@@ -18,3 +18,4 @@ COMMENT ON COLUMN bookings.pickup_confirmed_at IS 'Timestamp when pickup was con
 COMMENT ON COLUMN bookings.pickup_confirmed_by IS 'User who confirmed the pickup (renter or owner)';
 COMMENT ON COLUMN bookings.return_confirmed_at IS 'Timestamp when return was confirmed';
 COMMENT ON COLUMN bookings.return_confirmed_by IS 'User who confirmed the return (renter or owner)';
+

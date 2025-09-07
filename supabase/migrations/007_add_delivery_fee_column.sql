@@ -13,3 +13,4 @@ ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0;
 
 -- Add index for delivery fee queries
 CREATE INDEX IF NOT EXISTS idx_bookings_delivery_fee ON bookings(delivery_fee) WHERE delivery_fee > 0;
+
