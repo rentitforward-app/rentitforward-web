@@ -1105,7 +1105,11 @@ export default function BookingsPage() {
         ) : (
           <div className="grid gap-6">
             {paginatedBookings.map((booking) => (
-              <Card key={booking.id} className="p-6">
+              <Card 
+                key={booking.id} 
+                className="p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200 hover:bg-gray-50"
+                onClick={() => router.push(`/bookings/${booking.id}`)}
+              >
                 <div className="flex gap-6">
                   {/* Image */}
                   <div className="w-32 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
@@ -1122,22 +1126,11 @@ export default function BookingsPage() {
                   <div className="flex-1">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <button
-                          onClick={() => router.push(`/bookings/${booking.id}`)}
-                          className="text-left"
-                        >
-                          <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 cursor-pointer">
-                            {booking.listing.title}
-                          </h3>
-                        </button>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {booking.listing.title}
+                        </h3>
                         <p className="text-sm text-gray-500">
-                          Booking ID: 
-                          <button
-                            onClick={() => router.push(`/bookings/${booking.id}`)}
-                            className="ml-1 text-blue-600 hover:text-blue-800 cursor-pointer"
-                          >
-                            {booking.id}
-                          </button>
+                          Booking ID: {booking.id}
                         </p>
                       </div>
                       <div className="flex items-center space-x-3">
@@ -1187,144 +1180,12 @@ export default function BookingsPage() {
                       )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex flex-wrap gap-2">
-                      {/* Owner actions for pending booking requests */}
-                      {booking.userRole === 'owner' && booking.status === 'pending' && (
-                        <>
-                          <Button
-                            onClick={() => updateBookingStatus(booking.id, 'payment_required')}
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            Accept
-                          </Button>
-                          <Button
-                            onClick={() => updateBookingStatus(booking.id, 'cancelled')}
-                            size="sm"
-                            variant="outline"
-                            className="border-red-300 text-red-600 hover:bg-red-50"
-                          >
-                            <XCircle className="w-4 h-4 mr-1" />
-                            Decline
-                          </Button>
-                        </>
-                      )}
-
-                      {/* Renter cancel option for pending bookings */}
-                      {booking.userRole === 'renter' && booking.status === 'pending' && (
-                        <Button
-                          onClick={() => {
-                            if (window.confirm('Are you sure you want to cancel this booking request?')) {
-                              cancelBooking(booking.id);
-                            }
-                          }}
-                          size="sm"
-                          variant="outline"
-                          className="border-red-300 text-red-600 hover:bg-red-50"
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Cancel Request
-                        </Button>
-                      )}
-
-                      {/* Renter actions */}
-                      {booking.userRole === 'renter' && (
-                        <>
-                          {/* Payment Required Buttons with Expiration Warning */}
-                          {booking.status === 'payment_required' && (
-                            <>
-                              {/* Expiration Warning if expires_at exists */}
-                              {booking.expires_at && new Date(booking.expires_at) > new Date() && (
-                                <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                                  ⏰ Expires: {format(new Date(booking.expires_at), 'MMM d, h:mm a')}
-                                </div>
-                              )}
-                              <Button
-                                onClick={() => router.push(`/bookings/${booking.id}/payment`)}
-                                size="sm"
-                                className="bg-purple-600 hover:bg-purple-700 text-white"
-                              >
-                                <DollarSign className="w-4 h-4 mr-1" />
-                                Pay Now
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  if (window.confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
-                                    cancelBooking(booking.id);
-                                  }
-                                }}
-                                size="sm"
-                                variant="outline"
-                                className="border-red-300 text-red-600 hover:bg-red-50"
-                              >
-                                <XCircle className="w-4 h-4 mr-1" />
-                                Cancel Booking
-                              </Button>
-                            </>
-                          )}
-
-                          {/* Pickup Confirmation Button */}
-                          {booking.status === 'confirmed' && !booking.pickup_confirmed_by_renter && (
-                            <Button
-                              onClick={() => openConfirmationModal('pickup', booking)}
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              <Camera className="w-4 h-4 mr-1" />
-                              Confirm Pickup
-                            </Button>
-                          )}
-
-                          {/* Return Confirmation Button */}
-                          {booking.status === 'in_progress' && booking.pickup_confirmed_by_renter && !booking.return_confirmed_by_renter && (
-                            <Button
-                              onClick={() => openConfirmationModal('return', booking)}
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                              <Camera className="w-4 h-4 mr-1" />
-                              Confirm Return
-                            </Button>
-                          )}
-                        </>
-                      )}
-
-                      {/* Owner actions for active bookings */}
-                      {booking.userRole === 'owner' && booking.status === 'return_pending' && (
-                        <Button
-                          onClick={() => openOwnerReceiptModal(booking)}
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Confirm Receipt
-                        </Button>
-                      )}
-
-                      {/* Common actions for both roles */}
-                      <Button
-                        onClick={() => {
-                          // The booking.owner field contains the other party's info
-                          // (renter info if user is owner, owner info if user is renter)
-                          router.push(`/messages?with=${booking.owner.id}&booking=${booking.id}`);
-                        }}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        Message
-                      </Button>
-                      <Button
-                        onClick={() => router.push(`/bookings/${booking.id}`)}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        Details
-                      </Button>
-                    </div>
+                    {/* Expiration Warning - Only show if payment is required and expires soon */}
+                    {booking.userRole === 'renter' && booking.status === 'payment_required' && booking.expires_at && new Date(booking.expires_at) > new Date() && (
+                      <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded mb-2">
+                        ⏰ Expires: {format(new Date(booking.expires_at), 'MMM d, h:mm a')}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
