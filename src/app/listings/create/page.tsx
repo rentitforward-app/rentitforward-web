@@ -108,8 +108,8 @@ const stepSchemas = {
     description: z.string().min(20, 'Description must be at least 20 characters').max(2000, 'Description must be less than 2000 characters'),
     category: z.string().min(1, 'Please select a category'),
     condition: z.string().min(1, 'Please select the item condition'),
-    brand: z.string().min(1, 'Please enter the brand'),
-    model: z.string().min(1, 'Please enter the model'),
+    brand: z.string().optional(),
+    model: z.string().optional(),
     year: z.number().min(1950, 'Please enter a valid year').max(new Date().getFullYear(), 'Year cannot be in the future'),
   }),
   2: z.object({
@@ -204,7 +204,7 @@ function CreateListingContent() {
   const getStepFields = (step: number): string[] => {
     switch (step) {
       case 1:
-        return ['title', 'description', 'category', 'condition', 'brand', 'model', 'year'];
+        return ['title', 'description', 'category', 'condition', 'year'];
       case 2:
         return ['dailyRate', 'hourlyRate', 'weeklyRate', 'monthlyRate', 'depositAmount', 'availabilityType', 'availableFrom', 'availableTo', 'insuranceEnabled'];
       case 3:
@@ -1050,7 +1050,7 @@ function CreateListingContent() {
       const fieldName = firstError.path[0] as string;
       
       // Determine which step contains the error and redirect there
-      if (['title', 'description', 'category', 'condition', 'brand', 'model', 'year'].includes(fieldName)) {
+      if (['title', 'description', 'category', 'condition', 'year'].includes(fieldName)) {
         setCurrentStep(1);
       } else if (['dailyRate', 'hourlyRate', 'weeklyRate', 'monthlyRate', 'depositAmount', 'availabilityType', 'availableFrom', 'availableTo', 'insuranceEnabled'].includes(fieldName)) {
         setCurrentStep(2);
@@ -1741,7 +1741,7 @@ function CreateListingContent() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                    <div>
                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Brand *
+                        Brand
                      </label>
                      <input
                        {...register('brand')}
@@ -1760,7 +1760,7 @@ function CreateListingContent() {
                    </div>
                    <div>
                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Model *
+                        Model
                      </label>
                      <input
                        {...register('model')}
