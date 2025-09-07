@@ -110,7 +110,7 @@ const stepSchemas = {
     condition: z.string().min(1, 'Please select the item condition'),
     brand: z.string().optional(),
     model: z.string().optional(),
-    year: z.number().min(1950, 'Please enter a valid year').max(new Date().getFullYear(), 'Year cannot be in the future'),
+    year: z.number().min(1950, 'Please enter a valid year').max(new Date().getFullYear(), 'Year cannot be in the future').optional(),
   }),
   2: z.object({
     dailyRate: z.number().min(1, 'Daily rate must be at least $1').max(1000, 'Daily rate must be less than $1000'),
@@ -204,7 +204,7 @@ function CreateListingContent() {
   const getStepFields = (step: number): string[] => {
     switch (step) {
       case 1:
-        return ['title', 'description', 'category', 'condition', 'year'];
+        return ['title', 'description', 'category', 'condition'];
       case 2:
         return ['dailyRate', 'hourlyRate', 'weeklyRate', 'monthlyRate', 'depositAmount', 'availabilityType', 'availableFrom', 'availableTo', 'insuranceEnabled'];
       case 3:
@@ -1050,7 +1050,7 @@ function CreateListingContent() {
       const fieldName = firstError.path[0] as string;
       
       // Determine which step contains the error and redirect there
-      if (['title', 'description', 'category', 'condition', 'year'].includes(fieldName)) {
+      if (['title', 'description', 'category', 'condition'].includes(fieldName)) {
         setCurrentStep(1);
       } else if (['dailyRate', 'hourlyRate', 'weeklyRate', 'monthlyRate', 'depositAmount', 'availabilityType', 'availableFrom', 'availableTo', 'insuranceEnabled'].includes(fieldName)) {
         setCurrentStep(2);
@@ -1782,7 +1782,7 @@ function CreateListingContent() {
                  {/* Year */}
                   <div className="mb-6">
                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Year *
+                      Year
                    </label>
                    <input
                      {...register('year', { valueAsNumber: true })}
