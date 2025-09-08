@@ -72,14 +72,7 @@ export default function ContactPage() {
     const currentTime = Date.now()
     const submissionTime = currentTime - formStartTime
     
-    // Check if submission is too fast (less than 3 seconds)
-    if (submissionTime < 3000) {
-      setStatus({
-        type: 'error',
-        message: 'Please take your time filling out the form. Submission too fast.'
-      })
-      return
-    }
+    // Rate limiting check removed - reCAPTCHA provides sufficient spam protection
 
     // Check if reCAPTCHA is completed
     if (!captchaToken) {

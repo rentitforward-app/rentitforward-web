@@ -157,13 +157,7 @@ export async function POST(request: NextRequest) {
     }
 
     const submissionTime = Date.now() - parseInt(timestamp);
-    if (submissionTime < 3000) { // Less than 3 seconds
-      console.log('Submission too fast:', { submissionTime, clientIP });
-      return NextResponse.json(
-        { error: 'Submission too fast. Please take your time.' },
-        { status: 400 }
-      );
-    }
+    // Rate limiting check removed - reCAPTCHA provides sufficient spam protection
 
     if (submissionTime > 300000) { // More than 5 minutes
       console.log('Submission too old:', { submissionTime, clientIP });
