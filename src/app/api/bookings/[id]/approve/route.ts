@@ -189,17 +189,37 @@ export async function POST(
     // Send notifications about booking approval
     try {
       const { BookingNotifications } = await import('@/lib/onesignal/notifications');
+      const { BookingNotifications: DatabaseNotifications } = await import('@/lib/notifications/database');
       
-      // Notify renter of approval
+      // Notify renter of approval (OneSignal + Database)
       await BookingNotifications.notifyRenterBookingApproved(
         booking.renter_id,
         bookingId,
         booking.listings.title
       );
+      await DatabaseNotifications.createRenterBookingApprovedNotification(
+        booking.renter_id,
+        bookingId,
+        booking.listings.title
+      );
 
-      // Notify about payment confirmation
+      // Notify about payment confirmation (OneSignal + Database)
       await BookingNotifications.notifyPaymentConfirmed(
         booking.renter_id,
+        bookingId,
+        booking.listings.title,
+        captureResult.capturedAmount || booking.total_amount
+      );
+      await DatabaseNotifications.createRenterPaymentConfirmedNotification(
+        booking.renter_id,
+        bookingId,
+        booking.listings.title,
+        captureResult.capturedAmount || booking.total_amount
+      );
+
+      // Notify owner about payment confirmation (Database only)
+      await DatabaseNotifications.createOwnerPaymentConfirmedNotification(
+        booking.owner_id,
         bookingId,
         booking.listings.title,
         captureResult.capturedAmount || booking.total_amount

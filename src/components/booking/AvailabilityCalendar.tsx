@@ -14,7 +14,9 @@ import {
   calculateDuration,
   isDateAvailable,
   validateDateRange,
-  formatDateRange
+  formatDateRange,
+  checkDateRangeAvailability,
+  validateDateRangeWithAvailability
 } from '@/lib/calendar-utils';
 import { addDays, isBefore, isAfter, format, startOfDay } from 'date-fns';
 import 'react-calendar/dist/Calendar.css';
@@ -99,11 +101,11 @@ export function AvailabilityCalendar({
     let newRange: DateRangeSelection;
 
     if (!selectedRange.startDate) {
-      // First selection
+      // First selection - allow single day booking
       newRange = {
         startDate: date,
-        endDate: null,
-        duration: 0
+        endDate: date, // Set end date to same as start date for single day
+        duration: 1
       };
     } else if (!selectedRange.endDate) {
       // Second selection
@@ -111,11 +113,19 @@ export function AvailabilityCalendar({
         // If selected date is before start date, restart selection
         newRange = {
           startDate: date,
-          endDate: null,
-          duration: 0
+          endDate: date, // Single day selection
+          duration: 1
         };
       } else {
-        // Valid end date
+        // Valid end date - check if entire range is available
+        const rangeCheck = checkDateRangeAvailability(selectedRange.startDate, date, availability);
+        if (!rangeCheck.available) {
+          // Show warning for conflicting dates but still allow selection
+          setValidationErrors([`Warning: Selected dates include unavailable dates: ${rangeCheck.conflicts.join(', ')}. You may not be able to complete this booking.`]);
+        } else {
+          setValidationErrors([]);
+        }
+        
         const duration = calculateDuration(selectedRange.startDate, date);
         newRange = {
           startDate: selectedRange.startDate,
@@ -124,17 +134,23 @@ export function AvailabilityCalendar({
         };
       }
     } else {
-      // Reset selection
+      // Reset selection - allow single day booking
       newRange = {
         startDate: date,
-        endDate: null,
-        duration: 0
+        endDate: date, // Single day selection
+        duration: 1
       };
     }
 
     // Validate the new range
     if (newRange.startDate && newRange.endDate) {
-      const validation = validateDateRange(newRange.startDate, newRange.endDate, minDate, maxDate);
+      const validation = validateDateRangeWithAvailability(
+        newRange.startDate, 
+        newRange.endDate, 
+        availability, 
+        minDate, 
+        maxDate
+      );
       setValidationErrors(validation.errors);
       
       if (validation.valid) {
@@ -211,24 +227,29 @@ export function AvailabilityCalendar({
     const isHovered = hoveredDate && selectedRange.startDate && !selectedRange.endDate &&
       date >= selectedRange.startDate && date <= hoveredDate;
 
+    // Check if date is booked/unavailable
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const isUnavailable = availability && !isDateAvailable(dateStr, availability);
+
     if (isStart && isEnd) {
       // Single day selection
-      return 'text-white font-bold rounded-lg shadow-lg border-2 transform scale-105';
+      return 'custom-selected-single';
     }
     if (isStart) {
-      return 'text-white font-bold rounded-l-lg shadow-lg border-2 transform scale-105';
+      return 'custom-selected-start';
     }
     if (isEnd) {
-      return 'text-white font-bold rounded-r-lg shadow-lg border-2 transform scale-105';
+      return 'custom-selected-end';
     }
     if (isInRange) {
-      return 'text-white font-bold shadow-md border-y-2 relative';
+      // For range dates, show light green even if booked (but with warning)
+      return isUnavailable ? 'custom-range-booked' : 'custom-range-available';
     }
     if (isHovered) {
-      return 'bg-green-200 text-green-900 font-medium shadow-sm border border-green-400';
+      return 'custom-hovered';
     }
     return '';
-  }, [selectedRange, hoveredDate]);
+  }, [selectedRange, hoveredDate, availability]);
 
   // Clear selection handler
   const handleClearSelection = () => {
@@ -310,46 +331,95 @@ export function AvailabilityCalendar({
                 position: relative;
                 height: 2rem;
                 font-size: 0.75rem;
-              }
-              .calendar-container .react-calendar__tile--active,
-              .calendar-container .react-calendar__tile--range {
-                background: #44D62C !important;
-                color: white !important;
-                font-weight: bold !important;
-                border: 2px solid #3AB827 !important;
-              }
-              .calendar-container .react-calendar__month-view__days__day--weekend {
-                color: #374151 !important;
-                background: white !important;
-              }
-              .calendar-container .react-calendar__tile {
                 background: white !important;
                 border: 1px solid #e5e7eb !important;
               }
               .calendar-container .react-calendar__tile:hover {
                 background: #f9fafb !important;
               }
-              .calendar-container .react-calendar__tile--rangeStart {
+              .calendar-container .react-calendar__month-view__days__day--weekend {
+                color: #374151 !important;
+                background: white !important;
+              }
+              
+              /* Custom selection styles */
+              .calendar-container .custom-selected-single {
+                background: #44D62C !important;
+                color: white !important;
+                font-weight: bold !important;
+                border: 2px solid #3AB827 !important;
+                border-radius: 6px !important;
+                transform: scale(1.05) !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+              }
+              .calendar-container .custom-selected-start {
                 background: #44D62C !important;
                 color: white !important;
                 font-weight: bold !important;
                 border: 2px solid #3AB827 !important;
                 border-radius: 6px 0 0 6px !important;
+                transform: scale(1.05) !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
               }
-              .calendar-container .react-calendar__tile--rangeEnd {
+              .calendar-container .custom-selected-end {
                 background: #44D62C !important;
                 color: white !important;
                 font-weight: bold !important;
                 border: 2px solid #3AB827 !important;
                 border-radius: 0 6px 6px 0 !important;
+                transform: scale(1.05) !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
               }
-              .calendar-container .react-calendar__tile--selectRange {
+              .calendar-container .custom-range-available {
                 background: #4ade80 !important;
                 color: white !important;
                 font-weight: 600 !important;
                 border-top: 2px solid #3AB827 !important;
                 border-bottom: 2px solid #3AB827 !important;
+                border-left: 1px solid #3AB827 !important;
+                border-right: 1px solid #3AB827 !important;
               }
+              .calendar-container .custom-range-booked {
+                background: #fef3c7 !important;
+                color: #92400e !important;
+                font-weight: 600 !important;
+                border-top: 2px solid #f59e0b !important;
+                border-bottom: 2px solid #f59e0b !important;
+                border-left: 1px solid #f59e0b !important;
+                border-right: 1px solid #f59e0b !important;
+                position: relative;
+              }
+              .calendar-container .custom-range-booked::after {
+                content: "⚠";
+                position: absolute;
+                top: -2px;
+                right: -2px;
+                background: #f59e0b;
+                color: white;
+                border-radius: 50%;
+                width: 12px;
+                height: 12px;
+                font-size: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+              }
+              .calendar-container .custom-hovered {
+                background: #dcfce7 !important;
+                color: #166534 !important;
+                font-weight: 500 !important;
+                border: 1px solid #22c55e !important;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+              }
+              
+              /* Disabled dates */
+              .calendar-container .react-calendar__tile--disabled {
+                background-color: #f9fafb !important;
+                color: #d1d5db !important;
+                cursor: not-allowed !important;
+              }
+              
               .calendar-container .react-calendar__navigation {
                 height: 2.5rem;
                 margin-bottom: 0.5rem;
@@ -368,6 +438,23 @@ export function AvailabilityCalendar({
             onChange={(value: CalendarValue) => {
               if (value instanceof Date) {
                 handleDateSelect(value);
+              } else if (Array.isArray(value) && value[0] && value[1]) {
+                // Handle range selection
+                const [start, end] = value;
+                if (start && end) {
+                  // Check if entire range is available
+                  const rangeCheck = checkDateRangeAvailability(start, end, availability || []);
+                  const duration = calculateDuration(start, end);
+                  const newRange = { startDate: start, endDate: end, duration };
+                  setSelectedRange(newRange);
+                  onDatesSelected(newRange);
+                  
+                  if (!rangeCheck.available) {
+                    setValidationErrors([`Warning: Selected dates include unavailable dates: ${rangeCheck.conflicts.join(', ')}. You may not be able to complete this booking.`]);
+                  } else {
+                    setValidationErrors([]);
+                  }
+                }
               }
             }}
             selectRange={true}
@@ -402,12 +489,18 @@ export function AvailabilityCalendar({
             <span>Selected</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-green-100 border border-green-300 rounded-full"></div>
+            <div className="w-2 h-2 bg-green-300 rounded-full"></div>
             <span>Range</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 bg-red-500 rounded-full"></div>
             <span>Booked</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-yellow-200 border border-yellow-400 rounded-full relative">
+              <span className="absolute -top-1 -right-1 text-[8px] bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center">⚠</span>
+            </div>
+            <span>Range + Booked</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
@@ -419,9 +512,9 @@ export function AvailabilityCalendar({
           </div>
         </div>
 
-        {/* Validation Errors */}
+        {/* Validation Errors/Warnings */}
         {validationErrors.length > 0 && (
-          <Alert variant="destructive">
+          <Alert variant={validationErrors[0]?.includes('Warning:') ? "default" : "destructive"}>
             <AlertDescription>
               <ul className="list-disc list-inside">
                 {validationErrors.map((error, index) => (
@@ -435,11 +528,11 @@ export function AvailabilityCalendar({
         {/* Selection Info */}
         {selectedRange.startDate && (
           <div className="space-y-2">
-            {!selectedRange.endDate && (
+            {!selectedRange.endDate && selectedRange.startDate && (
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  Select an end date to complete your booking range.
+                  Click another date to extend your booking range, or proceed with single-day booking.
                 </AlertDescription>
               </Alert>
             )}

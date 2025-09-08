@@ -590,13 +590,13 @@ function PaymentSuccessContent() {
                         </div>
                       )}
                       <div className="border-t pt-3">
-              <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center">
                           <span className="text-lg font-semibold text-gray-900">Total Paid</span>
-                <span className="text-xl font-bold text-green-600">
-                  {formatPrice(booking.total_amount)}
-                </span>
-              </div>
-            </div>
+                          <span className="text-xl font-bold text-green-600">
+                            {formatPrice(booking.total_amount)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   )}
           </CardContent>

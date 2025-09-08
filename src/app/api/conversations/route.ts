@@ -54,6 +54,26 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
         }
 
+        // Create database notification for the receiver
+        try {
+          const { MessageNotifications } = await import('@/lib/notifications/database');
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+          
+          await MessageNotifications.createNewMessageNotification(
+            other_user_id,
+            senderProfile?.full_name || 'Someone',
+            initial_message.trim(),
+            existingConversation.id
+          );
+        } catch (notificationError) {
+          console.error('Failed to create message notification:', notificationError);
+          // Don't fail the message if notification fails
+        }
+
         // Update conversation's last message
         await supabase
           .from('conversations')
@@ -107,6 +127,26 @@ export async function POST(request: NextRequest) {
           message: 'Conversation created but initial message failed to send',
           error: messageError.message
         }, { status: 201 });
+      }
+
+      // Create database notification for the receiver
+      try {
+        const { MessageNotifications } = await import('@/lib/notifications/database');
+        const { data: senderProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        
+        await MessageNotifications.createNewMessageNotification(
+          other_user_id,
+          senderProfile?.full_name || 'Someone',
+          initial_message.trim(),
+          conversation.id
+        );
+      } catch (notificationError) {
+        console.error('Failed to create message notification:', notificationError);
+        // Don't fail the message if notification fails
       }
     }
 

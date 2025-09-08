@@ -178,15 +178,24 @@ export async function POST(
       .from('notification_history')
       .insert(notificationData);
 
-    // Send notification about booking rejection
+    // Send notifications about booking rejection
     try {
       const { BookingNotifications } = await import('@/lib/onesignal/notifications');
+      const { BookingNotifications: DatabaseNotifications } = await import('@/lib/notifications/database');
       
+      // Send OneSignal push notification
       await BookingNotifications.notifyRenterBookingRejected(
         booking.renter_id,
         bookingId,
         booking.listings.title,
         reason
+      );
+
+      // Create database notification
+      await DatabaseNotifications.createRenterBookingRejectedNotification(
+        booking.renter_id,
+        bookingId,
+        booking.listings.title
       );
     } catch (notificationError) {
       console.error('Failed to send rejection notification:', notificationError);

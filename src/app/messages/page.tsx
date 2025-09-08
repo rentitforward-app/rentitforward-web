@@ -224,10 +224,50 @@ function MessagesPageContent() {
       )
       .subscribe();
 
+    // Subscribe to message read status updates
+    const messageReadSubscription = supabase
+      .channel('message-read-status')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=in.(${conversations.map(c => c.id).join(',')})`
+        },
+        (payload) => {
+          console.log('Message read status updated:', payload);
+          const updatedMessage = payload.new as Message;
+          
+          // If this is a read status update and we're viewing this conversation,
+          // we might need to update the unread count
+          if (selectedConversation && updatedMessage.conversation_id === selectedConversation.id) {
+            // Check if all messages in this conversation are now read
+            // This is a simple approach - in a more complex system, you might want to
+            // recalculate the unread count from the database
+            if (updatedMessage.is_read && updatedMessage.sender_id !== user.id) {
+              // Decrement unread count for this conversation
+              setConversations(prev => 
+                prev.map(conv => 
+                  conv.id === updatedMessage.conversation_id
+                    ? { 
+                        ...conv, 
+                        unread_count: Math.max(0, conv.unread_count - 1)
+                      }
+                    : conv
+                )
+              );
+            }
+          }
+        }
+      )
+      .subscribe();
+
     // Cleanup subscriptions on unmount
     return () => {
       messagesSubscription.unsubscribe();
       conversationsSubscription.unsubscribe();
+      messageReadSubscription.unsubscribe();
     };
   }, [user, conversations, selectedConversation]);
 
@@ -571,11 +611,21 @@ function MessagesPageContent() {
 
   const markAsRead = async (conversationId: string) => {
     try {
+      // Update messages as read in database
       await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', conversationId)
         .neq('sender_id', user.id);
+
+      // Update local state to reset unread count for this conversation
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === conversationId
+            ? { ...conv, unread_count: 0 }
+            : conv
+        )
+      );
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }

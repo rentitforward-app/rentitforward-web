@@ -155,7 +155,7 @@ export function validateDateRange(
     }
     
     if (isBefore(endDate, startDate)) {
-      errors.push('End date must be after start date');
+      errors.push('End date must be after or same as start date');
     }
     
     if (isAfter(endDate, maxDate)) {
@@ -176,6 +176,42 @@ export function validateDateRange(
     valid: errors.length === 0,
     errors,
   };
+}
+
+/**
+ * Validate date range with availability data
+ * @param startDate - Start date
+ * @param endDate - End date
+ * @param availability - Array of availability data
+ * @param minDate - Minimum allowed date (default: today)
+ * @param maxDate - Maximum allowed date (default: 1 year from today)
+ * @returns Validation result with errors
+ */
+export function validateDateRangeWithAvailability(
+  startDate: Date | null,
+  endDate: Date | null,
+  availability: CalendarAvailability[],
+  minDate: Date = startOfDay(new Date()),
+  maxDate: Date = addDays(new Date(), 365)
+): { valid: boolean; errors: string[] } {
+  // First do basic validation
+  const basicValidation = validateDateRange(startDate, endDate, minDate, maxDate);
+  if (!basicValidation.valid) {
+    return basicValidation;
+  }
+
+  // Then check availability
+  if (startDate && endDate) {
+    const rangeCheck = checkDateRangeAvailability(startDate, endDate, availability);
+    if (!rangeCheck.available) {
+      return {
+        valid: false,
+        errors: [`Selected dates include unavailable dates: ${rangeCheck.conflicts.join(', ')}`],
+      };
+    }
+  }
+
+  return { valid: true, errors: [] };
 }
 
 /**

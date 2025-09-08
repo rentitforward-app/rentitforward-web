@@ -150,10 +150,10 @@ export function PricingBreakdown({
         {/* Insurance Option */}
         {onInsuranceChange && (
           <div className="space-y-3">
-            <div className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+            <div className={`p-4 rounded-lg border-2 transition-all duration-200 ${
               hasInsurance 
-                ? 'border-[#44D62C] bg-green-50' 
-                : 'border-gray-200 bg-gray-50'
+                ? 'border-[#44D62C] bg-green-50 shadow-sm' 
+                : 'border-gray-200 bg-gray-50 hover:border-gray-300'
             }`}>
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-3">
@@ -161,43 +161,57 @@ export function PricingBreakdown({
                     id="insurance"
                     checked={hasInsurance}
                     onCheckedChange={handleInsuranceToggle}
-                    className={`h-7 w-12 ${
-                      hasInsurance 
-                        ? 'data-[state=checked]:bg-[#44D62C]' 
-                        : ''
-                    }`}
-                    style={hasInsurance ? {
-                      backgroundColor: '#44D62C'
-                    } : {}}
+                    className="h-7 w-12 data-[state=checked]:bg-[#44D62C] data-[state=unchecked]:bg-gray-300"
+                    style={{
+                      backgroundColor: hasInsurance ? '#44D62C' : '#d1d5db'
+                    }}
                   />
+                  <style jsx>{`
+                    #insurance[data-state="checked"] {
+                      background-color: #44D62C !important;
+                    }
+                    #insurance[data-state="unchecked"] {
+                      background-color: #d1d5db !important;
+                    }
+                    #insurance[data-state="checked"] .react-switch-handle {
+                      background-color: white !important;
+                      border: 2px solid #44D62C !important;
+                    }
+                    #insurance[data-state="unchecked"] .react-switch-handle {
+                      background-color: white !important;
+                      border: 2px solid #d1d5db !important;
+                    }
+                  `}</style>
                   <Label htmlFor="insurance" className={`text-sm font-medium cursor-pointer ${
                     hasInsurance ? 'text-green-800' : 'text-gray-700'
                   }`}>
                     Damage protection
                   </Label>
                   {hasInsurance && (
-                    <Badge className="bg-[#44D62C] hover:bg-[#44D62C] text-white text-xs">
+                    <Badge className="bg-[#44D62C] hover:bg-[#3AB827] text-white text-xs font-semibold px-2 py-1">
                       Active
                     </Badge>
                   )}
                 </div>
               </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Protection fee</span>
+                  <span className={`font-medium ${hasInsurance ? 'text-green-700' : 'text-gray-500'}`}>
+                    {hasInsurance ? formatPrice(pricing.insuranceFee) : formatPrice(0)}
+                  </span>
+                </div>
+                <div className="flex justify-start">
                   <Badge variant="outline" className="text-xs">
                     {(PRICING_CONSTANTS.INSURANCE_PERCENTAGE * 100).toFixed(0)}% of rental fee
                   </Badge>
                 </div>
-                <span className={`font-medium ${hasInsurance ? 'text-green-700' : 'text-gray-500'}`}>
-                  {hasInsurance ? formatPrice(pricing.insuranceFee) : formatPrice(0)}
-                </span>
               </div>
             </div>
             {hasInsurance && (
-              <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <Info className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-green-700">
+              <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg shadow-sm">
+                <Info className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-green-700 font-medium">
                   Covers accidental damage or loss up to the item's full value. 
                   Security deposit may still apply.
                 </p>

@@ -259,10 +259,20 @@ export async function POST(request: NextRequest) {
     // Generate payment breakdown for response
     const paymentBreakdown = generatePaymentBreakdown(authData);
 
-    // Send notification to owner about new booking request
+    // Send notifications to owner about new booking request
     try {
+      // Send OneSignal push notification
       const { BookingNotifications } = await import('@/lib/onesignal/notifications');
       await BookingNotifications.notifyOwnerBookingRequest(
+        listing.owner_id,
+        booking.id,
+        listing.title,
+        profile.name
+      );
+
+      // Create database notification for in-app notifications
+      const { BookingNotifications: DatabaseNotifications } = await import('@/lib/notifications/database');
+      await DatabaseNotifications.createOwnerBookingRequestNotification(
         listing.owner_id,
         booking.id,
         listing.title,
