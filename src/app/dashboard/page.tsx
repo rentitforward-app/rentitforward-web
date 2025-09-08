@@ -193,63 +193,102 @@ export default function DashboardPage() {
       // Fetch recent activity
       const activities: Activity[] = []
 
-      // Add recent booking requests
-      const recentPendingBookings = asOwner?.filter(b => b.status === 'pending')
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 2) || []
-
-      for (const booking of recentPendingBookings) {
-        activities.push({
-          type: 'booking',
-          message: `New booking request for "${booking.listing?.title || 'Unknown item'}"`,
-          time: formatTimeAgo(booking.created_at),
-          icon: Calendar
-        })
-      }
-
-      // Add recent messages
-      const { data: recentMessagesData } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender:sender_id(full_name)
-        `)
-        .eq('receiver_id', user.id)
+      // Add recent notifications
+      const { data: recentNotifications } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(2)
+        .limit(5)
 
-      for (const message of recentMessagesData || []) {
+      for (const notification of recentNotifications || []) {
+        let icon = Bell; // Default icon
+        
+        switch (notification.type) {
+          case 'booking':
+            icon = Calendar;
+            break;
+          case 'message':
+            icon = MessageCircle;
+            break;
+          case 'payment':
+            icon = DollarSign;
+            break;
+          case 'system':
+            icon = Bell;
+            break;
+        }
+
         activities.push({
-          type: 'message',
-          message: `${message.sender?.full_name || 'Someone'} sent you a message`,
-          time: formatTimeAgo(message.created_at),
-          icon: MessageCircle
+          type: notification.type,
+          message: notification.message,
+          time: formatTimeAgo(notification.created_at),
+          icon
         })
       }
 
-      // Add recent completed rentals
-      const recentCompletedBookings = asOwner?.filter(b => b.status === 'completed')
-        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-        .slice(0, 2) || []
+      // Add recent booking requests (if no notifications available)
+      if (!recentNotifications || recentNotifications.length === 0) {
+        const recentPendingBookings = asOwner?.filter(b => b.status === 'pending')
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 2) || []
 
-      for (const booking of recentCompletedBookings) {
-        activities.push({
-          type: 'rental',
-          message: `Rental completed: "${booking.listing?.title || 'Unknown item'}"`,
-          time: formatTimeAgo(booking.updated_at),
-          icon: Package
-        })
+        for (const booking of recentPendingBookings) {
+          activities.push({
+            type: 'booking',
+            message: `New booking request for "${booking.listing?.title || 'Unknown item'}"`,
+            time: formatTimeAgo(booking.created_at),
+            icon: Calendar
+          })
+        }
+
+        // Add recent messages
+        const { data: recentMessagesData } = await supabase
+          .from('messages')
+          .select(`
+            *,
+            sender:sender_id(full_name)
+          `)
+          .eq('receiver_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(2)
+
+        for (const message of recentMessagesData || []) {
+          activities.push({
+            type: 'message',
+            message: `${message.sender?.full_name || 'Someone'} sent you a message`,
+            time: formatTimeAgo(message.created_at),
+            icon: MessageCircle
+          })
+        }
+
+        // Add recent completed rentals
+        const recentCompletedBookings = asOwner?.filter(b => b.status === 'completed')
+          .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+          .slice(0, 2) || []
+
+        for (const booking of recentCompletedBookings) {
+          activities.push({
+            type: 'rental',
+            message: `Rental completed: "${booking.listing?.title || 'Unknown item'}"`,
+            time: formatTimeAgo(booking.updated_at),
+            icon: Package
+          })
+        }
       }
 
       // Sort activities by recency and take top 5
       activities.sort((a, b) => {
-        // This is a simplified sort, in a real app you'd want to parse the time strings
-        return Math.random() - 0.5 // Random for now since we have mixed time formats
+        // Parse time strings to proper dates for sorting
+        const timeA = parseTimeString(a.time);
+        const timeB = parseTimeString(b.time);
+        return timeB.getTime() - timeA.getTime(); // Most recent first
       })
       setRecentActivity(activities.slice(0, 5))
 
-      // Set recent bookings
+      // Set recent bookings - sort by creation date and take most recent 5
       const recentBookingsData: RecentBooking[] = (asOwner || [])
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 5)
         .map(booking => ({
           id: booking.id,
@@ -283,6 +322,33 @@ export default function DashboardPage() {
     const diffInDays = Math.floor(diffInHours / 24)
     if (diffInDays < 7) return `${diffInDays} days ago`
     return date.toLocaleDateString()
+  }
+
+  const parseTimeString = (timeString: string): Date => {
+    if (timeString === 'Just now') {
+      return new Date();
+    }
+    
+    const hoursMatch = timeString.match(/(\d+) hours ago/);
+    if (hoursMatch) {
+      const hours = parseInt(hoursMatch[1]);
+      return new Date(Date.now() - hours * 60 * 60 * 1000);
+    }
+    
+    const daysMatch = timeString.match(/(\d+) days ago/);
+    if (daysMatch) {
+      const days = parseInt(daysMatch[1]);
+      return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    }
+    
+    // Try to parse as date string
+    const parsedDate = new Date(timeString);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+    
+    // Fallback to current time
+    return new Date();
   }
 
   const formatDate = (dateString: string) => {

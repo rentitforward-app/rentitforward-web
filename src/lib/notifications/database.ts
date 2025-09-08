@@ -12,7 +12,6 @@ export interface DatabaseNotification {
   type: 'booking' | 'message' | 'payment' | 'review' | 'favorite' | 'system';
   title: string;
   message: string;
-  data?: Record<string, any>;
   related_id?: string | null;
   is_read?: boolean;
   created_at?: string;
@@ -34,7 +33,6 @@ export async function createDatabaseNotification(
         type: notification.type,
         title: notification.title,
         message: notification.message,
-        data: notification.data || null,
         related_id: notification.related_id || null,
         is_read: notification.is_read || false,
         created_at: notification.created_at || new Date().toISOString(),
@@ -94,13 +92,6 @@ export const BookingNotifications = {
       type: 'booking',
       title: 'New Booking Request',
       message: `${renterName} wants to rent your "${listingTitle}"`,
-      data: {
-        booking_id: bookingId,
-        listing_title: listingTitle,
-        renter_name: renterName,
-        action_url: `/dashboard/bookings/${bookingId}`,
-        type: 'booking_request',
-      },
       related_id: bookingId,
     });
   },
@@ -118,12 +109,6 @@ export const BookingNotifications = {
       type: 'booking',
       title: 'Booking Approved!',
       message: `Your booking request for "${listingTitle}" has been approved`,
-      data: {
-        booking_id: bookingId,
-        listing_title: listingTitle,
-        action_url: `/bookings/${bookingId}`,
-        type: 'booking_approved',
-      },
       related_id: bookingId,
     });
   },
@@ -141,12 +126,6 @@ export const BookingNotifications = {
       type: 'booking',
       title: 'Booking Declined',
       message: `Your booking request for "${listingTitle}" was declined`,
-      data: {
-        booking_id: bookingId,
-        listing_title: listingTitle,
-        action_url: `/bookings/${bookingId}`,
-        type: 'booking_rejected',
-      },
       related_id: bookingId,
     });
   },
@@ -165,13 +144,6 @@ export const BookingNotifications = {
       type: 'payment',
       title: 'Payment Confirmed',
       message: `Payment of $${amount.toFixed(2)} confirmed for "${listingTitle}" rental`,
-      data: {
-        booking_id: bookingId,
-        listing_title: listingTitle,
-        amount,
-        action_url: `/dashboard/bookings/${bookingId}`,
-        type: 'payment_confirmed',
-      },
       related_id: bookingId,
     });
   },
@@ -190,13 +162,6 @@ export const BookingNotifications = {
       type: 'payment',
       title: 'Payment Confirmed',
       message: `Your payment of $${amount.toFixed(2)} for "${listingTitle}" has been confirmed`,
-      data: {
-        booking_id: bookingId,
-        listing_title: listingTitle,
-        amount,
-        action_url: `/bookings/${bookingId}`,
-        type: 'payment_confirmed',
-      },
       related_id: bookingId,
     });
   },
@@ -220,12 +185,6 @@ export const MessageNotifications = {
       type: 'message',
       title: 'New Message',
       message: `${senderName}: ${messagePreview}`,
-      data: {
-        sender_name: senderName,
-        message_preview: messagePreview,
-        action_url: '/messages',
-        type: 'new_message',
-      },
       related_id: conversationId || null,
     });
   },
