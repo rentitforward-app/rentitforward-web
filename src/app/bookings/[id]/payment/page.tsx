@@ -369,7 +369,7 @@ export default function PaymentPage() {
                       </div>
                       <div className="border-t pt-3 flex justify-between text-lg font-semibold">
                         <span>Total</span>
-                        <span>{formatPrice(recalculated.total)}</span>
+                        <span>{formatPrice(booking.total_amount)}</span>
                       </div>
                     </>
                   );

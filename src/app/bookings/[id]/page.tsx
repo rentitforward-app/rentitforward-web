@@ -477,14 +477,7 @@ async function BookingDetailsContent({ params }: PageProps) {
                     <div className="flex justify-between">
                       <span className="text-lg font-bold text-gray-900">Total</span>
                       <span className="text-lg font-bold text-[#44D62C]">
-                        ${(() => {
-                          const subtotal = booking.subtotal || 0;
-                          const serviceFee = booking.service_fee || 0;
-                          const insuranceFee = booking.insurance_fee || 0;
-                          const deliveryFee = booking.delivery_fee || 0;
-                          const calculatedTotal = subtotal + serviceFee + insuranceFee + deliveryFee;
-                          return calculatedTotal.toFixed(2);
-                        })()}
+                        ${booking.total_amount?.toFixed(2) || '0.00'}
                       </span>
                     </div>
                   </div>
