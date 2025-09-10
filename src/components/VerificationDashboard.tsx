@@ -243,7 +243,7 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
       </Card>
 
       {/* Connect Account Setup */}
-      <Card>
+      <Card id="seller-account">
         <CardHeader>
           <CardTitle className="flex items-center">
             <CreditCard className="w-5 h-5 mr-2" />
