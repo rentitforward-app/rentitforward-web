@@ -12,7 +12,7 @@ import { loadStripe } from '@stripe/stripe-js';
 
 import { AvailabilityCalendar } from './AvailabilityCalendar';
 import { PricingBreakdown } from './PricingBreakdown';
-import { DateRangeSelection } from '@/lib/calendar-utils';
+import { DateRangeSelection, calculateDuration } from '@/lib/calendar-utils';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 
@@ -178,8 +178,8 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
 
     setIsCreatingBooking(true);
     try {
-      // Calculate booking details (inclusive duration)
-      const totalDays = Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      // Calculate booking details (inclusive duration) - use consistent calculation
+      const totalDays = calculateDuration(selectedDates.startDate, selectedDates.endDate);
       
       // Safe price parsing
       let pricePerDay = 0;
@@ -321,9 +321,9 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
 
   if (!isOpen) return null;
 
-  // Calculate pricing for display (inclusive duration)
+  // Calculate pricing for display (inclusive duration) - use consistent calculation
   const totalDays = selectedDates.startDate && selectedDates.endDate 
-    ? Math.ceil((selectedDates.endDate.getTime() - selectedDates.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    ? calculateDuration(selectedDates.startDate, selectedDates.endDate)
     : 0;
   
   // Pricing calculation is working correctly
