@@ -10,9 +10,11 @@ import {
   Receipt, 
   Download,
   Navigation,
-  MapPin
+  MapPin,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
+import { CancelBookingModal } from './CancelBookingModal';
 
 interface BookingActionsProps {
   booking: {
@@ -23,6 +25,17 @@ interface BookingActionsProps {
     listing_id: string;
     pickup_location?: string;
     start_date: string;
+    end_date: string;
+    total_amount?: number;
+    listings?: {
+      title: string;
+    };
+    profiles?: {
+      full_name: string;
+    };
+    renter?: {
+      full_name: string;
+    };
   };
   isOwner: boolean;
   canConfirmPickup: boolean;
@@ -37,6 +50,7 @@ export function BookingActions({
 }: BookingActionsProps) {
   const [isPickupLoading, setIsPickupLoading] = useState(false);
   const [isReturnLoading, setIsReturnLoading] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   
   // Calculate pickup date info
   const startDate = new Date(booking.start_date);
@@ -88,6 +102,30 @@ export function BookingActions({
     window.open('/contact?subject=Booking Issue&booking_id=' + booking.id, '_blank');
   };
 
+  const handleCancelBooking = async (reason: string, note: string) => {
+    try {
+      const response = await fetch(`/api/bookings/${booking.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, note })
+      });
+      
+      if (response.ok) {
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to cancel booking');
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Check if booking can be cancelled
+  const canCancel = booking.status === 'pending' || 
+                   booking.status === 'confirmed' || 
+                   booking.status === 'payment_required';
+
   const getPickupButtonText = () => {
     if (isPickupLoading) return 'Confirming...';
     if (isBeforePickupDate) return 'Confirm Pickup (Not Available Yet)';
@@ -120,6 +158,18 @@ export function BookingActions({
         >
           <Flag className="w-4 h-4 mr-2" />
           {isReturnLoading ? 'Confirming...' : 'Confirm Return'}
+        </Button>
+      )}
+
+      {/* Cancel Booking Button */}
+      {canCancel && (
+        <Button 
+          variant="outline" 
+          className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+          onClick={() => setShowCancelModal(true)}
+        >
+          <X className="w-4 h-4 mr-2" />
+          Cancel Booking
         </Button>
       )}
 
@@ -164,6 +214,23 @@ export function BookingActions({
           </Link>
         )}
       </div>
+
+      {/* Cancel Booking Modal */}
+      <CancelBookingModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={handleCancelBooking}
+        booking={{
+          id: booking.id,
+          title: booking.listings?.title || 'Unknown Item',
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          total_amount: booking.total_amount || 0,
+          owner_name: booking.profiles?.full_name || 'Unknown Owner',
+          renter_name: booking.renter?.full_name || 'Unknown Renter'
+        }}
+        isRenter={!isOwner}
+      />
     </div>
   );
 }

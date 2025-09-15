@@ -514,7 +514,18 @@ async function BookingDetailsContent({ params }: PageProps) {
                     renter_id: booking.renter_id,
                     listing_id: booking.listing_id,
                     pickup_location: booking.pickup_location,
-                    start_date: booking.start_date
+                    start_date: booking.start_date,
+                    end_date: booking.end_date,
+                    total_amount: booking.total_amount,
+                    listings: {
+                      title: booking.listings.title
+                    },
+                    profiles: {
+                      full_name: booking.profiles.full_name
+                    },
+                    renter: {
+                      full_name: booking.renter?.full_name || 'Unknown Renter'
+                    }
                   }}
                   isOwner={isOwner}
                   canConfirmPickup={canConfirmPickup}

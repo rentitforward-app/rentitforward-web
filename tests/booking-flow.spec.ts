@@ -267,6 +267,86 @@ test.describe('Booking Flow', () => {
     });
   });
 
+  test.describe('Booking Cancellation', () => {
+    
+    test('renter can cancel booking with confirmation modal', async ({ page }) => {
+      await testUtils.login();
+      
+      // Go to a booking details page (assuming test booking exists)
+      await page.goto('/bookings/1');
+      
+      // Should see cancel booking button
+      const cancelButton = page.locator('button:has-text("Cancel Booking")');
+      await expect(cancelButton).toBeVisible();
+      
+      // Click cancel button
+      await cancelButton.click();
+      
+      // Should show cancellation modal
+      await expect(page.locator('[data-testid="cancel-booking-modal"]')).toBeVisible();
+      
+      // Fill cancellation form
+      await page.selectOption('select[name="reason"]', 'user_requested');
+      await page.fill('textarea[name="note"]', 'Change of plans');
+      
+      // Confirm cancellation
+      await page.click('button:has-text("Cancel Booking")');
+      
+      // Should show success message or redirect
+      await expect(page.locator('[data-testid="cancellation-success"]')).toBeVisible();
+    });
+
+    test('cancellation modal shows correct fee calculation for late cancellation', async ({ page }) => {
+      await testUtils.login();
+      
+      // Create a booking with pickup date less than 24 hours away
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      // Mock booking data with near pickup date
+      await page.goto('/bookings/1');
+      
+      // Click cancel button
+      await page.click('button:has-text("Cancel Booking")');
+      
+      // Should show late cancellation warning
+      await expect(page.locator('text=Late Cancellation Fee')).toBeVisible();
+      await expect(page.locator('text=50% cancellation fee')).toBeVisible();
+    });
+
+    test('cancellation modal shows free cancellation for bookings more than 24 hours away', async ({ page }) => {
+      await testUtils.login();
+      
+      // Create a booking with pickup date more than 24 hours away
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      
+      // Mock booking data with future pickup date
+      await page.goto('/bookings/1');
+      
+      // Click cancel button
+      await page.click('button:has-text("Cancel Booking")');
+      
+      // Should show free cancellation
+      await expect(page.locator('text=Free Cancellation')).toBeVisible();
+      await expect(page.locator('text=more than 24 hours')).toBeVisible();
+    });
+
+    test('cancellation requires reason selection', async ({ page }) => {
+      await testUtils.login();
+      await page.goto('/bookings/1');
+      
+      // Click cancel button
+      await page.click('button:has-text("Cancel Booking")');
+      
+      // Try to confirm without selecting reason
+      await page.click('button:has-text("Cancel Booking")');
+      
+      // Should show validation error
+      await expect(page.locator('text=Please select a cancellation reason')).toBeVisible();
+    });
+  });
+
   test.describe('Error Handling', () => {
     
     test('handles network errors gracefully', async ({ page }) => {

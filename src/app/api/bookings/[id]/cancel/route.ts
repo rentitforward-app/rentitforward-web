@@ -1,132 +1,235 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2023-10-16',
+});
+// Define booking enums locally since shared package import is failing
+const BookingStatus = {
+  PENDING: 'pending',
+  PENDING_PAYMENT: 'pending_payment',
+  CONFIRMED: 'confirmed',
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+  REJECTED: 'rejected',
+  DISPUTED: 'disputed',
+  REFUNDED: 'refunded'
+} as const;
+
+const BookingCancellationReason = {
+  USER_REQUESTED: 'user_requested',
+  OWNER_CANCELLED: 'owner_cancelled',
+  ITEM_UNAVAILABLE: 'item_unavailable',
+  PAYMENT_FAILED: 'payment_failed',
+  POLICY_VIOLATION: 'policy_violation',
+  DAMAGE_REPORTED: 'damage_reported',
+  OTHER: 'other'
+} as const;
 
 interface RouteParams {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-/**
- * POST /api/bookings/[id]/cancel
- * Cancel a booking (only allowed for payment_required bookings)
- */
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { id: bookingId } = await params;
-
+    
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get the booking to verify ownership and status
+    const { reason, note } = await request.json();
+    
+    // Await params to fix Next.js warning
+    const { id } = await params;
+    
+    // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, renter_id, owner_id, status, listing_id, start_date, end_date')
-      .eq('id', bookingId)
+      .select(`
+        *,
+        listings!listing_id (
+          id,
+          title,
+          price_per_day
+        ),
+        profiles!owner_id (
+          id,
+          full_name,
+          email
+        ),
+        renter:profiles!renter_id (
+          id,
+          full_name,
+          email
+        )
+      `)
+      .eq('id', id)
+      .or(`renter_id.eq.${user.id},owner_id.eq.${user.id}`)
       .single();
 
     if (bookingError || !booking) {
-      return NextResponse.json(
-        { error: 'Booking not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    // Check if user is the renter or owner
-    if (booking.renter_id !== user.id && booking.owner_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Access denied' },
-        { status: 403 }
-      );
+    // Check if user can cancel this booking
+    const isRenter = booking.renter_id === user.id;
+    const isOwner = booking.owner_id === user.id;
+    
+    if (!isRenter && !isOwner) {
+      return NextResponse.json({ error: 'Unauthorized to cancel this booking' }, { status: 403 });
     }
 
-    // Only allow cancellation for specific statuses
-    const cancellableStatuses = ['pending', 'payment_required'];
-    if (!cancellableStatuses.includes(booking.status)) {
-      return NextResponse.json(
-        { 
-          error: `Cannot cancel booking with status '${booking.status}'. Only bookings with status '${cancellableStatuses.join("' or '")}' can be cancelled.` 
-        },
-        { status: 400 }
-      );
+    // Check if booking can be cancelled
+    if (booking.status === 'cancelled' || booking.status === 'completed') {
+      return NextResponse.json({ error: 'Booking cannot be cancelled' }, { status: 400 });
     }
 
-    // Update booking status to cancelled
-    const { error: updateError } = await supabase
-      .from('bookings')
-      .update({ 
-        status: 'cancelled',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', bookingId);
-
-    if (updateError) {
-      console.error('Error updating booking:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to cancel booking' },
-        { status: 500 }
-      );
+    // Calculate cancellation fee based on timing
+    const startDate = new Date(booking.start_date);
+    const now = new Date();
+    const hoursUntilStart = (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    let cancellationFee = 0;
+    let refundAmount = booking.total_amount;
+    
+    // If less than 24 hours before pickup, charge 50% cancellation fee
+    if (hoursUntilStart < 24) {
+      cancellationFee = booking.total_amount * 0.5;
+      refundAmount = booking.total_amount - cancellationFee;
     }
 
-          // Create notifications for both parties
-      const isRenterCancelling = booking.renter_id === user.id;
-      const otherPartyId = isRenterCancelling ? booking.owner_id : booking.renter_id;
-      
-      const notifications = [
-        // Notification for the person who cancelled
-        {
-          user_id: user.id,
-          type: 'booking_cancelled',
-          title: 'Booking Cancelled',
-          message: `You have successfully cancelled the booking${booking.start_date ? ` for ${booking.start_date} to ${booking.end_date}` : ''}.`,
-          data: {
-            booking_id: bookingId,
-            action: 'self_cancelled'
-          },
-          created_at: new Date().toISOString(),
-        },
-        // Notification for the other party
-        {
-          user_id: otherPartyId,
-          type: 'booking_cancelled',
-          title: 'Booking Cancelled',
-          message: `A booking${booking.start_date ? ` for ${booking.start_date} to ${booking.end_date}` : ''} has been cancelled by the ${isRenterCancelling ? 'renter' : 'owner'}.`,
-          data: {
-            booking_id: bookingId,
-            cancelled_by: isRenterCancelling ? 'renter' : 'owner'
-          },
-          created_at: new Date().toISOString(),
-        },
-      ];
-
-    // Insert notifications (don't fail the API if notifications fail)
-    for (const notification of notifications) {
+    // Process Stripe refund if payment was made
+    let stripeRefundId = null;
+    if (booking.stripe_payment_intent_id && booking.payment_status === 'succeeded') {
       try {
-        await supabase.from('notifications').insert(notification);
-      } catch (notificationError) {
-        console.error('Error creating notification:', notificationError);
+        const refund = await stripe.refunds.create({
+          payment_intent: booking.stripe_payment_intent_id,
+          amount: Math.round(refundAmount * 100), // Convert to cents
+          reason: 'requested_by_customer',
+          metadata: {
+            booking_id: booking.id,
+            cancellation_reason: reason,
+            cancellation_fee: cancellationFee.toString(),
+            refund_amount: refundAmount.toString()
+          }
+        });
+        stripeRefundId = refund.id;
+      } catch (stripeError) {
+        console.error('Stripe refund failed:', stripeError);
+        return NextResponse.json(
+          { error: 'Failed to process refund. Please contact support.' },
+          { status: 500 }
+        );
       }
     }
 
-    return NextResponse.json({
-      success: true,
+    // Update booking status
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: reason || BookingCancellationReason.USER_REQUESTED,
+        cancellation_note: note || null,
+        cancellation_fee: cancellationFee,
+        refund_amount: refundAmount,
+        payment_status: stripeRefundId ? 'refunded' : booking.payment_status
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      return NextResponse.json({ error: 'Failed to cancel booking' }, { status: 500 });
+    }
+
+    // Send cancellation emails
+    try {
+      await sendCancellationEmails(booking, isRenter, cancellationFee, refundAmount);
+    } catch (emailError) {
+      console.error('Failed to send cancellation emails:', emailError);
+      // Don't fail the cancellation if email fails
+    }
+
+    // If there's a refund, process it
+    if (refundAmount > 0) {
+      try {
+        await processRefund(booking, refundAmount);
+      } catch (refundError) {
+        console.error('Failed to process refund:', refundError);
+        // Log error but don't fail the cancellation
+      }
+    }
+
+    return NextResponse.json({ 
+      success: true, 
       message: 'Booking cancelled successfully',
-      booking_id: bookingId
+      cancellationFee,
+      refundAmount
     });
 
   } catch (error) {
-    console.error('Booking cancellation API error:', error);
+    console.error('Cancel booking error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     );
   }
+}
+
+async function sendCancellationEmails(booking: any, isRenter: boolean, cancellationFee: number, refundAmount: number) {
+  const supabase = await createClient();
+  
+  const recipientEmail = isRenter ? booking.profiles.email : booking.renter.email;
+  const recipientName = isRenter ? booking.profiles.full_name : booking.renter.full_name;
+  const otherPartyName = isRenter ? booking.renter.full_name : booking.profiles.full_name;
+  
+  const emailData = {
+    bookingId: booking.id,
+    itemTitle: booking.listings.title,
+    startDate: new Date(booking.start_date).toLocaleDateString(),
+    endDate: new Date(booking.end_date).toLocaleDateString(),
+    totalAmount: booking.total_amount,
+    cancellationFee,
+    refundAmount,
+    recipientName,
+    otherPartyName,
+    isRenter
+  };
+
+  // Send email to the person who cancelled
+  await supabase.functions.invoke('send-cancellation-email', {
+    body: {
+      to: recipientEmail,
+      template: 'booking-cancelled',
+      data: emailData
+    }
+  });
+
+  // Send email to the other party
+  const otherPartyEmail = isRenter ? booking.renter.email : booking.profiles.email;
+  await supabase.functions.invoke('send-cancellation-email', {
+    body: {
+      to: otherPartyEmail,
+      template: 'booking-cancelled-other-party',
+      data: emailData
+    }
+  });
+}
+
+async function processRefund(booking: any, refundAmount: number) {
+  // This would integrate with your payment processor (Stripe)
+  // For now, we'll just log the refund amount
+  console.log(`Processing refund of $${refundAmount} for booking ${booking.id}`);
+  
+  // TODO: Implement actual refund processing with Stripe
+  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  // await stripe.refunds.create({
+  //   payment_intent: booking.payment_intent_id,
+  //   amount: Math.round(refundAmount * 100), // Convert to cents
+  //   reason: 'requested_by_customer'
+  // });
 }
