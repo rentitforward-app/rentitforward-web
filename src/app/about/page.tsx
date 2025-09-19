@@ -37,19 +37,16 @@ export default function AboutPage() {
       <section className="py-16 bg-white">
         <div className="max-w-screen-2xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-secondary mb-6">Our Mission</h2>
-              <p className="text-gray-600 text-lg leading-relaxed mb-6">
+            <Card variant="elevated" padding="lg">
+              <CardContent className="p-0">
+                <h3 className="text-2xl font-bold text-secondary mb-4">Our Mision</h3>
+                <p className="text-gray-600 text-lg leading-relaxed">
                 To create a sustainable sharing economy where Australians can access what they need 
                 without the burden of ownership, while building stronger communities and reducing 
                 environmental impact.
-              </p>
-              <p className="text-gray-600 text-lg leading-relaxed">
-                We believe that sharing is the future – not just for environmental reasons, 
-                but because it creates opportunities for people to connect, earn income, 
-                and access tools and items they need without the high cost of purchase.
-              </p>
-            </div>
+                </p>
+              </CardContent>
+            </Card>
             <Card variant="elevated" padding="lg">
               <CardContent className="p-0">
                 <h3 className="text-2xl font-bold text-secondary mb-4">Our Vision</h3>
