@@ -8,8 +8,10 @@ interface NotificationPreferences {
   review_notifications: boolean;
   system_notifications: boolean;
   marketing_notifications: boolean;
-  push_enabled: boolean;
+  push_notifications: boolean;
   email_enabled: boolean;
+  fcm_web_enabled: boolean;
+  fcm_mobile_enabled: boolean;
 }
 
 export async function GET(request: NextRequest) {
@@ -45,8 +47,10 @@ export async function GET(request: NextRequest) {
       review_notifications: true,
       system_notifications: true,
       marketing_notifications: false,
-      push_enabled: false,
+      push_notifications: false,
       email_enabled: true,
+      fcm_web_enabled: false,
+      fcm_mobile_enabled: false,
     };
 
     return NextResponse.json({
@@ -81,8 +85,10 @@ export async function PUT(request: NextRequest) {
       'review_notifications',
       'system_notifications',
       'marketing_notifications',
-      'push_enabled',
-      'email_enabled'
+      'push_notifications',
+      'email_enabled',
+      'fcm_web_enabled',
+      'fcm_mobile_enabled'
     ];
 
     for (const field of requiredFields) {
@@ -118,13 +124,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // If push notifications are enabled, tag the user in OneSignal
-    if (preferences.push_enabled) {
+    // If push notifications are enabled, ensure FCM tokens are active
+    if (preferences.push_notifications) {
       try {
-        await updateOneSignalTags(user.id, preferences);
-      } catch (oneSignalError) {
-        console.error('Error updating OneSignal tags:', oneSignalError);
-        // Don't fail the request if OneSignal update fails
+        await updateFCMSubscriptions(user.id, preferences);
+      } catch (fcmError) {
+        console.error('Error updating FCM subscriptions:', fcmError);
+        // Don't fail the request if FCM update fails
       }
     }
 
@@ -141,41 +147,42 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-async function updateOneSignalTags(userId: string, preferences: NotificationPreferences) {
-  const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY;
-  const ONESIGNAL_APP_ID = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
-
-  if (!ONESIGNAL_API_KEY || !ONESIGNAL_APP_ID) {
-    console.warn('OneSignal API key or App ID not configured');
-    return;
-  }
-
+async function updateFCMSubscriptions(userId: string, preferences: NotificationPreferences) {
   try {
-    const response = await fetch('https://onesignal.com/api/v1/apps/{app_id}/users/by/external_id/{external_user_id}', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${ONESIGNAL_API_KEY}`,
-      },
-      body: JSON.stringify({
-        tags: {
-          booking_notifications: preferences.booking_notifications,
-          message_notifications: preferences.message_notifications,
-          payment_notifications: preferences.payment_notifications,
-          review_notifications: preferences.review_notifications,
-          marketing_notifications: preferences.marketing_notifications,
-          user_type: 'web',
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OneSignal API error: ${response.status}`);
+    const supabase = await createClient();
+    
+    // Update FCM subscription preferences based on platform enablement
+    const updates: any = {};
+    
+    if (!preferences.fcm_web_enabled) {
+      // Deactivate web FCM tokens if web notifications are disabled
+      await supabase
+        .from('fcm_subscriptions')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('platform', 'web');
+    }
+    
+    if (!preferences.fcm_mobile_enabled) {
+      // Deactivate mobile FCM tokens if mobile notifications are disabled
+      await supabase
+        .from('fcm_subscriptions')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .in('platform', ['ios', 'android']);
+    }
+    
+    // If push notifications are completely disabled, deactivate all tokens
+    if (!preferences.push_notifications) {
+      await supabase
+        .from('fcm_subscriptions')
+        .update({ is_active: false })
+        .eq('user_id', userId);
     }
 
-    console.log('OneSignal tags updated for user:', userId);
+    console.log('FCM subscriptions updated for user:', userId);
   } catch (error) {
-    console.error('Failed to update OneSignal tags:', error);
+    console.error('Failed to update FCM subscriptions:', error);
     throw error;
   }
 } 

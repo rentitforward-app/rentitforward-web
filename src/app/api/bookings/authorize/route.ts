@@ -261,18 +261,9 @@ export async function POST(request: NextRequest) {
 
     // Send notifications to owner about new booking request
     try {
-      // Send OneSignal push notification
-      const { BookingNotifications } = await import('@/lib/onesignal/notifications');
-      await BookingNotifications.notifyOwnerBookingRequest(
-        listing.owner_id,
-        booking.id,
-        listing.title,
-        profile.name
-      );
-
-      // Create database notification for in-app notifications
-      const { BookingNotifications: DatabaseNotifications } = await import('@/lib/notifications/database');
-      await DatabaseNotifications.createOwnerBookingRequestNotification(
+      // Send FCM push notification and create in-app notification
+      const { FCMBookingNotifications } = await import('@/lib/fcm/notifications');
+      await FCMBookingNotifications.notifyOwnerBookingRequest(
         listing.owner_id,
         booking.id,
         listing.title,

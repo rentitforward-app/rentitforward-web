@@ -175,27 +175,27 @@ export async function POST(
     ];
 
     await supabase
-      .from('notification_history')
-      .insert(notificationData);
+      .from('app_notifications')
+      .insert(notificationData.map(data => ({
+        user_id: data.user_id,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        action_url: `/bookings/${bookingId}`,
+        data: data.metadata,
+        priority: 7, // High priority for booking rejections
+      })));
 
     // Send notifications about booking rejection
     try {
-      const { BookingNotifications } = await import('@/lib/onesignal/notifications');
-      const { BookingNotifications: DatabaseNotifications } = await import('@/lib/notifications/database');
+      const { FCMBookingNotifications } = await import('@/lib/fcm/notifications');
       
-      // Send OneSignal push notification
-      await BookingNotifications.notifyRenterBookingRejected(
+      // Send FCM push notification to renter
+      await FCMBookingNotifications.notifyRenterBookingRejected(
         booking.renter_id,
         bookingId,
         booking.listings.title,
         reason
-      );
-
-      // Create database notification
-      await DatabaseNotifications.createRenterBookingRejectedNotification(
-        booking.renter_id,
-        bookingId,
-        booking.listings.title
       );
     } catch (notificationError) {
       console.error('Failed to send rejection notification:', notificationError);

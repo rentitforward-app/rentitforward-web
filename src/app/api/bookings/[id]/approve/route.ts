@@ -183,43 +183,39 @@ export async function POST(
     ];
 
     await supabase
-      .from('notification_history')
-      .insert(confirmationData);
+      .from('app_notifications')
+      .insert(confirmationData.map(data => ({
+        user_id: data.user_id,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        action_url: `/bookings/${bookingId}`,
+        data: data.metadata,
+        priority: 8, // High priority for booking confirmations
+      })));
 
     // Send notifications about booking approval
     try {
-      const { BookingNotifications } = await import('@/lib/onesignal/notifications');
-      const { BookingNotifications: DatabaseNotifications } = await import('@/lib/notifications/database');
+      const { FCMBookingNotifications } = await import('@/lib/fcm/notifications');
       
-      // Notify renter of approval (OneSignal + Database)
-      await BookingNotifications.notifyRenterBookingApproved(
-        booking.renter_id,
-        bookingId,
-        booking.listings.title
-      );
-      await DatabaseNotifications.createRenterBookingApprovedNotification(
+      // Notify renter of approval (FCM + In-app)
+      await FCMBookingNotifications.notifyRenterBookingApproved(
         booking.renter_id,
         bookingId,
         booking.listings.title
       );
 
-      // Notify about payment confirmation (OneSignal + Database)
-      await BookingNotifications.notifyPaymentConfirmed(
-        booking.renter_id,
-        bookingId,
-        booking.listings.title,
-        captureResult.capturedAmount || booking.total_amount
-      );
-      await DatabaseNotifications.createRenterPaymentConfirmedNotification(
+      // Notify about payment confirmation (FCM + In-app)
+      await FCMBookingNotifications.notifyPaymentConfirmed(
         booking.renter_id,
         bookingId,
         booking.listings.title,
         captureResult.capturedAmount || booking.total_amount
       );
 
-      // Notify owner about payment confirmation (Database only)
-      await DatabaseNotifications.createOwnerPaymentConfirmedNotification(
-        booking.owner_id,
+      // Notify owner about payment confirmation (FCM + In-app)
+      await FCMBookingNotifications.notifyPaymentConfirmed(
+        booking.listings.owner_id,
         bookingId,
         booking.listings.title,
         captureResult.capturedAmount || booking.total_amount

@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/Badge';
-import { Bell, BellOff, CheckCircle, AlertCircle, Mail, CreditCard, Star, Megaphone } from 'lucide-react';
+import { Bell, BellOff, CheckCircle, AlertCircle, Mail, CreditCard, Star, Megaphone, Smartphone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { useFCM, useNotificationPermission, useNotificationPreferences } from '@/components/FCMProvider';
 
 interface NotificationCategory {
   key: string;
@@ -26,8 +27,10 @@ interface NotificationPreferences {
   review_notifications: boolean;
   system_notifications: boolean;
   marketing_notifications: boolean;
-  push_enabled: boolean;
+  push_notifications: boolean;
   email_enabled: boolean;
+  fcm_web_enabled: boolean;
+  fcm_mobile_enabled: boolean;
 }
 
 const notificationCategories: NotificationCategory[] = [
@@ -79,68 +82,15 @@ const notificationCategories: NotificationCategory[] = [
 export function NotificationSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [preferences, setPreferences] = useState<NotificationPreferences>({
-    booking_notifications: true,
-    message_notifications: true,
-    payment_notifications: true,
-    review_notifications: true,
-    system_notifications: true,
-    marketing_notifications: false,
-    push_enabled: false,
-    email_enabled: true,
-  });
-  const [loading, setLoading] = useState(true);
+  const fcm = useFCM();
+  const { permission, requestPermission } = useNotificationPermission();
+  const { preferences, loading, updatePreferences } = useNotificationPreferences();
   const [saving, setSaving] = useState(false);
-  const [pushPermissionStatus, setPushPermissionStatus] = useState<'granted' | 'denied' | 'default'>('default');
 
-  // Load user preferences on mount
-  useEffect(() => {
-    loadPreferences();
-    checkPushPermission();
-  }, [user]);
-
-  const loadPreferences = async () => {
-    if (!user) return;
-    
+  const handleRequestPermission = async () => {
     try {
-      const response = await fetch('/api/notifications/preferences');
-      if (response.ok) {
-        const data = await response.json();
-        setPreferences(prev => ({ ...prev, ...data.preferences }));
-      }
-    } catch (error) {
-      console.error('Error loading preferences:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const checkPushPermission = async () => {
-    if ('Notification' in window) {
-      setPushPermissionStatus(Notification.permission);
-    }
-  };
-
-  const requestPushPermission = async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      setPushPermissionStatus(permission);
-      
-      if (permission === 'granted') {
-        // Initialize OneSignal if not already done
-        if (window.OneSignal) {
-          await window.OneSignal.init({
-            appId: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID!,
-            allowLocalhostAsSecureOrigin: true,
-          });
-          
-          // Set external user ID
-          if (user?.id) {
-            await window.OneSignal.setExternalUserId(user.id);
-          }
-        }
-        
-        setPreferences(prev => ({ ...prev, push_enabled: true }));
+      const granted = await requestPermission();
+      if (granted) {
         toast({
           title: 'Push notifications enabled',
           description: 'You will now receive push notifications.',
@@ -152,58 +102,52 @@ export function NotificationSettings() {
           variant: 'destructive',
         });
       }
+    } catch (error) {
+      console.error('Error requesting permission:', error);
+      toast({
+        title: 'Error enabling notifications',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const disablePushNotifications = async () => {
-    if (window.OneSignal) {
-      await window.OneSignal.setSubscription(false);
+  const handleDisablePushNotifications = async () => {
+    try {
+      // Update preferences to disable push notifications
+      await updatePreferences({
+        ...preferences,
+        push_notifications: false,
+        fcm_web_enabled: false,
+      });
+      
+      toast({
+        title: 'Push notifications disabled',
+        description: 'You will no longer receive push notifications.',
+      });
+    } catch (error) {
+      console.error('Error disabling notifications:', error);
+      toast({
+        title: 'Error disabling notifications',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
     }
-    setPreferences(prev => ({ ...prev, push_enabled: false }));
-    setPushPermissionStatus('denied');
-    
-    toast({
-      title: 'Push notifications disabled',
-      description: 'You will no longer receive push notifications.',
-    });
   };
 
   const updatePreference = (key: keyof NotificationPreferences, value: boolean) => {
-    setPreferences(prev => ({ ...prev, [key]: value }));
+    const updatedPreferences = { ...preferences, [key]: value };
+    updatePreferences(updatedPreferences);
   };
 
   const savePreferences = async () => {
-    if (!user) return;
-    
     setSaving(true);
     try {
-      const response = await fetch('/api/notifications/preferences', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ preferences }),
+      await updatePreferences(preferences);
+      toast({
+        title: 'Preferences saved',
+        description: 'Your notification preferences have been updated.',
       });
-
-      if (response.ok) {
-        // Update OneSignal tags based on preferences
-        if (window.OneSignal && preferences.push_enabled) {
-          await window.OneSignal.sendTags({
-            booking_notifications: preferences.booking_notifications,
-            message_notifications: preferences.message_notifications,
-            payment_notifications: preferences.payment_notifications,
-            review_notifications: preferences.review_notifications,
-            marketing_notifications: preferences.marketing_notifications,
-          });
-        }
-
-        toast({
-          title: 'Preferences saved',
-          description: 'Your notification preferences have been updated.',
-        });
-      } else {
-        throw new Error('Failed to save preferences');
-      }
     } catch (error) {
       console.error('Error saving preferences:', error);
       toast({
@@ -244,12 +188,12 @@ export function NotificationSettings() {
             <div className="space-y-1">
               <p className="font-medium">Browser Push Notifications</p>
               <p className="text-sm text-gray-600">
-                Status: {pushPermissionStatus === 'granted' ? (
+                Status: {permission === 'granted' ? (
                   <Badge variant="default" className="bg-green-100 text-green-800">
                     <CheckCircle className="w-3 h-3 mr-1" />
                     Enabled
                   </Badge>
-                ) : pushPermissionStatus === 'denied' ? (
+                ) : permission === 'denied' ? (
                   <Badge variant="destructive">
                     <BellOff className="w-3 h-3 mr-1" />
                     Blocked
@@ -263,17 +207,17 @@ export function NotificationSettings() {
               </p>
             </div>
             
-            {pushPermissionStatus === 'granted' ? (
+            {permission === 'granted' ? (
               <Button
                 variant="outline"
-                onClick={disablePushNotifications}
+                onClick={handleDisablePushNotifications}
                 className="text-red-600 hover:text-red-700"
               >
                 <BellOff className="w-4 h-4 mr-2" />
                 Disable
               </Button>
             ) : (
-              <Button onClick={requestPushPermission}>
+              <Button onClick={handleRequestPermission}>
                 <Bell className="w-4 h-4 mr-2" />
                 Enable Push
               </Button>
@@ -321,6 +265,41 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
+      {/* Platform-Specific Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Platform Settings</CardTitle>
+          <CardDescription>
+            Control notifications for different platforms
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="font-medium">Web Notifications</p>
+              <p className="text-sm text-gray-600">Receive notifications in your browser</p>
+            </div>
+            <Switch
+              checked={preferences.fcm_web_enabled}
+              onCheckedChange={(checked) => updatePreference('fcm_web_enabled', checked)}
+            />
+          </div>
+          
+          <Separator />
+          
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="font-medium">Mobile App Notifications</p>
+              <p className="text-sm text-gray-600">Receive notifications on your mobile device</p>
+            </div>
+            <Switch
+              checked={preferences.fcm_mobile_enabled}
+              onCheckedChange={(checked) => updatePreference('fcm_mobile_enabled', checked)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Delivery Methods */}
       <Card>
         <CardHeader>
@@ -352,15 +331,3 @@ export function NotificationSettings() {
     </div>
   );
 }
-
-// Global OneSignal type declaration
-declare global {
-  interface Window {
-    OneSignal?: {
-      init: (config: any) => Promise<void>;
-      setExternalUserId: (userId: string) => Promise<void>;
-      setSubscription: (subscribe: boolean) => Promise<void>;
-      sendTags: (tags: Record<string, any>) => Promise<void>;
-    };
-  }
-} 

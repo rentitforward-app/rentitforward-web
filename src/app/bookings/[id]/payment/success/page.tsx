@@ -189,9 +189,9 @@ function PaymentSuccessContent() {
             
             // Send notification to owner about completed booking
             try {
-              const { BookingNotifications } = await import('@/lib/onesignal/notifications');
+              const { FCMBookingNotifications } = await import('@/lib/fcm/notifications');
               
-              await BookingNotifications.notifyOwnerBookingCompleted(
+              await FCMBookingNotifications.notifyOwnerBookingCompleted(
                 bookingData.listings.owner_id,
                 bookingData.id,
                 bookingData.listings.title,

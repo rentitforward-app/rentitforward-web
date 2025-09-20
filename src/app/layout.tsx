@@ -91,21 +91,19 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} ${roboto.variable}`}>
       <head>
-        {/* OneSignal Web Push SDK */}
-        <script 
-          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" 
-          defer 
-        />
+        {/* Firebase Cloud Messaging Service Worker */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              window.OneSignalDeferred = window.OneSignalDeferred || [];
-              OneSignalDeferred.push(async function(OneSignal) {
-                await OneSignal.init({
-                  appId: "${process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID}",
-                  allowLocalhostAsSecureOrigin: true,
-                });
-              });
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/firebase-messaging-sw.js')
+                  .then((registration) => {
+                    console.log('Firebase SW registered:', registration);
+                  })
+                  .catch((error) => {
+                    console.error('Firebase SW registration failed:', error);
+                  });
+              }
             `,
           }}
         />
