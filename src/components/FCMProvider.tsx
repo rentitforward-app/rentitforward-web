@@ -9,7 +9,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { fcmClientService, type MessagePayload } from '@/lib/fcm/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/use-auth';
 
 interface FCMContextType {
   // Token management

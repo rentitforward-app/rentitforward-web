@@ -189,17 +189,21 @@ function PaymentSuccessContent() {
             
             // Send notification to owner about completed booking
             try {
-              const { FCMBookingNotifications } = await import('@/lib/fcm/notifications');
-              
-              await FCMBookingNotifications.notifyOwnerBookingCompleted(
-                bookingData.listings.owner_id,
-                bookingData.id,
-                bookingData.listings.title,
-                bookingData.renter_profile?.full_name || 'A user',
-                bookingData.total_amount || 0,
-                bookingData.start_date,
-                bookingData.end_date
-              );
+              await fetch('/api/notifications/booking-completed', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  bookingId: bookingData.id,
+                  ownerId: bookingData.listings.owner_id,
+                  listingTitle: bookingData.listings.title,
+                  renterName: bookingData.renter_profile?.full_name || 'A user',
+                  totalAmount: bookingData.total_amount || 0,
+                  startDate: bookingData.start_date,
+                  endDate: bookingData.end_date,
+                }),
+              });
               
               console.log('✅ Owner notification sent successfully for booking:', bookingData.id);
               

@@ -152,12 +152,28 @@ class FCMAdminService {
 
   constructor() {
     this.config = {
-      projectId: process.env.FIREBASE_PROJECT_ID!,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')!,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
+      projectId: process.env.FIREBASE_PROJECT_ID || '',
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
     };
 
-    this.initialize();
+    // Only initialize if we have valid config (not placeholder values)
+    const hasValidConfig = this.config.projectId && 
+                          this.config.privateKey && 
+                          this.config.clientEmail && 
+                          !this.config.privateKey.includes('YOUR_FIREBASE_PRIVATE_KEY_HERE') &&
+                          this.config.projectId !== 'your_firebase_project_id';
+    
+    if (hasValidConfig) {
+      try {
+        this.initialize();
+      } catch (error) {
+        console.warn('FCM Admin SDK initialization failed:', error);
+        // Don't throw error during build time
+      }
+    } else {
+      console.warn('FCM Admin SDK not configured - notifications will be disabled');
+    }
   }
 
   private initialize(): void {
@@ -194,7 +210,8 @@ class FCMAdminService {
     options: FCMMessageOptions
   ): Promise<FCMSendResult> {
     if (!this.messaging) {
-      throw new Error('FCM Admin SDK not initialized');
+      console.warn('FCM Admin SDK not initialized - skipping notification');
+      return { success: false, error: 'FCM not configured' };
     }
 
     try {
@@ -226,7 +243,8 @@ class FCMAdminService {
     options: FCMMessageOptions
   ): Promise<FCMSendResult> {
     if (!this.messaging) {
-      throw new Error('FCM Admin SDK not initialized');
+      console.warn('FCM Admin SDK not initialized - skipping notification');
+      return { success: false, error: 'FCM not configured' };
     }
 
     if (tokens.length === 0) {
@@ -278,7 +296,8 @@ class FCMAdminService {
     options: FCMMessageOptions
   ): Promise<FCMSendResult> {
     if (!this.messaging) {
-      throw new Error('FCM Admin SDK not initialized');
+      console.warn('FCM Admin SDK not initialized - skipping notification');
+      return { success: false, error: 'FCM not configured' };
     }
 
     try {
@@ -310,7 +329,8 @@ class FCMAdminService {
     options: FCMMessageOptions
   ): Promise<FCMSendResult> {
     if (!this.messaging) {
-      throw new Error('FCM Admin SDK not initialized');
+      console.warn('FCM Admin SDK not initialized - skipping notification');
+      return { success: false, error: 'FCM not configured' };
     }
 
     try {
@@ -339,7 +359,8 @@ class FCMAdminService {
    */
   async subscribeToTopic(tokens: string[], topic: string): Promise<void> {
     if (!this.messaging) {
-      throw new Error('FCM Admin SDK not initialized');
+      console.warn('FCM Admin SDK not initialized - skipping notification');
+      return { success: false, error: 'FCM not configured' };
     }
 
     try {
@@ -356,7 +377,8 @@ class FCMAdminService {
    */
   async unsubscribeFromTopic(tokens: string[], topic: string): Promise<void> {
     if (!this.messaging) {
-      throw new Error('FCM Admin SDK not initialized');
+      console.warn('FCM Admin SDK not initialized - skipping notification');
+      return { success: false, error: 'FCM not configured' };
     }
 
     try {

@@ -6,12 +6,9 @@
  */
 
 import { fcmAdminService, buildFCMMessage, type FCMSendResult } from './admin';
-import { createClient } from '@/lib/supabase/server';
 import { 
   NotificationType, 
-  NotificationContext, 
-  createNotification, 
-  NOTIFICATION_TEMPLATES 
+  NotificationContext
 } from '@rentitforward/shared';
 
 // FCM notification categories (mapped from shared types)
@@ -326,6 +323,7 @@ class FCMNotificationService {
    */
   private async shouldSendNotification(userId: string, category: string): Promise<boolean> {
     try {
+      const { createClient } = await import('@/lib/supabase/server');
       const supabase = await createClient();
       
       const { data: preferences, error } = await supabase
