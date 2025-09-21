@@ -111,4 +111,43 @@ export function formatDateTime(date: string | Date): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(date))
+}
+
+/**
+ * Format date for chat messages with "Today", "Yesterday", or actual date
+ */
+export function formatChatDate(date: string | Date): string {
+  const messageDate = new Date(date)
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
+  
+  // Reset time to compare only dates
+  const messageDateOnly = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate())
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+  
+  if (messageDateOnly.getTime() === todayOnly.getTime()) {
+    return 'Today'
+  } else if (messageDateOnly.getTime() === yesterdayOnly.getTime()) {
+    return 'Yesterday'
+  } else {
+    return new Intl.DateTimeFormat('en-AU', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(messageDate)
+  }
+}
+
+/**
+ * Check if two dates are on different days
+ */
+export function isDifferentDay(date1: string | Date, date2: string | Date): boolean {
+  const d1 = new Date(date1)
+  const d2 = new Date(date2)
+  
+  return d1.getFullYear() !== d2.getFullYear() ||
+         d1.getMonth() !== d2.getMonth() ||
+         d1.getDate() !== d2.getDate()
 } 

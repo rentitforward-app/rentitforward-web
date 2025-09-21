@@ -20,6 +20,7 @@ import { Card } from '@/components/ui/Card';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import Image from 'next/image';
 import { formatDistanceToNow, format } from 'date-fns';
+import { formatChatDate, isDifferentDay } from '@/lib/utils';
 
 interface Message {
   id: string;
@@ -895,36 +896,56 @@ function MessagesPageContent() {
 
                   {/* Messages */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4" id="messages-container">
-                    {messages.map((message, index) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                            message.sender_id === user.id
-                              ? 'bg-[#44D62C] text-white'
-                              : 'bg-gray-100 text-gray-900'
-                          }`}
-                        >
-                          <p className="text-sm">{message.content}</p>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-xs opacity-75">
-                              {format(new Date(message.created_at), 'HH:mm')}
-                            </span>
-                            {message.sender_id === user.id && (
-                              <div className="ml-2">
-                                {message.is_read ? (
-                                  <CheckCheck className="w-3 h-3 opacity-75" />
-                                ) : (
-                                  <Check className="w-3 h-3 opacity-75" />
+                    {messages.map((message, index) => {
+                      const showDateSeparator = index === 0 || isDifferentDay(
+                        messages[index - 1].created_at,
+                        message.created_at
+                      );
+
+                      return (
+                        <div key={message.id}>
+                          {/* Date Separator */}
+                          {showDateSeparator && (
+                            <div className="flex items-center justify-center my-4">
+                              <div className="flex-grow border-t border-gray-300"></div>
+                              <div className="px-4 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                                {formatChatDate(message.created_at)}
+                              </div>
+                              <div className="flex-grow border-t border-gray-300"></div>
+                            </div>
+                          )}
+                          
+                          {/* Message */}
+                          <div
+                            className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                message.sender_id === user.id
+                                  ? 'bg-[#44D62C] text-white'
+                                  : 'bg-gray-100 text-gray-900'
+                              }`}
+                            >
+                              <p className="text-sm">{message.content}</p>
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-xs opacity-75">
+                                  {format(new Date(message.created_at), 'HH:mm')}
+                                </span>
+                                {message.sender_id === user.id && (
+                                  <div className="ml-2">
+                                    {message.is_read ? (
+                                      <CheckCheck className="w-3 h-3 opacity-75" />
+                                    ) : (
+                                      <Check className="w-3 h-3 opacity-75" />
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     
                     {/* Removed redundant live updates indicator - online status in header already shows real-time connection */}
                   </div>
