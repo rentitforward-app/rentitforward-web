@@ -861,8 +861,7 @@ export default function EnhancedBookingsPage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => {
-                                    setSelectedBooking(booking);
-                                    setShowIssueModal(true);
+                                    router.push(`/bookings/${booking.id}/report-issue`);
                                   }}
                                 >
                                   <Flag className="w-4 h-4 mr-1" />

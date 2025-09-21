@@ -16,6 +16,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAdmin } from '@/hooks/use-admin';
+import { NotificationSettings } from '@/components/admin/NotificationSettings';
 
 export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState('general');
@@ -305,51 +306,7 @@ export default function AdminSettings() {
 
             {activeTab === 'notifications' && (
               <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900">Notification Settings</h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={settings.emailNotifications}
-                        onChange={(e) => handleSettingChange('emailNotifications', e.target.checked)}
-                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Enable email notifications</span>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={settings.smsNotifications}
-                        onChange={(e) => handleSettingChange('smsNotifications', e.target.checked)}
-                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Enable SMS notifications</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-3">Email Templates</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-700">Welcome Email</span>
-                      <Button size="sm" variant="outline">Edit</Button>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-700">Booking Confirmation</span>
-                      <Button size="sm" variant="outline">Edit</Button>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-700">Payment Receipt</span>
-                      <Button size="sm" variant="outline">Edit</Button>
-                    </div>
-                  </div>
-                </div>
+                <NotificationSettings />
               </div>
             )}
 

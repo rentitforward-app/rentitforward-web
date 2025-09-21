@@ -19,7 +19,8 @@ import {
   X,
   Bell,
   Search,
-  ArrowLeft
+  ArrowLeft,
+  AlertTriangle
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
@@ -67,6 +68,12 @@ const adminNavItems = [
     href: '/admin/messages',
     icon: MessageSquare,
     description: 'Message monitoring'
+  },
+  {
+    label: 'Issue Reports',
+    href: '/admin/issue-reports',
+    icon: AlertTriangle,
+    description: 'Rental issue management'
   },
   {
     label: 'Reports',

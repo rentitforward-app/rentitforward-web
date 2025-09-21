@@ -99,7 +99,7 @@ export function BookingActions({
   };
 
   const handleReportIssue = () => {
-    window.open('/contact?subject=Booking Issue&booking_id=' + booking.id, '_blank');
+    window.location.href = `/bookings/${booking.id}/report-issue`;
   };
 
   const handleCancelBooking = async (reason: string, note: string) => {
