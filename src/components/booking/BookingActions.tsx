@@ -52,12 +52,22 @@ export function BookingActions({
   const [isReturnLoading, setIsReturnLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   
-  // Calculate pickup date info
-  const startDate = new Date(booking.start_date);
+  // Calculate pickup date info with new timing (start date 00:00 to end date 23:59)
   const today = new Date();
-  const isPickupDate = startDate.toDateString() === today.toDateString();
-  const isBeforePickupDate = today < startDate;
-  const isAfterPickupDate = today > startDate;
+  const startDate = new Date(booking.start_date);
+  const endDate = new Date(booking.end_date);
+  
+  // Set start date to beginning of day (00:00)
+  const startOfPickupPeriod = new Date(startDate);
+  startOfPickupPeriod.setHours(0, 0, 0, 0);
+  
+  // Set end date to end of day (23:59:59)
+  const endOfPickupPeriod = new Date(endDate);
+  endOfPickupPeriod.setHours(23, 59, 59, 999);
+  
+  const isWithinPickupPeriod = today >= startOfPickupPeriod && today <= endOfPickupPeriod;
+  const isBeforePickupPeriod = today < startOfPickupPeriod;
+  const isAfterPickupPeriod = today > endOfPickupPeriod;
   const showPickupButton = booking.status === 'confirmed' || booking.status === 'payment_required';
 
   const handleConfirmPickup = async () => {
@@ -128,20 +138,20 @@ export function BookingActions({
 
   const getPickupButtonText = () => {
     if (isPickupLoading) return 'Confirming...';
-    if (isBeforePickupDate) return 'Confirm Pickup (Not Available Yet)';
-    if (isAfterPickupDate) return 'Pickup Date Passed';
+    if (isBeforePickupPeriod) return 'Confirm Pickup (Not Available Yet)';
+    if (isAfterPickupPeriod) return 'Pickup Date Passed';
     return 'Confirm Pickup';
   };
 
   const getPickupButtonNote = () => {
-    if (isBeforePickupDate) {
-      const daysUntil = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return `Pickup button will be active on ${startDate.toLocaleDateString()} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
+    if (isBeforePickupPeriod) {
+      const daysUntil = Math.ceil((startOfPickupPeriod.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return `Pickup button will be active starting ${startDate.toLocaleDateString()} at 12:00 AM (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
     }
-    if (isAfterPickupDate) {
+    if (isAfterPickupPeriod) {
       return 'Pickup date has passed. Contact support if you need assistance.';
     }
-    if (isPickupDate && !canConfirmPickup) {
+    if (isWithinPickupPeriod && !canConfirmPickup) {
       return 'Complete payment first to enable pickup confirmation.';
     }
     return null;
@@ -240,18 +250,29 @@ export function PickupButton({
   booking, 
   canConfirmPickup 
 }: { 
-  booking: { id: string; status: string; start_date: string };
+  booking: { id: string; status: string; start_date: string; end_date: string };
   canConfirmPickup: boolean;
 }) {
   const [isPickupLoading, setIsPickupLoading] = useState(false);
   
-  // Calculate pickup date info
-  const startDate = new Date(booking.start_date);
+  // Calculate pickup date info with new timing (start date 00:00 to end date 23:59)
   const today = new Date();
-  const isPickupDate = startDate.toDateString() === today.toDateString();
-  const isBeforePickupDate = today < startDate;
-  const isAfterPickupDate = today > startDate;
+  const startDate = new Date(booking.start_date);
+  const endDate = new Date(booking.end_date);
+  
+  // Set start date to beginning of day (00:00)
+  const startOfPickupPeriod = new Date(startDate);
+  startOfPickupPeriod.setHours(0, 0, 0, 0);
+  
+  // Set end date to end of day (23:59:59)
+  const endOfPickupPeriod = new Date(endDate);
+  endOfPickupPeriod.setHours(23, 59, 59, 999);
+  
+  const isWithinPickupPeriod = today >= startOfPickupPeriod && today <= endOfPickupPeriod;
+  const isBeforePickupPeriod = today < startOfPickupPeriod;
+  const isAfterPickupPeriod = today > endOfPickupPeriod;
   const showPickupButton = booking.status === 'confirmed' || booking.status === 'payment_required';
+  const sharedCanConfirmPickup = isWithinPickupPeriod && booking.status === 'confirmed';
 
   const handleConfirmPickup = async () => {
     setIsPickupLoading(true);
@@ -274,20 +295,20 @@ export function PickupButton({
 
   const getPickupButtonText = () => {
     if (isPickupLoading) return 'Confirming...';
-    if (isBeforePickupDate) return 'Confirm Pickup (Not Available Yet)';
-    if (isAfterPickupDate) return 'Pickup Date Passed';
+    if (isBeforePickupPeriod) return 'Confirm Pickup (Not Available Yet)';
+    if (isAfterPickupPeriod) return 'Pickup Date Passed';
     return 'Confirm Pickup';
   };
 
   const getPickupButtonNote = () => {
-    if (isBeforePickupDate) {
-      const daysUntil = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return `Pickup button will be active on ${startDate.toLocaleDateString()} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
+    if (isBeforePickupPeriod) {
+      const daysUntil = Math.ceil((startOfPickupPeriod.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return `Pickup button will be active starting ${startDate.toLocaleDateString()} at 12:00 AM (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
     }
-    if (isAfterPickupDate) {
+    if (isAfterPickupPeriod) {
       return 'Pickup date has passed. Contact support if you need assistance.';
     }
-    if (isPickupDate && !canConfirmPickup) {
+    if (isWithinPickupPeriod && booking.status !== 'confirmed') {
       return 'Complete payment first to enable pickup confirmation.';
     }
     return null;
@@ -307,12 +328,12 @@ export function PickupButton({
         
         <Button 
           className={`w-full font-semibold ${
-            canConfirmPickup 
+            sharedCanConfirmPickup 
               ? 'bg-[#44D62C] hover:bg-[#3AB827] text-white' 
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
-          onClick={canConfirmPickup ? handleConfirmPickup : undefined}
-          disabled={!canConfirmPickup || isPickupLoading}
+          onClick={sharedCanConfirmPickup ? handleConfirmPickup : undefined}
+          disabled={!sharedCanConfirmPickup || isPickupLoading}
         >
           <Package className="w-4 h-4 mr-2" />
           {getPickupButtonText()}

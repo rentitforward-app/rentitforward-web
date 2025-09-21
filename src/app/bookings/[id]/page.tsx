@@ -180,12 +180,19 @@ async function BookingDetailsContent({ params }: PageProps) {
   const isOwner = booking.owner_id === user.id;
   const isRenter = booking.renter_id === user.id;
   
-  // Date logic for pickup/return buttons
+  // Calculate pickup date info with new timing (start date 00:00 to end date 23:59)
   const today = new Date();
-  const isPickupDate = startDate.toDateString() === today.toDateString();
-  const isAfterPickupDate = today > startDate;
-  const canConfirmPickup = isPickupDate && booking.status === 'confirmed';
-  const canReturn = isAfterPickupDate && (booking.status === 'active' || booking.status === 'picked_up');
+  const startOfPickupPeriod = new Date(startDate);
+  startOfPickupPeriod.setHours(0, 0, 0, 0);
+  
+  const endOfPickupPeriod = new Date(endDate);
+  endOfPickupPeriod.setHours(23, 59, 59, 999);
+  
+  const isWithinPickupPeriod = today >= startOfPickupPeriod && today <= endOfPickupPeriod;
+  const isAfterPickupPeriod = today > endOfPickupPeriod;
+  
+  const canConfirmPickup = isWithinPickupPeriod && booking.status === 'confirmed';
+  const canReturn = isAfterPickupPeriod && (booking.status === 'active' || booking.status === 'picked_up');
   const hasBeenPickedUp = booking.status === 'active' || booking.status === 'picked_up';
 
   return (
@@ -355,7 +362,8 @@ async function BookingDetailsContent({ params }: PageProps) {
                 booking={{
                   id: booking.id,
                   status: booking.status,
-                  start_date: booking.start_date
+                  start_date: booking.start_date,
+                  end_date: booking.end_date
                 }}
                 canConfirmPickup={canConfirmPickup}
               />

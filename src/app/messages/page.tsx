@@ -27,7 +27,6 @@ interface Message {
   content: string;
   created_at: string;
   sender_id: string;
-  receiver_id: string;
   conversation_id: string;
   is_read: boolean;
   sender: {
@@ -84,10 +83,14 @@ function MessagesPageContent() {
     }
   }, [user]);
 
+
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation.id);
       markAsRead(selectedConversation.id);
+      // Store the timestamp when this conversation was last viewed
+      const viewedAt = new Date().toISOString();
+      localStorage.setItem(`conversation_viewed_${selectedConversation.id}`, viewedAt);
     }
   }, [selectedConversation]);
 
@@ -127,50 +130,82 @@ function MessagesPageContent() {
 
   // Real-time subscriptions for live message updates
   useEffect(() => {
-    if (!user) return;
+    if (!user || !user.id) return;
 
-    // Subscribe to new messages in all conversations
+    console.log('🔔 Setting up real-time subscriptions for user:', user.id);
+    console.log('🔔 Current conversations:', conversations.length);
+
+    // Subscribe to ALL messages and filter client-side for better reliability
     const messagesSubscription = supabase
-      .channel('messages')
+      .channel('all-messages')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=in.(${conversations.map(c => c.id).join(',')})`
         },
         (payload) => {
-          console.log('New message received:', payload);
+          console.log('🔥 New message received (raw):', payload);
           const newMessage = payload.new as Message;
+          
+          // Check if this message belongs to a conversation the user is part of
+          const relevantConversation = conversations.find(conv => conv.id === newMessage.conversation_id);
+          console.log('🔍 Relevant conversation found:', !!relevantConversation, newMessage.conversation_id);
+          
+          if (!relevantConversation) {
+            console.log('❌ Message not for user conversations, ignoring');
+            return;
+          }
+          
+          console.log('✅ Processing message for user');
           
           // Add new message to current conversation if it matches
           if (selectedConversation && newMessage.conversation_id === selectedConversation.id) {
-            setMessages(prev => [...prev, newMessage]);
+            console.log('📱 Adding message to current conversation');
+            setMessages(prev => {
+              // Avoid duplicates
+              if (prev.some(msg => msg.id === newMessage.id)) {
+                console.log('⚠️ Duplicate message, skipping');
+                return prev;
+              }
+              console.log('✅ Adding new message to chat');
+              return [...prev, newMessage];
+            });
             
-            // Mark as read if we're the receiver
+            // Mark as read if we're the receiver and viewing the conversation
             if (newMessage.sender_id !== user.id) {
+              console.log('👁️ Marking message as read');
               markAsRead(selectedConversation.id);
-              
-              // Play notification sound for new messages (optional)
-              // Uncomment the line below if you want sound notifications
-              // new Audio('/notification.mp3').play().catch(() => {});
             }
           }
           
           // Update conversation list with new message
+          console.log('📋 Updating conversation list');
           setConversations(prev => 
-            prev.map(conv => 
-              conv.id === newMessage.conversation_id
-                ? {
-                    ...conv,
-                    last_message: newMessage.content,
-                    last_message_at: newMessage.created_at,
-                    unread_count: conv.unread_count + (newMessage.sender_id !== user.id ? 1 : 0),
-                    updated_at: new Date().toISOString()
-                  }
-                : conv
-            ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+            prev.map(conv => {
+              if (conv.id === newMessage.conversation_id) {
+                // Check if this conversation is currently selected
+                const isCurrentlySelected = selectedConversation?.id === conv.id;
+                
+                // If not currently selected and message is from another user, increment count
+                let newUnreadCount = conv.unread_count;
+                if (!isCurrentlySelected && newMessage.sender_id !== user.id) {
+                  newUnreadCount = conv.unread_count + 1;
+                }
+                
+                console.log('📊 Updated conversation:', conv.id, 'unread:', newUnreadCount);
+                
+                return {
+                  ...conv,
+                  last_message: newMessage.content,
+                  last_message_at: newMessage.created_at,
+                  unread_count: newUnreadCount,
+                  updated_at: new Date().toISOString()
+                };
+              }
+              return conv;
+            }).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
           );
         }
       )
@@ -180,11 +215,14 @@ function MessagesPageContent() {
           event: 'UPDATE',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=in.(${conversations.map(c => c.id).join(',')})`
         },
         (payload) => {
-          console.log('Message updated:', payload);
+          console.log('🔄 Message updated:', payload);
           const updatedMessage = payload.new as Message;
+          
+          // Check if this message belongs to a conversation the user is part of
+          const relevantConversation = conversations.find(conv => conv.id === updatedMessage.conversation_id);
+          if (!relevantConversation) return;
           
           // Update message in current conversation if it matches
           if (selectedConversation && updatedMessage.conversation_id === selectedConversation.id) {
@@ -196,22 +234,31 @@ function MessagesPageContent() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Messages subscription status:', status);
+      });
 
-    // Subscribe to conversation updates
+    // Subscribe to ALL conversation updates and filter client-side
     const conversationsSubscription = supabase
-      .channel('conversations')
+      .channel('all-conversations')
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'conversations',
-          filter: `id=in.(${conversations.map(c => c.id).join(',')})`
         },
         (payload) => {
-          console.log('Conversation updated:', payload);
+          console.log('🔄 Conversation updated:', payload);
           const updatedConversation = payload.new;
+          
+          // Check if user is a participant
+          if (!updatedConversation.participants?.includes(user.id)) {
+            console.log('❌ Conversation update not for user, ignoring');
+            return;
+          }
+          
+          console.log('✅ Processing conversation update for user');
           
           // Update conversation in list
           setConversations(prev => 
@@ -223,54 +270,39 @@ function MessagesPageContent() {
           );
         }
       )
-      .subscribe();
-
-    // Subscribe to message read status updates
-    const messageReadSubscription = supabase
-      .channel('message-read-status')
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: 'INSERT',
           schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=in.(${conversations.map(c => c.id).join(',')})`
+          table: 'conversations',
         },
         (payload) => {
-          console.log('Message read status updated:', payload);
-          const updatedMessage = payload.new as Message;
+          console.log('🆕 New conversation created:', payload);
+          const newConversation = payload.new;
           
-          // If this is a read status update and we're viewing this conversation,
-          // we might need to update the unread count
-          if (selectedConversation && updatedMessage.conversation_id === selectedConversation.id) {
-            // Check if all messages in this conversation are now read
-            // This is a simple approach - in a more complex system, you might want to
-            // recalculate the unread count from the database
-            if (updatedMessage.is_read && updatedMessage.sender_id !== user.id) {
-              // Decrement unread count for this conversation
-              setConversations(prev => 
-                prev.map(conv => 
-                  conv.id === updatedMessage.conversation_id
-                    ? { 
-                        ...conv, 
-                        unread_count: Math.max(0, conv.unread_count - 1)
-                      }
-                    : conv
-                )
-              );
-            }
+          // Check if user is a participant
+          if (!newConversation.participants?.includes(user.id)) {
+            console.log('❌ New conversation not for user, ignoring');
+            return;
           }
+          
+          console.log('✅ New conversation for user, refetching');
+          // Refetch conversations to get the full data with user and listing info
+          fetchConversations();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Conversations subscription status:', status);
+      });
 
     // Cleanup subscriptions on unmount
     return () => {
+      console.log('🔕 Cleaning up real-time subscriptions');
       messagesSubscription.unsubscribe();
       conversationsSubscription.unsubscribe();
-      messageReadSubscription.unsubscribe();
     };
-  }, [user, conversations, selectedConversation]);
+  }, [user, selectedConversation, conversations]); // Added conversations back for filtering
 
   // Track online users using presence
   useEffect(() => {
@@ -524,16 +556,39 @@ function MessagesPageContent() {
               console.warn('Error fetching user profile:', userError);
             }
 
-            // Get unread count for this conversation
-            const { count: unreadCount, error: countError } = await supabase
-              .from('messages')
-              .select('*', { count: 'exact', head: true })
-              .eq('conversation_id', conv.id)
-              .eq('is_read', false)
-              .neq('sender_id', user.id);
+            // Get the last viewed timestamp for this conversation
+            const lastViewedKey = `conversation_viewed_${conv.id}`;
+            const lastViewedTimestamp = localStorage.getItem(lastViewedKey);
+            
+            let unreadCount = 0;
+            
+            if (lastViewedTimestamp) {
+              // Count messages created after the last viewed timestamp (excluding user's own messages)
+              const { count, error: countError } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('conversation_id', conv.id)
+                .neq('sender_id', user.id)
+                .gt('created_at', lastViewedTimestamp);
 
-            if (countError) {
-              console.warn('Error fetching unread count:', countError);
+              if (countError) {
+                console.warn('Error fetching unread count:', countError);
+              } else {
+                unreadCount = count || 0;
+              }
+            } else {
+              // If no timestamp exists, count all messages from other users
+              const { count, error: countError } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('conversation_id', conv.id)
+                .neq('sender_id', user.id);
+
+              if (countError) {
+                console.warn('Error fetching unread count:', countError);
+              } else {
+                unreadCount = count || 0;
+              }
             }
 
             return {
@@ -612,12 +667,9 @@ function MessagesPageContent() {
 
   const markAsRead = async (conversationId: string) => {
     try {
-      // Update messages as read in database
-      await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('conversation_id', conversationId)
-        .neq('sender_id', user.id);
+      // Store the current timestamp as the last viewed time for this conversation
+      const viewedAt = new Date().toISOString();
+      localStorage.setItem(`conversation_viewed_${conversationId}`, viewedAt);
 
       // Update local state to reset unread count for this conversation
       setConversations(prev => 
@@ -636,6 +688,13 @@ function MessagesPageContent() {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation || isSending) return;
 
+    // Check authentication state
+    if (!user || !user.id) {
+      console.error('User not authenticated');
+      toast.error('You must be logged in to send messages');
+      return;
+    }
+
     const messageContent = newMessage.trim();
     setNewMessage(''); // Clear input immediately for better UX
     setIsSending(true);
@@ -649,7 +708,6 @@ function MessagesPageContent() {
       content: messageContent,
       created_at: new Date().toISOString(),
       sender_id: user.id,
-      receiver_id: selectedConversation.participants.find((id: string) => id !== user.id) || '',
       conversation_id: selectedConversation.id,
       is_read: false,
       sender: {
@@ -676,15 +734,40 @@ function MessagesPageContent() {
     );
 
     try {
-      // Get the other user ID for receiver_id
-      const otherUserId = selectedConversation.participants.find((id: string) => id !== user.id);
+      // Debug logging
+      console.log('Attempting to send message with data:', {
+        conversation_id: selectedConversation.id,
+        sender_id: user.id,
+        content: messageContent,
+        message_type: 'text',
+        is_read: false
+      });
+      console.log('User object:', user);
+      console.log('Selected conversation:', selectedConversation);
+      
+      // Check if user is in conversation participants
+      const isUserInConversation = selectedConversation.participants?.includes(user.id);
+      console.log('Is user in conversation participants?', isUserInConversation);
+      console.log('Conversation participants:', selectedConversation.participants);
+      
+      if (!isUserInConversation) {
+        console.error('User is not a participant in this conversation');
+        toast.error('You are not authorized to send messages in this conversation');
+        setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
+        setNewMessage(messageContent);
+        return;
+      }
+
+      // Determine the receiver_id (the other participant in the conversation)
+      const receiverId = selectedConversation.participants?.find(id => id !== user.id);
+      console.log('Determined receiver_id:', receiverId);
       
       const { data, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: selectedConversation.id,
           sender_id: user.id,
-          receiver_id: otherUserId,
+          receiver_id: receiverId, // Include receiver_id for compatibility
           content: messageContent,
           message_type: 'text',
           is_read: false
@@ -693,8 +776,23 @@ function MessagesPageContent() {
         .single();
 
       if (error) {
-        console.error('Error sending message:', error);
-        toast.error('Failed to send message');
+        console.error('Supabase error sending message:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        console.error('Error hint:', error.hint);
+        
+        // More specific error message based on error code
+        let errorMessage = 'Failed to send message';
+        if (error.code === 'PGRST116') {
+          errorMessage = 'No permission to send message in this conversation';
+        } else if (error.code === '42501') {
+          errorMessage = 'Insufficient permissions to send message';
+        } else if (error.message) {
+          errorMessage = `Failed to send message: ${error.message}`;
+        }
+        
+        toast.error(errorMessage);
         
         // Revert optimistic update on error
         setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
@@ -723,7 +821,17 @@ function MessagesPageContent() {
 
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error('Failed to send message');
+      console.error('Error type:', typeof error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
+      // More specific error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'An unexpected error occurred while sending the message';
+      
+      toast.error(`Failed to send message: ${errorMessage}`);
       
       // Revert optimistic update on error
       setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
