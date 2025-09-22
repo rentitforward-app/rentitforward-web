@@ -14,6 +14,10 @@
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
     "test:report": "playwright show-report",
+    "test:notifications": "node scripts/test-notifications.js",
+    "test:notifications:headed": "node scripts/test-notifications.js --headed",
+    "test:notifications:debug": "node scripts/test-notifications.js --debug",
+    "test:notifications:ui": "node scripts/test-notifications.js --ui",
     "migrate:spatial": "node scripts/run-spatial-migration.js",
     "test:geocoding": "node scripts/test-geocoding.js"
   },
