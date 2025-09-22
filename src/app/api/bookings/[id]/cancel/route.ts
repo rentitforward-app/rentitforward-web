@@ -147,12 +147,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Failed to cancel booking' }, { status: 500 });
     }
 
-    // Send cancellation emails
+    // Send cancellation notifications (email, FCM, in-app)
     try {
-      await sendCancellationEmails(booking, isRenter, cancellationFee, refundAmount);
-    } catch (emailError) {
-      console.error('Failed to send cancellation emails:', emailError);
-      // Don't fail the cancellation if email fails
+      await sendCancellationNotifications(supabase, booking, isRenter, cancellationFee, refundAmount);
+    } catch (notificationError) {
+      console.error('Failed to send cancellation notifications:', notificationError);
+      // Don't fail the cancellation if notifications fail
     }
 
     // If there's a refund, process it
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-async function sendCancellationEmails(booking: any, isRenter: boolean, cancellationFee: number, refundAmount: number) {
+async function sendCancellationNotifications(supabase: any, booking: any, isRenter: boolean, cancellationFee: number, refundAmount: number) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rentitforward.com.au';
   
   const cancelledByName = isRenter ? booking.profiles.full_name : booking.renter.full_name;
@@ -204,7 +204,52 @@ async function sendCancellationEmails(booking: any, isRenter: boolean, cancellat
     cancellation_reason: `Cancelled by ${isRenter ? 'renter' : 'owner'}`,
   };
 
-  // Send email to the person who cancelled
+  // Send FCM push notifications and create in-app notifications
+  const { fcmAdminService } = await import('@/lib/fcm/admin');
+  
+  const fcmTitle = '🚫 Booking Cancelled';
+  const fcmBody = `Booking for "${booking.listings.title}" has been cancelled${refundAmount > 0 ? ` - $${refundAmount.toFixed(2)} refund processed` : ''}`;
+  const fcmData = { 
+    type: 'booking_cancelled', 
+    booking_id: booking.id, 
+    action_url: `${baseUrl}/bookings/${booking.id}` 
+  };
+
+  // Send to canceller (person who cancelled)
+  const cancellerId = isRenter ? booking.renter_id : booking.listings.owner_id;
+  await fcmAdminService.sendToUser(cancellerId, fcmTitle, fcmBody, fcmData);
+  
+  // Create in-app notification for canceller
+  await supabase.from('app_notifications').insert({
+    user_id: cancellerId,
+    type: 'booking_cancelled',
+    title: fcmTitle,
+    message: fcmBody,
+    action_url: fcmData.action_url,
+    data: fcmData,
+    priority: 8,
+  });
+
+  // Send to other party
+  const otherPartyId = isRenter ? booking.listings.owner_id : booking.renter_id;
+  const otherPartyBody = `${cancelledByName} cancelled the booking for "${booking.listings.title}"${refundAmount > 0 ? ` - $${refundAmount.toFixed(2)} refund processed` : ''}`;
+  
+  await fcmAdminService.sendToUser(otherPartyId, fcmTitle, otherPartyBody, fcmData);
+  
+  // Create in-app notification for other party
+  await supabase.from('app_notifications').insert({
+    user_id: otherPartyId,
+    type: 'booking_cancelled',
+    title: fcmTitle,
+    message: otherPartyBody,
+    action_url: fcmData.action_url,
+    data: fcmData,
+    priority: 8,
+  });
+
+  console.log(`FCM and in-app notifications sent for booking cancellation: ${booking.id}`);
+
+  // Send emails
   const cancellerEmail = isRenter ? booking.profiles.email : booking.renter.email;
   if (cancellerEmail) {
     await unifiedEmailService.sendBookingCancellationEmail(
@@ -214,7 +259,6 @@ async function sendCancellationEmails(booking: any, isRenter: boolean, cancellat
     );
   }
 
-  // Send email to the other party
   const otherPartyEmail = isRenter ? booking.renter.email : booking.profiles.email;
   if (otherPartyEmail) {
     await unifiedEmailService.sendBookingCancellationEmail(
@@ -223,6 +267,8 @@ async function sendCancellationEmails(booking: any, isRenter: boolean, cancellat
       !isRenter // cancelledByOwner
     );
   }
+
+  console.log(`All cancellation notifications sent for booking: ${booking.id}`);
 }
 
 async function processRefund(booking: any, refundAmount: number) {

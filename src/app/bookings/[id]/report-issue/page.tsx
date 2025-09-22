@@ -238,7 +238,16 @@ export default function ReportIssuePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('🐛 DEBUG: Form submitted with data:', {
+      issue_type: report.issue_type,
+      title: report.title,
+      description: report.description,
+      bookingId,
+      userId: user?.id
+    });
+    
     if (!report.issue_type || !report.title || !report.description) {
+      console.log('🐛 DEBUG: Validation failed - missing required fields');
       toast.error('Please fill in all required fields');
       return;
     }
@@ -267,9 +276,18 @@ export default function ReportIssuePage() {
         formData.append(`photos`, photo);
       });
 
+      console.log('🐛 DEBUG: About to make API request to /api/bookings/report-issue');
+      console.log('🐛 DEBUG: FormData contents:', Object.fromEntries(formData));
+
       const response = await fetch('/api/bookings/report-issue', {
         method: 'POST',
         body: formData
+      });
+
+      console.log('🐛 DEBUG: API response received:', {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText
       });
 
       if (!response.ok) {
@@ -287,7 +305,11 @@ export default function ReportIssuePage() {
       }, 3000);
 
     } catch (error) {
-      console.error('Error submitting report:', error);
+      console.error('🐛 DEBUG: Error submitting report:', error);
+      console.error('🐛 DEBUG: Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       toast.error('Failed to submit report. Please try again.');
     } finally {
       setIsSubmitting(false);
