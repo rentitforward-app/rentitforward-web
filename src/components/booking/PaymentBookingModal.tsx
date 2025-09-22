@@ -199,7 +199,8 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
       const serviceFee = parseFloat((subtotal * 0.15).toFixed(2));
       const insuranceFee = includeInsurance ? parseFloat((subtotal * 0.10).toFixed(2)) : 0;
       const deliveryFee = data.deliveryMethod === 'delivery' ? 20.00 : 0; // $20 delivery fee
-      const totalAmount = subtotal + serviceFee + insuranceFee + deliveryFee;
+      const securityDeposit = listing.deposit ? parseFloat(listing.deposit.toString()) : 0; // Add security deposit
+      const totalAmount = subtotal + serviceFee + insuranceFee + deliveryFee + securityDeposit;
 
       // Check if user is trying to book their own listing
       if (user.id === listing.owner_id) {
@@ -256,7 +257,7 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
           service_fee: serviceFee,
           insurance_fee: insuranceFee,
           delivery_fee: deliveryFee,
-          deposit_amount: 0, // Security deposit (can be configured later)
+          deposit_amount: securityDeposit, // Security deposit from listing
           total_amount: totalAmount,
           delivery_method: data.deliveryMethod,
           delivery_address: data.deliveryMethod === 'delivery' ? data.deliveryAddress || null : null,
@@ -341,7 +342,8 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
   const serviceFee = subtotal > 0 ? parseFloat((subtotal * 0.15).toFixed(2)) : 0;
   const insuranceFee = includeInsurance && subtotal > 0 ? parseFloat((subtotal * 0.10).toFixed(2)) : 0;
   const deliveryFee = watchDeliveryMethod === 'delivery' ? 20.00 : 0; // $20 delivery fee
-  const totalAmount = subtotal + serviceFee + insuranceFee + deliveryFee;
+  const securityDepositDisplay = listing?.deposit ? parseFloat(listing.deposit.toString()) : 0; // Add security deposit for display
+  const totalAmount = subtotal + serviceFee + insuranceFee + deliveryFee + securityDepositDisplay;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -404,7 +406,7 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
                       onInsuranceChange={setIncludeInsurance}
                       hasWeeklyRate={false}
                       weeklyRate={0}
-                      securityDeposit={0}
+                      securityDeposit={listing.deposit ? parseFloat(listing.deposit.toString()) : 0}
                     />
                   )}
                   

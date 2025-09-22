@@ -825,6 +825,11 @@ export default function ListingDetailPage() {
                       {formatPrice(listing.price_hourly)} per hour
                     </p>
                   )}
+                  {listing.deposit > 0 && (
+                    <p className="text-sm text-orange-600 font-medium">
+                      {formatPrice(listing.deposit)} security deposit (refundable)
+                    </p>
+                  )}
                 </div>
 
                 {user?.id !== listing.profiles.id ? (

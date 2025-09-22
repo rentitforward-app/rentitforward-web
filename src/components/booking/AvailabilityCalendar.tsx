@@ -342,6 +342,13 @@ export function AvailabilityCalendar({
                 background: white !important;
               }
               
+              /* Ensure disabled weekend dates are greyed out like disabled weekdays */
+              .calendar-container .react-calendar__tile--disabled.react-calendar__month-view__days__day--weekend {
+                background-color: #f9fafb !important;
+                color: #d1d5db !important;
+                cursor: not-allowed !important;
+              }
+              
               /* Custom selection styles */
               .calendar-container .custom-selected-single {
                 background: #44D62C !important;
@@ -613,6 +620,13 @@ export function AvailabilityCalendar({
         
         .react-calendar__month-view__days__day--weekend:not(.react-calendar__tile--disabled):not(.react-calendar__tile--active):not(.react-calendar__tile--range):not(.react-calendar__tile--rangeStart):not(.react-calendar__tile--rangeEnd) {
           background-color: #f9fafb;
+        }
+        
+        /* Ensure disabled weekend dates have same styling as disabled weekdays */
+        .react-calendar__tile--disabled.react-calendar__month-view__days__day--weekend {
+          background-color: #f9fafb !important;
+          color: #d1d5db !important;
+          cursor: not-allowed !important;
         }
         
         .react-calendar__navigation button {

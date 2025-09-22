@@ -98,7 +98,8 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
       const serviceFee = parseFloat((subtotal * 0.15).toFixed(2)); // 15% service fee
       const insuranceFee = includeInsurance ? parseFloat((subtotal * 0.10).toFixed(2)) : 0; // 10% insurance
       const deliveryFee = data.deliveryMethod === 'delivery' ? 20.00 : 0; // $20 delivery fee
-      const totalAmount = parseFloat((subtotal + serviceFee + insuranceFee + deliveryFee).toFixed(2));
+      const securityDeposit = listing.deposit ? parseFloat(listing.deposit.toString()) : 0; // Add security deposit
+      const totalAmount = parseFloat((subtotal + serviceFee + insuranceFee + deliveryFee + securityDeposit).toFixed(2));
       
       // Debug logging
       console.log('Booking calculation breakdown:', {
@@ -106,6 +107,7 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
         serviceFee,
         insuranceFee,
         deliveryFee,
+        securityDeposit,
         totalAmount,
         deliveryMethod: data.deliveryMethod
       });
@@ -289,7 +291,7 @@ export function BookingModal({ isOpen, onClose, listing, user }: BookingModalPro
                     hasInsurance={includeInsurance}
                     onInsuranceChange={setIncludeInsurance}
                     deliveryMethod={watchDeliveryMethod}
-                    securityDeposit={listing.security_deposit ? parseFloat(listing.security_deposit.toString()) : 0}
+                    securityDeposit={listing.deposit ? parseFloat(listing.deposit.toString()) : 0}
                   />
                 </div>
 
