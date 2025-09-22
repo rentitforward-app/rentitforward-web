@@ -44,6 +44,26 @@ export default function NotificationsPage() {
   const router = useRouter();
   const { notifications, unreadCount, markAsRead, markAllAsRead, refetch, loading } = useNotifications();
 
+  // Mark notifications as viewed when page loads
+  useEffect(() => {
+    const markNotificationsAsViewed = async () => {
+      try {
+        await fetch('/api/notifications/mark-viewed', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        // Refetch to update the unread count
+        refetch();
+      } catch (error) {
+        console.error('Failed to mark notifications as viewed:', error);
+      }
+    };
+
+    markNotificationsAsViewed();
+  }, []); // Run once when component mounts
+
 
   const getIcon = (type: string) => {
     switch (type) {

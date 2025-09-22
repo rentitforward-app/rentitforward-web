@@ -38,7 +38,7 @@ export function useNotifications() {
         const supabase = createClient();
 
         const { data: notificationsData, error } = await supabase
-          .from('notifications')
+          .from('app_notifications')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
@@ -51,9 +51,23 @@ export function useNotifications() {
         const notifications = notificationsData || [];
         setNotifications(notifications);
         
-        // Count unread notifications
-        const unread = notifications.filter(n => !n.is_read).length;
-        setUnreadCount(unread);
+        // Get unread count using timestamp-based API
+        try {
+          const unreadResponse = await fetch('/api/notifications/unread-count');
+          if (unreadResponse.ok) {
+            const unreadData = await unreadResponse.json();
+            setUnreadCount(unreadData.unreadCount || 0);
+          } else {
+            // Fallback to counting unread notifications
+            const unread = notifications.filter(n => !n.is_read).length;
+            setUnreadCount(unread);
+          }
+        } catch (unreadError) {
+          console.error('Error fetching unread count:', unreadError);
+          // Fallback to counting unread notifications
+          const unread = notifications.filter(n => !n.is_read).length;
+          setUnreadCount(unread);
+        }
 
       } catch (error) {
         console.error('Error in fetchNotifications:', error);
@@ -71,7 +85,7 @@ export function useNotifications() {
     try {
       const supabase = createClient();
       const { error } = await supabase
-        .from('notifications')
+        .from('app_notifications')
         .update({ is_read: true, updated_at: new Date().toISOString() })
         .eq('id', notificationId)
         .eq('user_id', user.id);
@@ -103,7 +117,7 @@ export function useNotifications() {
     try {
       const supabase = createClient();
       const { error } = await supabase
-        .from('notifications')
+        .from('app_notifications')
         .update({ is_read: true, updated_at: new Date().toISOString() })
         .eq('user_id', user.id)
         .eq('is_read', false);

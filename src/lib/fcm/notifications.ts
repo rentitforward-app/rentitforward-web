@@ -8,8 +8,13 @@
 import { fcmAdminService, buildFCMMessage, type FCMSendResult } from './admin';
 import { 
   NotificationType, 
-  NotificationContext
-} from '@rentitforward/shared';
+  NotificationContext,
+  createNotification,
+  NOTIFICATION_TEMPLATES
+} from 'rentitforward-shared/src/utils/notifications';
+import { 
+  type NotificationTemplate 
+} from 'rentitforward-shared/src/types/notification';
 
 // FCM notification categories (mapped from shared types)
 export const FCM_NOTIFICATION_CATEGORIES = {

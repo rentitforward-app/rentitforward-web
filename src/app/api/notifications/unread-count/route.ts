@@ -1,9 +1,3 @@
-/**
- * GET /api/notifications/unread-count
- * 
- * Get unread notification count for the current user
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -14,31 +8,70 @@ export async function GET(request: NextRequest) {
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get unread count from app_notifications
-    const { data: countResult, error: countError } = await supabase
-      .rpc('get_unread_notification_count', { target_user_id: user.id });
+    // Get user's last viewed timestamp from preferences
+    const { data: preferences, error: preferencesError } = await supabase
+      .from('preferences')
+      .select('notifications_last_viewed_at')
+      .eq('user_id', user.id)
+      .single();
 
-    if (countError) {
-      console.error('Error getting unread count:', countError);
+    if (preferencesError && preferencesError.code !== 'PGRST116') {
+      console.error('Error fetching preferences:', preferencesError);
       return NextResponse.json(
-        { error: 'Failed to get unread count', details: countError },
+        { error: 'Failed to fetch preferences' },
         { status: 500 }
       );
     }
 
+    const lastViewedAt = preferences?.notifications_last_viewed_at;
+
+    let unreadCount = 0;
+
+    if (lastViewedAt) {
+      // Count notifications created after the last viewed timestamp
+      const { count, error: countError } = await supabase
+        .from('app_notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gt('created_at', lastViewedAt);
+
+      if (countError) {
+        console.error('Error counting unread notifications:', countError);
+        return NextResponse.json(
+          { error: 'Failed to count unread notifications' },
+          { status: 500 }
+        );
+      }
+
+      unreadCount = count || 0;
+    } else {
+      // If no last viewed timestamp, count all notifications
+      const { count, error: countError } = await supabase
+        .from('app_notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (countError) {
+        console.error('Error counting all notifications:', countError);
+        return NextResponse.json(
+          { error: 'Failed to count notifications' },
+          { status: 500 }
+        );
+      }
+
+      unreadCount = count || 0;
+    }
+
     return NextResponse.json({
-      count: countResult || 0,
-      userId: user.id,
+      unreadCount,
+      lastViewedAt,
     });
 
   } catch (error) {
-    console.error('Unread count fetch error:', error);
+    console.error('Error getting unread count:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

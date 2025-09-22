@@ -819,6 +819,24 @@ function MessagesPageContent() {
         })
         .eq('id', selectedConversation.id);
 
+      // Send message notifications (email, push, in-app)
+      try {
+        await fetch('/api/messages/notify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messageId: data.id,
+            conversationId: selectedConversation.id,
+            receiverId: receiverId,
+          }),
+        });
+      } catch (notifyError) {
+        console.error('Failed to send message notifications:', notifyError);
+        // Don't fail the message send if notifications fail
+      }
+
     } catch (error) {
       console.error('Error sending message:', error);
       console.error('Error type:', typeof error);

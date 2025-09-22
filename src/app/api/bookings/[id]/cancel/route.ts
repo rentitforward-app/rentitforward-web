@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
+import { unifiedEmailService } from '@/lib/email/unified-email-service';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -181,43 +182,47 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 }
 
 async function sendCancellationEmails(booking: any, isRenter: boolean, cancellationFee: number, refundAmount: number) {
-  const supabase = await createClient();
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rentitforward.com.au';
   
-  const recipientEmail = isRenter ? booking.profiles.email : booking.renter.email;
-  const recipientName = isRenter ? booking.profiles.full_name : booking.renter.full_name;
+  const cancelledByName = isRenter ? booking.profiles.full_name : booking.renter.full_name;
   const otherPartyName = isRenter ? booking.renter.full_name : booking.profiles.full_name;
   
   const emailData = {
-    bookingId: booking.id,
-    itemTitle: booking.listings.title,
-    startDate: new Date(booking.start_date).toLocaleDateString(),
-    endDate: new Date(booking.end_date).toLocaleDateString(),
-    totalAmount: booking.total_amount,
-    cancellationFee,
-    refundAmount,
-    recipientName,
-    otherPartyName,
-    isRenter
+    booking_id: booking.id,
+    listing_title: booking.listings.title,
+    start_date: booking.start_date,
+    end_date: booking.end_date,
+    total_amount: booking.total_amount,
+    renter_name: booking.profiles.full_name,
+    renter_email: booking.profiles.email,
+    owner_name: booking.renter.full_name,
+    owner_email: booking.renter.email,
+    listing_location: 'Location TBD',
+    base_url: baseUrl,
+    cancellation_fee: cancellationFee,
+    refund_amount: refundAmount,
+    cancellation_reason: `Cancelled by ${isRenter ? 'renter' : 'owner'}`,
   };
 
   // Send email to the person who cancelled
-  await supabase.functions.invoke('send-cancellation-email', {
-    body: {
-      to: recipientEmail,
-      template: 'booking-cancelled',
-      data: emailData
-    }
-  });
+  const cancellerEmail = isRenter ? booking.profiles.email : booking.renter.email;
+  if (cancellerEmail) {
+    await unifiedEmailService.sendBookingCancellationEmail(
+      emailData,
+      !isRenter, // isOwner - opposite of isRenter for the canceller
+      !isRenter  // cancelledByOwner
+    );
+  }
 
   // Send email to the other party
   const otherPartyEmail = isRenter ? booking.renter.email : booking.profiles.email;
-  await supabase.functions.invoke('send-cancellation-email', {
-    body: {
-      to: otherPartyEmail,
-      template: 'booking-cancelled-other-party',
-      data: emailData
-    }
-  });
+  if (otherPartyEmail) {
+    await unifiedEmailService.sendBookingCancellationEmail(
+      emailData,
+      isRenter, // isOwner - same as isRenter for the other party
+      !isRenter // cancelledByOwner
+    );
+  }
 }
 
 async function processRefund(booking: any, refundAmount: number) {

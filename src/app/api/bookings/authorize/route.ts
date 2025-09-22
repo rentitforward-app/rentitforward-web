@@ -19,6 +19,7 @@ import {
 } from '@/lib/stripe/payment-authorization';
 import { PRICING_CONSTANTS } from '@/lib/pricing-constants';
 import { addHours, addDays } from 'date-fns';
+import { unifiedEmailService } from '@/lib/email/unified-email-service';
 
 // Validation schema for booking authorization
 const bookingAuthorizationSchema = z.object({
@@ -269,6 +270,109 @@ export async function POST(request: NextRequest) {
         listing.title,
         profile.name
       );
+
+      // Get owner profile for email notification
+      const { data: ownerProfile } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', listing.owner_id)
+        .single();
+
+      if (ownerProfile) {
+        // Send email notification to owner about booking request
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rentitforward.com.au';
+        
+        await unifiedEmailService.sendEmail({
+          to: ownerProfile.email,
+          subject: `📋 New Booking Request - ${listing.title}`,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>New Booking Request</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #44D62C 0%, #3AB827 100%); color: white; padding: 30px 20px; border-radius: 8px 8px 0 0; text-align: center; }
+                    .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
+                    .footer { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; color: #6b7280; }
+                    .booking-details { background: #f9fafb; padding: 20px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #44D62C; }
+                    .button { display: inline-block; background: #44D62C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 10px 0; }
+                    .urgent { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0; }
+                    h1, h2, h3 { color: #111827; }
+                    ul { padding-left: 20px; }
+                    li { margin: 8px 0; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>📋 New Booking Request!</h1>
+                        <p>You have a new booking request that needs your approval</p>
+                    </div>
+                    
+                    <div class="content">
+                        <p>Hi ${ownerProfile.full_name},</p>
+                        
+                        <p>Great news! Someone wants to book your listing and is waiting for your approval.</p>
+                        
+                        <div class="booking-details">
+                            <h3>${listing.title}</h3>
+                            <p><strong>Requested by:</strong> ${profile.name}</p>
+                            <p><strong>Rental Period:</strong></p>
+                            <p>📅 <strong>Start:</strong> ${new Date(bookingData.startDate).toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            <p>📅 <strong>End:</strong> ${new Date(bookingData.endDate).toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            <p><strong>Duration:</strong> ${bookingData.duration} day${bookingData.duration !== 1 ? 's' : ''}</p>
+                            <p><strong>Total Amount:</strong> $${totalAmount.toFixed(2)} AUD</p>
+                            <p><strong>Booking ID:</strong> ${booking.id}</p>
+                        </div>
+
+                        ${bookingData.notes ? `
+                        <h3>Message from Renter</h3>
+                        <div class="booking-details">
+                            <p>${bookingData.notes}</p>
+                        </div>
+                        ` : ''}
+
+                        <div class="urgent">
+                            <h4>⏰ Action Required Within 48 Hours</h4>
+                            <p>This booking request will expire automatically if not approved within 48 hours. The renter's payment is authorized and ready to be captured once you approve.</p>
+                        </div>
+
+                        <h3>What You Need to Do:</h3>
+                        <ul>
+                            <li>🔍 Review the booking details and renter profile</li>
+                            <li>✅ Approve the booking to confirm the rental</li>
+                            <li>❌ Reject if dates don't work or you have concerns</li>
+                            <li>💬 Message the renter to coordinate pickup details</li>
+                        </ul>
+
+                        <p style="text-align: center;">
+                            <a href="${baseUrl}/dashboard/bookings/${booking.id}" class="button">
+                                Review & Approve Booking
+                            </a>
+                        </p>
+
+                        <h3>Payment Protection</h3>
+                        <ul>
+                            <li>✅ Payment is authorized and held securely</li>
+                            <li>✅ Funds will be released to you after successful rental completion</li>
+                            <li>✅ Platform commission is automatically handled</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Need help? Contact us at <a href="mailto:support@rentitforward.com.au" style="color: #44D62C;">support@rentitforward.com.au</a></p>
+                        <p>© 2024 Rent It Forward - Sustainable Sharing Platform</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+          `,
+          replyTo: 'support@rentitforward.com.au',
+        });
+      }
     } catch (notificationError) {
       console.error('Failed to send owner notification:', notificationError);
       // Don't fail the booking if notification fails

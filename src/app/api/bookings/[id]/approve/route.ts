@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { captureAuthorizedPayment } from '@/lib/stripe/payment-authorization';
+import { unifiedEmailService } from '@/lib/email/unified-email-service';
 
 const approvalSchema = z.object({
   notes: z.string().max(500).optional(),
@@ -220,6 +221,53 @@ export async function POST(
         booking.listings.title,
         captureResult.capturedAmount || booking.total_amount
       );
+
+      // Send email notifications
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rentitforward.com.au';
+      
+      // Get owner profile for email
+      const { data: ownerProfile } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', booking.listings.owner_id)
+        .single();
+
+      // Send booking confirmation emails to both parties
+      if (booking.profiles?.email) {
+        await unifiedEmailService.sendBookingConfirmationEmail({
+          booking_id: bookingId,
+          listing_title: booking.listings.title,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          total_amount: booking.total_amount,
+          renter_name: booking.profiles.name,
+          renter_email: booking.profiles.email,
+          owner_name: ownerProfile?.full_name || 'Host',
+          owner_email: ownerProfile?.email || '',
+          listing_location: 'Location TBD', // Would need to get from listing
+          pickup_location: booking.pickup_location,
+          renter_message: booking.notes,
+          base_url: baseUrl,
+        }, false); // false = renter email
+      }
+
+      if (ownerProfile?.email) {
+        await unifiedEmailService.sendBookingConfirmationEmail({
+          booking_id: bookingId,
+          listing_title: booking.listings.title,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          total_amount: booking.total_amount,
+          renter_name: booking.profiles.name,
+          renter_email: booking.profiles.email,
+          owner_name: ownerProfile.full_name,
+          owner_email: ownerProfile.email,
+          listing_location: 'Location TBD', // Would need to get from listing
+          pickup_location: booking.pickup_location,
+          renter_message: booking.notes,
+          base_url: baseUrl,
+        }, true); // true = owner email
+      }
       
     } catch (notificationError) {
       console.error('Failed to send approval notifications:', notificationError);

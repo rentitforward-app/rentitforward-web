@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
-import { EmailService } from '@/lib/email-service';
+import { unifiedEmailService } from '@/lib/email/unified-email-service';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -12,6 +12,7 @@ async function sendPayoutReleaseEmail(booking: any, payment: any, amount: number
   const ownerEmail = booking.owner?.email || booking.profiles?.email;
   const ownerName = booking.owner?.full_name || booking.profiles?.full_name || 'Owner';
   const listingTitle = booking.listing?.title || booking.listings?.title || 'Your listing';
+  const renterName = booking.renter?.full_name || booking.renter_profile?.full_name || 'Renter';
 
   if (!ownerEmail) {
     throw new Error('Owner email not found');
@@ -20,82 +21,18 @@ async function sendPayoutReleaseEmail(booking: any, payment: any, amount: number
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
-  const startDate = new Date(booking.start_date).toLocaleDateString('en-AU', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
-  const endDate = new Date(booking.end_date).toLocaleDateString('en-AU', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
+  const paymentData = {
+    booking_id: booking.id,
+    listing_title: listingTitle,
+    owner_name: ownerName,
+    owner_email: ownerEmail,
+    renter_name: renterName,
+    amount: amount,
+    payout_id: payoutId,
+    base_url: baseUrl,
+  };
 
-  const emailSubject = `Payout Released - ${listingTitle}`;
-
-  const emailBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Payout Released</title>
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #44D62C; color: white; padding: 20px; text-align: center; }
-    .content { background: #f9f9f9; padding: 20px; }
-    .details { background: white; padding: 15px; margin: 15px 0; border-radius: 5px; }
-    .footer { background: #333; color: white; padding: 20px; text-align: center; }
-    .button { background: #44D62C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0; }
-  </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <h1>💸 Payout Released</h1>
-        <p>Great news, ${ownerName}! Your payout has been released.</p>
-      </div>
-
-      <div class="content">
-        <h2>Payout Details</h2>
-        <div class="details">
-          <h3>${listingTitle}</h3>
-          <p><strong>Net Payout:</strong> $${amount.toFixed(2)} AUD</p>
-          <p><strong>Platform Fee:</strong> $${(payment?.platform_fee || 0).toFixed(2)} AUD</p>
-          <p><strong>Stripe Fee:</strong> $${(payment?.stripe_fee || 0).toFixed(2)} AUD</p>
-          <p><strong>Payout ID:</strong> ${payoutId || 'Manual Release'}</p>
-          <p><strong>Release Date:</strong> ${new Date().toLocaleDateString('en-AU')}</p>
-          <p><strong>Booking ID:</strong> ${booking.id}</p>
-        </div>
-
-        <h3>Booking Period</h3>
-        <div class="details">
-          <p>📅 <strong>Start:</strong> ${startDate}</p>
-          <p>📅 <strong>End:</strong> ${endDate}</p>
-        </div>
-
-        <p>
-          <a href="${baseUrl}/dashboard/bookings/${booking.id}" class="button">View Booking</a>
-        </p>
-      </div>
-
-      <div class="footer">
-        <p>Funds are sent to your connected Stripe account. Bank settlement typically takes 1–2 business days.</p>
-        <p>Questions? Contact us at support@rentitforward.com.au</p>
-        <p>© 2024 Rent It Forward - Sustainable Sharing Platform</p>
-      </div>
-    </div>
-  </body>
-</html>
-  `.trim();
-
-  const emailService = new EmailService();
-  const result = await emailService.sendEmail({
-    to: ownerEmail,
-    subject: emailSubject,
-    html: emailBody,
-    text: emailBody.replace(/<[^>]*>/g, ''),
-  });
-
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to send payout email');
-  }
+  return await unifiedEmailService.sendPaymentReleaseEmail(paymentData);
 }
 
 // GET - Fetch bookings with payment data for owner payout management
@@ -459,6 +396,51 @@ export async function POST(request: NextRequest) {
           } catch (pErr) {
             console.warn('Failed to update payment record with payout info:', pErr);
           }
+        }
+
+        // Send FCM push notification and in-app notification to owner
+        try {
+          const { fcmAdminService } = await import('@/lib/fcm/admin');
+          
+          // Create in-app notification
+          await supabase
+            .from('app_notifications')
+            .insert({
+              user_id: booking.owner_id,
+              type: 'payment_released',
+              title: 'Payment Released! 💰',
+              message: `Your payout of $${ownerPayout.toFixed(2)} for "${booking.listing?.title}" has been processed.`,
+              action_url: `/dashboard/earnings`,
+              data: {
+                booking_id: bookingId,
+                listing_title: booking.listing?.title,
+                payout_amount: ownerPayout,
+                payout_id: payoutId,
+              },
+              priority: 8, // High priority for payment notifications
+            });
+
+          // Send FCM push notification
+          const ownerTokens = await fcmAdminService.getUserFCMTokens(booking.owner_id);
+          if (ownerTokens.length > 0) {
+            await fcmAdminService.sendToTokens(
+              ownerTokens.map(t => t.token),
+              {
+                notification: {
+                  title: 'Payment Released! 💰',
+                  body: `Your payout of $${ownerPayout.toFixed(2)} for "${booking.listing?.title}" has been processed.`,
+                  icon: '/icons/notification-icon-192.png',
+                },
+                data: {
+                  type: 'payment_released',
+                  booking_id: bookingId,
+                  action_url: `/dashboard/earnings`,
+                },
+              }
+            );
+          }
+        } catch (fcmError) {
+          console.error('Failed to send FCM notification:', fcmError);
         }
 
         // Send email notification to owner

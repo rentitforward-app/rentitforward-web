@@ -15,15 +15,15 @@ import {
   type MessagePayload 
 } from 'firebase/messaging';
 
-// Firebase configuration
+// Firebase configuration from MCP Firebase SDK config
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  projectId: "rent-it-forward",
+  appId: "1:793254315983:web:0ebecd3361ddb687b2f4ba",
+  storageBucket: "rent-it-forward.firebasestorage.app",
+  apiKey: "AIzaSyDhvS1ehe17M4n9tLRglTOdilNFoeHoAhk",
+  authDomain: "rent-it-forward.firebaseapp.com",
+  messagingSenderId: "793254315983",
+  measurementId: "G-QDDX5CQFHJ"
 };
 
 // VAPID key for web push (you'll need to generate this in Firebase Console)

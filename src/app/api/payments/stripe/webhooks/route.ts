@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { constructWebhookEvent } from '@/lib/stripe-utils';
+import { unifiedEmailService } from '@/lib/email/unified-email-service';
 import Stripe from 'stripe';
 
 // POST - Handle Stripe webhook events
@@ -425,6 +426,119 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
     }
 
     console.log(`[Webhook] Booking ${booking.id} confirmed after successful payment`);
+
+    // Send FCM push notifications and in-app notifications
+    try {
+      const { fcmAdminService } = await import('@/lib/fcm/admin');
+      
+      // Create in-app notifications for both parties
+      await supabase
+        .from('app_notifications')
+        .insert([
+          {
+            user_id: booking.renter_id,
+            type: 'payment_confirmed',
+            title: 'Payment Confirmed! ✅',
+            message: `Your payment for the rental has been confirmed and is held securely.`,
+            action_url: `/bookings/${booking.id}`,
+            data: {
+              booking_id: booking.id,
+              payment_intent_id: paymentIntent.id,
+              amount: amountDollars,
+            },
+            priority: 8,
+          },
+          {
+            user_id: booking.owner_id,
+            type: 'payment_received',
+            title: 'Payment Received! 💰',
+            message: `Payment has been received for your rental. Funds will be released after completion.`,
+            action_url: `/bookings/${booking.id}`,
+            data: {
+              booking_id: booking.id,
+              payment_intent_id: paymentIntent.id,
+              amount: amountDollars,
+            },
+            priority: 8,
+          },
+        ]);
+
+      // Send FCM push notifications
+      const renterTokens = await fcmAdminService.getUserFCMTokens(booking.renter_id);
+      const ownerTokens = await fcmAdminService.getUserFCMTokens(booking.owner_id);
+
+      if (renterTokens.length > 0) {
+        await fcmAdminService.sendToTokens(
+          renterTokens.map(t => t.token),
+          {
+            notification: {
+              title: 'Payment Confirmed! ✅',
+              body: `Your payment for the rental has been confirmed and is held securely.`,
+              icon: '/icons/notification-icon-192.png',
+            },
+            data: {
+              type: 'payment_confirmed',
+              booking_id: booking.id,
+              action_url: `/bookings/${booking.id}`,
+            },
+          }
+        );
+      }
+
+      if (ownerTokens.length > 0) {
+        await fcmAdminService.sendToTokens(
+          ownerTokens.map(t => t.token),
+          {
+            notification: {
+              title: 'Payment Received! 💰',
+              body: `Payment has been received for your rental. Funds will be released after completion.`,
+              icon: '/icons/notification-icon-192.png',
+            },
+            data: {
+              type: 'payment_received',
+              booking_id: booking.id,
+              action_url: `/bookings/${booking.id}`,
+            },
+          }
+        );
+      }
+    } catch (fcmError) {
+      console.error('[Webhook] Failed to send FCM notifications:', fcmError);
+    }
+
+    // Send payment received email notification to renter
+    try {
+      const { data: bookingDetails, error: detailsError } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          listings!inner(id, title),
+          renter_profile:renter_id(id, full_name, email),
+          owner_profile:owner_id(id, full_name, email)
+        `)
+        .eq('id', booking.id)
+        .single();
+
+      if (!detailsError && bookingDetails && bookingDetails.renter_profile?.email) {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rentitforward.com.au';
+        
+        const paymentData = {
+          booking_id: booking.id,
+          listing_title: bookingDetails.listings.title,
+          owner_name: bookingDetails.owner_profile.full_name,
+          owner_email: bookingDetails.owner_profile.email,
+          renter_name: bookingDetails.renter_profile.full_name,
+          amount: amountDollars,
+          base_url: baseUrl,
+        };
+
+        await unifiedEmailService.sendPaymentReceivedEmail(paymentData);
+        console.log(`[Webhook] Payment received email sent to renter for booking ${booking.id}`);
+      }
+    } catch (emailError) {
+      console.error('[Webhook] Failed to send payment received email:', emailError);
+      // Don't fail the webhook if email fails
+    }
 
   } catch (error) {
     console.error('[Webhook] Error handling payment_intent.succeeded:', error);
