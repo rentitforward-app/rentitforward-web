@@ -263,13 +263,28 @@ export async function POST(request: NextRequest) {
     // Send notifications to owner about new booking request
     try {
       // Send FCM push notification and create in-app notification
-      const { FCMBookingNotifications } = await import('@/lib/fcm/notifications');
-      await FCMBookingNotifications.notifyOwnerBookingRequest(
-        listing.owner_id,
-        booking.id,
-        listing.title,
-        profile.name
-      );
+      const { fcmAdminService, buildFCMMessage } = await import('@/lib/fcm/admin');
+      
+      const fcmTitle = '📋 New Booking Request';
+      const fcmBody = `${profile.name} wants to rent your ${listing.title}`;
+      const fcmData = { 
+        type: 'booking_request', 
+        booking_id: booking.id, 
+        action_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://rentitforward.com.au'}/bookings/${booking.id}` 
+      };
+      
+      await fcmAdminService.sendToUser(listing.owner_id, fcmTitle, fcmBody, fcmData);
+      
+      // Create in-app notification
+      await supabase.from('app_notifications').insert({
+        user_id: listing.owner_id,
+        type: 'booking_request',
+        title: fcmTitle,
+        message: fcmBody,
+        action_url: fcmData.action_url,
+        data: fcmData,
+        priority: 8,
+      });
 
       // Get owner profile for email notification
       const { data: ownerProfile } = await supabase
