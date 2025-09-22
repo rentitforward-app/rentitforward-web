@@ -232,38 +232,38 @@ function HostProfileContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
-        <div className="mb-6">
-          <Link
-            href="/browse"
-            className="text-[#44D62C] hover:text-[#3AB827] font-medium flex items-center"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back to Browse
-          </Link>
-        </div>
+      {/* Breadcrumb */}
+      <div className="mb-6">
+        <Link
+          href="/browse"
+          className="text-[#44D62C] hover:text-[#3AB827] font-medium flex items-center"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Back to Browse
+        </Link>
+      </div>
 
-        {/* Host Profile Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex items-start space-x-6">
-            <div className="flex-shrink-0">
-              {host.avatar_url ? (
-                <Image
-                  src={host.avatar_url}
-                  alt={host.full_name}
-                  width={120}
-                  height={120}
-                  className="rounded-full"
-                />
-              ) : (
-                <div className="w-30 h-30 bg-gray-300 rounded-full flex items-center justify-center">
-                  <User className="h-12 w-12 text-gray-600" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-start justify-between">
-                <div>
+      {/* Host Profile Header */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex items-start space-x-6">
+          <div className="flex-shrink-0">
+            {host.avatar_url ? (
+              <Image
+                src={host.avatar_url}
+                alt={host.full_name}
+                width={120}
+                height={120}
+                className="rounded-full"
+              />
+            ) : (
+              <div className="w-30 h-30 bg-gray-300 rounded-full flex items-center justify-center">
+                <User className="h-12 w-12 text-gray-600" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-start justify-between">
+              <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">{host.full_name}</h1>
                   <div className="flex items-center space-x-4 mb-4">
                     {host.city && host.state && (
@@ -307,38 +307,38 @@ function HostProfileContent() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-md mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex">
-              <button
-                onClick={() => setActiveTab('listings')}
-                className={`py-4 px-6 text-sm font-medium border-b-2 ${
-                  activeTab === 'listings'
-                    ? 'border-[#44D62C] text-[#44D62C]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Listings ({listings.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('reviews')}
-                className={`py-4 px-6 text-sm font-medium border-b-2 ${
-                  activeTab === 'reviews'
-                    ? 'border-[#44D62C] text-[#44D62C]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Reviews ({reviews.length})
-              </button>
-            </nav>
-          </div>
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow-md mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex">
+            <button
+              onClick={() => setActiveTab('listings')}
+              className={`py-4 px-6 text-sm font-medium border-b-2 ${
+                activeTab === 'listings'
+                  ? 'border-[#44D62C] text-[#44D62C]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Listings ({listings.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('reviews')}
+              className={`py-4 px-6 text-sm font-medium border-b-2 ${
+                activeTab === 'reviews'
+                  ? 'border-[#44D62C] text-[#44D62C]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Reviews ({reviews.length})
+            </button>
+          </nav>
+        </div>
 
-          <div className="p-6">
-            {activeTab === 'listings' && (
-              <div>
-                {listings.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="p-6">
+          {activeTab === 'listings' && (
+            <div>
+              {listings.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {listings.map((listing) => (
                       <Link
                         key={listing.id}
@@ -374,46 +374,45 @@ function HostProfileContent() {
                       </Link>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-600">This host doesn't have any active listings yet.</p>
-                  </div>
-                )}
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">This host doesn't have any active listings yet.</p>
+                </div>
+              )}
+            </div>
+          )}
 
-            {activeTab === 'reviews' && (
-              <div>
-                {reviews.length > 0 ? (
-                  <div className="space-y-6">
-                    {/* Review Statistics */}
-                    <ReviewStats 
-                      reviews={reviews}
-                      showDistribution={true}
-                      className="mb-6"
-                    />
-                    
-                    {/* Review List */}
-                    <ReviewList
-                      reviews={reviews}
-                      currentUserId={currentUser?.id}
-                      showFilters={reviews.length > 5}
-                      initialFilter={{ sortBy: 'newest' }}
-                      emptyMessage="This host doesn't have any reviews yet."
-                    />
+          {activeTab === 'reviews' && (
+            <div>
+              {reviews.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Review Statistics */}
+                  <ReviewStats 
+                    reviews={reviews}
+                    showDistribution={true}
+                    className="mb-6"
+                  />
+                  
+                  {/* Review List */}
+                  <ReviewList
+                    reviews={reviews}
+                    currentUserId={currentUser?.id}
+                    showFilters={reviews.length > 5}
+                    initialFilter={{ sortBy: 'newest' }}
+                    emptyMessage="This host doesn't have any reviews yet."
+                  />
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 mb-4">
+                    <Star className="w-12 h-12 mx-auto" />
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-gray-400 mb-4">
-                      <Star className="w-12 h-12 mx-auto" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
-                    <p className="text-gray-600">This host hasn't received any reviews yet.</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
+                  <p className="text-gray-600">This host hasn't received any reviews yet.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
