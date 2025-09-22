@@ -197,30 +197,33 @@ export async function POST(
 
     // Send notifications about booking approval
     try {
-      const { FCMBookingNotifications } = await import('@/lib/fcm/notifications');
+      const { fcmAdminService } = await import('@/lib/fcm/admin');
       
       // Notify renter of approval (FCM + In-app)
-      await FCMBookingNotifications.notifyRenterBookingApproved(
-        booking.renter_id,
-        bookingId,
-        booking.listings.title
-      );
+      const fcmTitle = '✅ Booking Confirmed!';
+      const fcmBody = `Your booking for "${booking.listings.title}" has been approved!`;
+      const fcmData = { 
+        type: 'booking_confirmed', 
+        booking_id: bookingId, 
+        action_url: `/bookings/${bookingId}` 
+      };
+      
+      await fcmAdminService.sendToUser(booking.renter_id, fcmTitle, fcmBody, fcmData);
 
-      // Notify about payment confirmation (FCM + In-app)
-      await FCMBookingNotifications.notifyPaymentConfirmed(
-        booking.renter_id,
-        bookingId,
-        booking.listings.title,
-        captureResult.capturedAmount || booking.total_amount
-      );
+      // Notify renter about payment confirmation (FCM + In-app)
+      const paymentTitle = '💳 Payment Confirmed!';
+      const paymentBody = `Your payment of $${(captureResult.capturedAmount || booking.total_amount).toFixed(2)} for "${booking.listings.title}" has been processed`;
+      const paymentData = { 
+        type: 'payment_confirmed', 
+        booking_id: bookingId, 
+        action_url: `/bookings/${bookingId}` 
+      };
+      
+      await fcmAdminService.sendToUser(booking.renter_id, paymentTitle, paymentBody, paymentData);
 
       // Notify owner about payment confirmation (FCM + In-app)
-      await FCMBookingNotifications.notifyPaymentConfirmed(
-        booking.listings.owner_id,
-        bookingId,
-        booking.listings.title,
-        captureResult.capturedAmount || booking.total_amount
-      );
+      const ownerPaymentBody = `Payment received for "${booking.listings.title}" booking`;
+      await fcmAdminService.sendToUser(booking.listings.owner_id, paymentTitle, ownerPaymentBody, paymentData);
 
       // Send email notifications
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rentitforward.com.au';

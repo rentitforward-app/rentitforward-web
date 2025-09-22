@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { fcmNotificationService } from '@/lib/fcm/notifications';
+import { fcmAdminService } from '@/lib/fcm/admin';
 import { z } from 'zod';
 
 const sendNotificationSchema = z.object({
@@ -71,25 +71,24 @@ export async function POST(request: NextRequest) {
       const notificationData = validation.data;
 
       try {
-        const result = await fcmNotificationService.sendTypedNotification(
-          notificationData.type as any,
-          notificationData.user_id,
-          notificationData.context,
-          {
-            priority: notificationData.priority,
-            platforms: notificationData.platforms,
-            imageUrl: notificationData.image_url,
-          }
+        // Send simple FCM notification using admin service
+        const title = `Notification: ${notificationData.type}`;
+        const body = `You have a new ${notificationData.type} notification`;
+        const data = { 
+          type: notificationData.type, 
+          ...notificationData.context 
+        };
+        
+        const result = await fcmAdminService.sendToUser(
+          notificationData.user_id, 
+          title, 
+          body, 
+          data
         );
 
         return NextResponse.json({
           success: result.success,
           message: result.success ? 'Notification sent successfully' : 'Failed to send notification',
-          result: {
-            messageIds: result.messageIds,
-            tokensTargeted: result.tokensTargeted,
-            platformResults: result.platformResults,
-          },
           error: result.error,
         });
       } catch (error) {
@@ -112,21 +111,19 @@ export async function POST(request: NextRequest) {
 
       const notificationData = validation.data;
 
-      // Send notifications to all specified users
+      // Send notifications to all specified users using FCM admin service
       const results = await Promise.allSettled(
         notificationData.user_ids.map(userId =>
-          fcmNotificationService.sendNotification({
-            category: notificationData.category as any,
+          fcmAdminService.sendToUser(
             userId,
-            title: notificationData.title,
-            message: notificationData.message,
-            templateVars: notificationData.template_vars,
-            data: notificationData.data,
-            url: notificationData.url,
-            imageUrl: notificationData.image_url,
-            priority: notificationData.priority,
-            platforms: notificationData.platforms,
-          })
+            notificationData.title || `Notification: ${notificationData.category}`,
+            notificationData.message || 'You have a new notification',
+            { 
+              type: notificationData.category,
+              ...notificationData.data,
+              action_url: notificationData.url 
+            }
+          )
         )
       );
 
@@ -137,8 +134,6 @@ export async function POST(request: NextRequest) {
         userId: notificationData.user_ids[index],
         success: result.status === 'fulfilled' ? result.value.success : false,
         error: result.status === 'fulfilled' ? result.value.error : 'Promise rejected',
-        messageIds: result.status === 'fulfilled' ? result.value.messageIds : undefined,
-        tokensTargeted: result.status === 'fulfilled' ? result.value.tokensTargeted : 0,
       }));
 
       return NextResponse.json({

@@ -67,13 +67,18 @@ export async function POST(request: NextRequest) {
 
     // Send FCM push notification
     try {
-      const { FCMBookingNotifications } = await import('@/lib/fcm/notifications');
-      await FCMBookingNotifications.notifyMessageReceived(
-        receiverId,
-        messageId,
-        messageData.conversation.listings.title,
-        messageData.sender.full_name
-      );
+      const { fcmAdminService } = await import('@/lib/fcm/admin');
+      
+      const fcmTitle = '💬 New Message';
+      const fcmBody = `${messageData.sender.full_name} sent you a message about "${messageData.conversation.listings.title}"`;
+      const fcmData = { 
+        type: 'message_received', 
+        message_id: messageId,
+        conversation_id: messageData.conversation.id,
+        action_url: `/messages?conversation=${messageData.conversation.id}` 
+      };
+      
+      await fcmAdminService.sendToUser(receiverId, fcmTitle, fcmBody, fcmData);
     } catch (fcmError) {
       console.error('Failed to send FCM notification:', fcmError);
       // Don't fail the API if FCM fails

@@ -189,14 +189,18 @@ export async function POST(
 
     // Send notifications about booking rejection
     try {
-      const { FCMBookingNotifications } = await import('@/lib/fcm/notifications');
+      const { fcmAdminService } = await import('@/lib/fcm/admin');
       
       // Send FCM push notification to renter
-      await FCMBookingNotifications.notifyRenterBookingRejected(
-        booking.renter_id,
-        bookingId,
-        booking.listings.title,
-        reason
+      const fcmTitle = '❌ Booking Request Declined';
+      const fcmBody = `Your request for "${booking.listings.title}" was declined${reason ? `: ${reason}` : ''}`;
+      const fcmData = { 
+        type: 'booking_rejected', 
+        booking_id: bookingId, 
+        action_url: `/bookings/${bookingId}` 
+      };
+      
+      await fcmAdminService.sendToUser(booking.renter_id, fcmTitle, fcmBody, fcmData
       );
 
       // Send email notification to renter about rejection

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { FCMBookingNotifications } from '@/lib/fcm/notifications';
+import { fcmAdminService } from '@/lib/fcm/admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,15 +24,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Send FCM notification to owner
-    await FCMBookingNotifications.notifyOwnerBookingCompleted(
-      ownerId,
-      bookingId,
-      listingTitle,
-      renterName,
-      totalAmount || 0,
-      startDate,
-      endDate
-    );
+    const fcmTitle = '🎉 Booking Completed!';
+    const fcmBody = `${renterName} has completed their booking for "${listingTitle}"`;
+    const fcmData = { 
+      type: 'booking_completed', 
+      booking_id: bookingId, 
+      action_url: `/bookings/${bookingId}` 
+    };
+    
+    await fcmAdminService.sendToUser(ownerId, fcmTitle, fcmBody, fcmData);
 
     // Create in-app notification
     const supabase = await createClient();
