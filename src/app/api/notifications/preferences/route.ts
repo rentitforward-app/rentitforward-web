@@ -2,66 +2,57 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 interface NotificationPreferences {
-  booking_notifications: boolean;
-  message_notifications: boolean;
-  payment_notifications: boolean;
-  review_notifications: boolean;
-  system_notifications: boolean;
-  marketing_notifications: boolean;
+  email_bookings: boolean;
+  email_messages: boolean;
+  email_marketing: boolean;
   push_notifications: boolean;
-  email_enabled: boolean;
-  fcm_web_enabled: boolean;
-  fcm_mobile_enabled: boolean;
+  push_bookings: boolean;
+  push_messages: boolean;
+  push_reminders: boolean;
 }
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     
-    // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user preferences from database
-    const { data: preferences, error } = await supabase
-      .from('notification_preferences')
-      .select('*')
-      .eq('user_id', user.id)
+    // Get user's notification preferences from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('notification_preferences')
+      .eq('id', user.id)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error fetching notification preferences:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch preferences' },
-        { status: 500 }
-      );
+    if (profileError) {
+      console.error('Error fetching notification preferences:', profileError);
+      return NextResponse.json({ error: 'Failed to fetch preferences' }, { status: 500 });
     }
 
-    // Return default preferences if none exist
+    // Default preferences if none exist
     const defaultPreferences: NotificationPreferences = {
-      booking_notifications: true,
-      message_notifications: true,
-      payment_notifications: true,
-      review_notifications: true,
-      system_notifications: true,
-      marketing_notifications: false,
-      push_notifications: false,
-      email_enabled: true,
-      fcm_web_enabled: false,
-      fcm_mobile_enabled: false,
+      email_bookings: true,
+      email_messages: true,
+      email_marketing: false,
+      push_notifications: true,
+      push_bookings: true,
+      push_messages: true,
+      push_reminders: true,
     };
 
-    return NextResponse.json({
-      preferences: preferences || defaultPreferences,
+    const preferences = profile?.notification_preferences || defaultPreferences;
+
+    return NextResponse.json({ 
+      success: true, 
+      preferences 
     });
+
   } catch (error) {
-    console.error('Error in notification preferences GET:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Error in GET /api/notifications/preferences:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -69,120 +60,52 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = await createClient();
     
-    // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { preferences }: { preferences: NotificationPreferences } = await request.json();
+    const { preferences }: { preferences: Partial<NotificationPreferences> } = await request.json();
 
-    // Validate preferences structure
-    const requiredFields = [
-      'booking_notifications',
-      'message_notifications', 
-      'payment_notifications',
-      'review_notifications',
-      'system_notifications',
-      'marketing_notifications',
-      'push_notifications',
-      'email_enabled',
-      'fcm_web_enabled',
-      'fcm_mobile_enabled'
+    if (!preferences) {
+      return NextResponse.json({ error: 'Preferences data is required' }, { status: 400 });
+    }
+
+    // Validate preferences
+    const validKeys: (keyof NotificationPreferences)[] = [
+      'email_bookings', 'email_messages', 'email_marketing',
+      'push_notifications', 'push_bookings', 'push_messages', 'push_reminders'
     ];
 
-    for (const field of requiredFields) {
-      if (typeof preferences[field as keyof NotificationPreferences] !== 'boolean') {
-        return NextResponse.json(
-          { error: `Invalid value for ${field}` },
-          { status: 400 }
-        );
+    const validatedPreferences: Partial<NotificationPreferences> = {};
+    for (const key of validKeys) {
+      if (preferences[key] !== undefined) {
+        validatedPreferences[key] = Boolean(preferences[key]);
       }
     }
 
-    // System notifications should always be enabled
-    preferences.system_notifications = true;
-
-    // Upsert preferences
-    const { data, error } = await supabase
-      .from('notification_preferences')
-      .upsert({
-        user_id: user.id,
-        ...preferences,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id'
+    // Update user's notification preferences
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ 
+        notification_preferences: validatedPreferences,
+        updated_at: new Date().toISOString()
       })
-      .select()
-      .single();
+      .eq('id', user.id);
 
-    if (error) {
-      console.error('Error saving notification preferences:', error);
-      return NextResponse.json(
-        { error: 'Failed to save preferences' },
-        { status: 500 }
-      );
+    if (updateError) {
+      console.error('Error updating notification preferences:', updateError);
+      return NextResponse.json({ error: 'Failed to update preferences' }, { status: 500 });
     }
 
-    // If push notifications are enabled, ensure FCM tokens are active
-    if (preferences.push_notifications) {
-      try {
-        await updateFCMSubscriptions(user.id, preferences);
-      } catch (fcmError) {
-        console.error('Error updating FCM subscriptions:', fcmError);
-        // Don't fail the request if FCM update fails
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      preferences: data,
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Notification preferences updated successfully',
+      preferences: validatedPreferences
     });
+
   } catch (error) {
-    console.error('Error in notification preferences PUT:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Error in PUT /api/notifications/preferences:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-
-async function updateFCMSubscriptions(userId: string, preferences: NotificationPreferences) {
-  try {
-    const supabase = await createClient();
-    
-    // Update FCM subscription preferences based on platform enablement
-    const updates: any = {};
-    
-    if (!preferences.fcm_web_enabled) {
-      // Deactivate web FCM tokens if web notifications are disabled
-      await supabase
-        .from('fcm_subscriptions')
-        .update({ is_active: false })
-        .eq('user_id', userId)
-        .eq('platform', 'web');
-    }
-    
-    if (!preferences.fcm_mobile_enabled) {
-      // Deactivate mobile FCM tokens if mobile notifications are disabled
-      await supabase
-        .from('fcm_subscriptions')
-        .update({ is_active: false })
-        .eq('user_id', userId)
-        .in('platform', ['ios', 'android']);
-    }
-    
-    // If push notifications are completely disabled, deactivate all tokens
-    if (!preferences.push_notifications) {
-      await supabase
-        .from('fcm_subscriptions')
-        .update({ is_active: false })
-        .eq('user_id', userId);
-    }
-
-    console.log('FCM subscriptions updated for user:', userId);
-  } catch (error) {
-    console.error('Failed to update FCM subscriptions:', error);
-    throw error;
-  }
-} 

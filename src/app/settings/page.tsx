@@ -29,9 +29,10 @@ interface NotificationSettings {
   email_bookings: boolean;
   email_messages: boolean;
   email_marketing: boolean;
-  sms_bookings: boolean;
-  sms_reminders: boolean;
   push_notifications: boolean;
+  push_bookings: boolean;
+  push_messages: boolean;
+  push_reminders: boolean;
 }
 
 interface SecuritySettings {
@@ -55,9 +56,10 @@ export default function SettingsPage() {
     email_bookings: true,
     email_messages: true,
     email_marketing: false,
-    sms_bookings: true,
-    sms_reminders: true,
-    push_notifications: true
+    push_notifications: true,
+    push_bookings: true,
+    push_messages: true,
+    push_reminders: true
   });
   const [security, setSecurity] = useState<SecuritySettings>({
     two_factor_enabled: false,
@@ -66,6 +68,8 @@ export default function SettingsPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   const router = useRouter();
   const supabase = createClient();
@@ -95,12 +99,20 @@ export default function SettingsPage() {
 
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email, verified, stripe_onboarded')
+        .select('id, full_name, email, verified, stripe_onboarded, notification_preferences')
         .eq('id', user.id)
         .single();
 
       if (error) throw error;
       setProfile(profile);
+      
+      // Load notification preferences
+      if (profile.notification_preferences) {
+        setNotifications(prev => ({
+          ...prev,
+          ...profile.notification_preferences
+        }));
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
       toast.error('Failed to load profile');
@@ -110,9 +122,32 @@ export default function SettingsPage() {
   };
 
   const handleNotificationUpdate = async (key: keyof NotificationSettings, value: boolean) => {
-    setNotifications(prev => ({ ...prev, [key]: value }));
-    // Would save to database in real app
-    toast.success('Notification preferences updated');
+    try {
+      // Update local state immediately for better UX
+      setNotifications(prev => ({ ...prev, [key]: value }));
+      
+      // Save to backend
+      const response = await fetch('/api/notifications/preferences', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          preferences: { [key]: value }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update preferences');
+      }
+
+      toast.success('Notification preferences updated');
+    } catch (error) {
+      console.error('Error updating notification preferences:', error);
+      // Revert local state on error
+      setNotifications(prev => ({ ...prev, [key]: !value }));
+      toast.error('Failed to update notification preferences');
+    }
   };
 
   const handleSecurityUpdate = async (key: keyof SecuritySettings, value: boolean | number) => {
@@ -130,9 +165,58 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    // Would handle account deletion in real app
-    toast.error('Account deletion not implemented yet');
+    if (deleteConfirmationText !== 'DELETE') {
+      toast.error('Please type "DELETE" exactly as shown to confirm account deletion.');
+      return;
+    }
+
+    try {
+      setIsDeletingAccount(true);
+      
+      // Get the current session to pass the auth token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No valid session found');
+      }
+
+      // Call the Edge Function to delete the user account
+      const { data, error } = await supabase.functions.invoke('delete-user-account', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to delete account');
+      }
+
+      // Show success message and redirect
+      toast.success('Account deleted successfully. Thank you for using Rent It Forward.');
+      
+      // Close modal and redirect to home
+      setShowDeleteConfirm(false);
+      setDeleteConfirmationText('');
+      
+      // Sign out and redirect
+      await signOut();
+      router.push('/');
+      
+    } catch (error) {
+      console.error('Account deletion error:', error);
+      toast.error('Failed to delete account. Please try again or contact support.');
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const closeDeleteModal = () => {
     setShowDeleteConfirm(false);
+    setDeleteConfirmationText('');
   };
 
   if (isLoading) {
@@ -235,12 +319,36 @@ export default function SettingsPage() {
                     </div>
 
                     <div>
-                      <h3 className="font-medium text-gray-900 mb-4">SMS Notifications</h3>
+                      <h3 className="font-medium text-gray-900 mb-4">Push Notifications</h3>
                       <div className="space-y-4">
-                        {[
-                          { key: 'sms_bookings', label: 'Urgent booking alerts', description: 'Time-sensitive booking notifications' },
-                          { key: 'sms_reminders', label: 'Rental reminders', description: 'Reminders about upcoming pickups and returns' }
-                        ].map((item) => (
+                        {/* Main push notification toggle */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">Enable Push Notifications</p>
+                            <p className="text-sm text-gray-500">Receive push notifications on this device</p>
+                          </div>
+                          <button
+                            onClick={() => handleNotificationUpdate('push_notifications', !notifications.push_notifications)}
+                            className={`ml-4 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+                              notifications.push_notifications ? 'bg-green-600' : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                notifications.push_notifications ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
+
+                        {/* Push notification categories - only show if push notifications are enabled */}
+                        {notifications.push_notifications && (
+                          <>
+                            {[
+                              { key: 'push_bookings', label: 'Booking notifications', description: 'Get notified about booking updates and status changes' },
+                              { key: 'push_messages', label: 'Message notifications', description: 'Get notified about new messages' },
+                              { key: 'push_reminders', label: 'Reminder notifications', description: 'Get reminded about upcoming pickups and returns' }
+                            ].map((item) => (
                           <div key={item.key} className="flex items-start justify-between">
                             <div className="flex-1">
                               <p className="text-sm font-medium text-gray-900">{item.label}</p>
@@ -259,7 +367,9 @@ export default function SettingsPage() {
                               />
                             </button>
                           </div>
-                        ))}
+                            ))}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -391,23 +501,71 @@ export default function SettingsPage() {
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="p-6 max-w-md mx-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Account</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete your account? This action cannot be undone.
+            <Card className="p-6 max-w-lg mx-4">
+              {/* Modal Header */}
+              <div className="flex items-center mb-4 pb-4 border-b border-red-200">
+                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-red-600">Final Confirmation</h3>
+              </div>
+
+              {/* Warning Text */}
+              <p className="text-gray-700 mb-4">
+                This is your final warning. Deleting your account will permanently remove:
               </p>
+
+              {/* List of what will be deleted */}
+              <ul className="text-sm text-gray-600 mb-4 space-y-1">
+                <li>• Your profile and personal information</li>
+                <li>• All your listings</li>
+                <li>• All your booking history</li>
+                <li>• All your messages</li>
+                <li>• All your payment information</li>
+              </ul>
+
+              <p className="text-red-600 font-semibold mb-4">
+                This action CANNOT be undone.
+              </p>
+
+              {/* Confirmation Input */}
+              <div className="mb-6">
+                <label className="block text-sm text-gray-700 mb-2">
+                  To confirm, please type <span className="font-bold text-red-600">DELETE</span> in the box below:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmationText}
+                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                  placeholder="Type DELETE here"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                />
+              </div>
+
+              {/* Modal Buttons */}
               <div className="flex space-x-3">
                 <Button
-                  onClick={handleDeleteAccount}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  Yes, Delete Account
-                </Button>
-                <Button
                   variant="outline"
-                  onClick={() => setShowDeleteConfirm(false)}
+                  onClick={closeDeleteModal}
+                  className="flex-1"
+                  disabled={isDeletingAccount}
                 >
                   Cancel
+                </Button>
+                <Button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmationText !== 'DELETE' || isDeletingAccount}
+                  className={`flex-1 ${
+                    deleteConfirmationText === 'DELETE' 
+                      ? 'bg-red-600 hover:bg-red-700' 
+                      : 'bg-gray-300 cursor-not-allowed'
+                  }`}
+                >
+                  {isDeletingAccount ? 'Deleting Account...' : 'Delete Account'}
                 </Button>
               </div>
             </Card>
