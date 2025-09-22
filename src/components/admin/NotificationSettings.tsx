@@ -322,3 +322,4 @@ export function NotificationSettings({ className }: NotificationSettingsProps) {
     </Card>
   );
 }
+
