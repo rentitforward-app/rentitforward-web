@@ -20,6 +20,7 @@ import { toast } from 'react-hot-toast';
 import { ReviewList, ReviewStats } from '@/components/reviews';
 import MessageModal from '@/components/MessageModal';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { useAuth } from '@/hooks/use-auth';
 
 interface HostProfile {
   id: string;
@@ -66,7 +67,7 @@ interface Review {
   };
 }
 
-export default function HostProfilePage() {
+function HostProfileContent() {
   const [host, setHost] = useState<HostProfile | null>(null);
   const [listings, setListings] = useState<HostListing[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -205,37 +206,32 @@ export default function HostProfilePage() {
 
   if (isLoading) {
     return (
-      <AuthenticatedLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
-        </div>
-      </AuthenticatedLayout>
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#44D62C]"></div>
+      </div>
     );
   }
 
   if (!host) {
     return (
-      <AuthenticatedLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Host not found</h1>
-            <Link
-              href="/browse"
-              className="text-[#44D62C] hover:text-[#3AB827] font-medium"
-            >
-              Browse listings
-            </Link>
-          </div>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Host not found</h1>
+          <Link
+            href="/browse"
+            className="text-[#44D62C] hover:text-[#3AB827] font-medium"
+          >
+            Browse listings
+          </Link>
         </div>
-      </AuthenticatedLayout>
+      </div>
     );
   }
 
   const averageRating = calculateAverageRating();
 
   return (
-    <AuthenticatedLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <div className="mb-6">
           <Link
@@ -436,6 +432,38 @@ export default function HostProfilePage() {
           }}
         />
       )}
-    </AuthenticatedLayout>
+    </div>
+  );
+}
+
+export default function HostProfilePage() {
+  const { isAuthenticated, loading } = useAuth();
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#44D62C] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // For authenticated users, show full layout with left sidebar
+  if (isAuthenticated) {
+    return (
+      <AuthenticatedLayout>
+        <HostProfileContent />
+      </AuthenticatedLayout>
+    );
+  }
+
+  // For non-authenticated users, show simple layout without left sidebar
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <HostProfileContent />
+    </div>
   );
 } 
