@@ -60,26 +60,25 @@ interface IssueReport {
   financial_impact: boolean;
   estimated_cost: number;
   resolution_requested: string;
-  contact_preference: 'email' | 'phone' | 'message';
 }
 
 const ISSUE_TYPES = [
-  { value: 'damage', label: 'Item Damage', description: 'Physical damage to the rented item' },
-  { value: 'missing_parts', label: 'Missing Parts/Accessories', description: 'Parts or accessories are missing' },
-  { value: 'malfunction', label: 'Item Malfunction', description: 'Item not working as expected' },
-  { value: 'cleanliness', label: 'Cleanliness Issues', description: 'Item was not clean or hygienic' },
-  { value: 'late_pickup', label: 'Late Pickup/Return', description: 'Issues with pickup or return timing' },
-  { value: 'communication', label: 'Communication Issues', description: 'Problems with host/renter communication' },
-  { value: 'safety', label: 'Safety Concerns', description: 'Safety issues with the item or location' },
-  { value: 'fraud', label: 'Fraud/Misrepresentation', description: 'Item not as described or fraudulent activity' },
-  { value: 'other', label: 'Other', description: 'Other issues not covered above' }
+  { value: 'damage', label: 'Damage', description: 'Physical damage to the item' },
+  { value: 'missing_parts', label: 'Missing Parts', description: 'Parts or accessories are missing' },
+  { value: 'malfunction', label: 'Malfunction', description: 'Item not working properly' },
+  { value: 'cleanliness', label: 'Cleanliness', description: 'Item not clean or hygienic' },
+  { value: 'late_pickup', label: 'Late Pickup', description: 'Pickup was delayed' },
+  { value: 'communication', label: 'Communication', description: 'Communication issues' },
+  { value: 'safety', label: 'Safety', description: 'Safety concerns' },
+  { value: 'fraud', label: 'Fraud', description: 'Fraudulent activity' },
+  { value: 'other', label: 'Other', description: 'Other issues' }
 ];
 
 const SEVERITY_LEVELS = [
-  { value: 'low', label: 'Low', color: 'text-green-600 bg-green-50', description: 'Minor inconvenience' },
-  { value: 'medium', label: 'Medium', color: 'text-yellow-600 bg-yellow-50', description: 'Moderate impact' },
-  { value: 'high', label: 'High', color: 'text-orange-600 bg-orange-50', description: 'Significant impact' },
-  { value: 'critical', label: 'Critical', color: 'text-red-600 bg-red-50', description: 'Urgent attention required' }
+  { value: 'low', label: 'Low', color: 'text-green-600 bg-green-50', description: 'Minor issue, no immediate action needed' },
+  { value: 'medium', label: 'Medium', color: 'text-yellow-600 bg-yellow-50', description: 'Moderate issue, needs attention' },
+  { value: 'high', label: 'High', color: 'text-orange-600 bg-orange-50', description: 'Serious issue, urgent attention required' },
+  { value: 'critical', label: 'Critical', color: 'text-red-600 bg-red-50', description: 'Critical issue, immediate action required' }
 ];
 
 export default function ReportIssuePage() {
@@ -104,8 +103,7 @@ export default function ReportIssuePage() {
     location: '',
     financial_impact: false,
     estimated_cost: 0,
-    resolution_requested: '',
-    contact_preference: 'email'
+    resolution_requested: ''
   });
 
   const supabase = createClient();
@@ -217,8 +215,8 @@ export default function ReportIssuePage() {
       return true;
     });
 
-    if (report.photos.length + validFiles.length > 10) {
-      toast.error('Maximum 10 photos allowed');
+    if (report.photos.length + validFiles.length > 5) {
+      toast.error('Maximum 5 photos allowed');
       return;
     }
 
@@ -238,16 +236,7 @@ export default function ReportIssuePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('🐛 DEBUG: Form submitted with data:', {
-      issue_type: report.issue_type,
-      title: report.title,
-      description: report.description,
-      bookingId,
-      userId: user?.id
-    });
-    
     if (!report.issue_type || !report.title || !report.description) {
-      console.log('🐛 DEBUG: Validation failed - missing required fields');
       toast.error('Please fill in all required fields');
       return;
     }
@@ -269,25 +258,16 @@ export default function ReportIssuePage() {
       formData.append('financial_impact', report.financial_impact.toString());
       formData.append('estimated_cost', report.estimated_cost.toString());
       formData.append('resolution_requested', report.resolution_requested);
-      formData.append('contact_preference', report.contact_preference);
+      formData.append('contact_preference', 'email');
 
       // Add photos
       report.photos.forEach((photo, index) => {
         formData.append(`photos`, photo);
       });
 
-      console.log('🐛 DEBUG: About to make API request to /api/bookings/report-issue');
-      console.log('🐛 DEBUG: FormData contents:', Object.fromEntries(formData));
-
       const response = await fetch('/api/bookings/report-issue', {
         method: 'POST',
         body: formData
-      });
-
-      console.log('🐛 DEBUG: API response received:', {
-        status: response.status,
-        ok: response.ok,
-        statusText: response.statusText
       });
 
       if (!response.ok) {
@@ -305,11 +285,7 @@ export default function ReportIssuePage() {
       }, 3000);
 
     } catch (error) {
-      console.error('🐛 DEBUG: Error submitting report:', error);
-      console.error('🐛 DEBUG: Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      console.error('Error submitting report:', error);
       toast.error('Failed to submit report. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -479,24 +455,32 @@ export default function ReportIssuePage() {
                 onChange={(e) => setReport(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="Brief summary of the issue"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                maxLength={100}
                 required
               />
+              <div className="text-right text-xs text-gray-500 mt-1">
+                {report.title.length}/100
+              </div>
             </div>
 
             {/* Description */}
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Detailed Description <span className="text-red-500">*</span>
+                Description <span className="text-red-500">*</span>
               </label>
               <textarea
                 id="description"
                 value={report.description}
                 onChange={(e) => setReport(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Please provide a detailed description of the issue, including what happened, when it occurred, and any relevant circumstances..."
+                placeholder="Please provide detailed information about the issue..."
                 rows={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                maxLength={1000}
                 required
               />
+              <div className="text-right text-xs text-gray-500 mt-1">
+                {report.description.length}/1000
+              </div>
             </div>
 
             {/* When did this occur */}
@@ -516,25 +500,26 @@ export default function ReportIssuePage() {
             {/* Location */}
             <div>
               <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-                Location where issue occurred
+                Location (Optional)
               </label>
               <input
                 type="text"
                 id="location"
                 value={report.location}
                 onChange={(e) => setReport(prev => ({ ...prev, location: e.target.value }))}
-                placeholder="Address or description of where the issue occurred"
+                placeholder="Where did this issue occur?"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                maxLength={200}
               />
             </div>
 
             {/* Photo Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Photos (Optional but recommended)
+                Photos (Optional)
               </label>
               <p className="text-sm text-gray-500 mb-3">
-                Upload photos of any damage, issues, or relevant evidence. Maximum 10 photos, 10MB each.
+                Upload photos to help document the issue (up to 5 photos)
               </p>
               
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
@@ -586,32 +571,40 @@ export default function ReportIssuePage() {
 
             {/* Financial Impact */}
             <div>
-              <div className="flex items-center mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Financial Impact
+              </label>
+              <div className="flex items-start mb-3">
                 <input
                   type="checkbox"
                   id="financial_impact"
                   checked={report.financial_impact}
                   onChange={(e) => setReport(prev => ({ ...prev, financial_impact: e.target.checked }))}
-                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  className="rounded border-gray-300 text-green-600 focus:ring-green-500 mt-1"
                 />
-                <label htmlFor="financial_impact" className="ml-2 text-sm font-medium text-gray-700">
-                  This issue has financial impact (damage, replacement costs, etc.)
-                </label>
+                <div className="ml-3">
+                  <label htmlFor="financial_impact" className="text-sm font-medium text-gray-700">
+                    Does this issue involve financial impact?
+                  </label>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Check this if the issue resulted in additional costs or damages
+                  </p>
+                </div>
               </div>
               
               {report.financial_impact && (
-                <div className="ml-6">
+                <div>
                   <label htmlFor="estimated_cost" className="block text-sm font-medium text-gray-700 mb-2">
-                    Estimated Cost (AUD)
+                    Estimated Cost (AUD) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
                     id="estimated_cost"
-                    value={report.estimated_cost}
+                    value={report.estimated_cost > 0 ? report.estimated_cost.toString() : ''}
                     onChange={(e) => setReport(prev => ({ ...prev, estimated_cost: parseFloat(e.target.value) || 0 }))}
                     placeholder="0.00"
                     min="0"
-                    step="0.01"
+                    step="10"
                     className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
                 </div>
@@ -621,46 +614,22 @@ export default function ReportIssuePage() {
             {/* Resolution Requested */}
             <div>
               <label htmlFor="resolution_requested" className="block text-sm font-medium text-gray-700 mb-2">
-                What resolution are you seeking?
+                Resolution Request (Optional)
               </label>
               <textarea
                 id="resolution_requested"
                 value={report.resolution_requested}
                 onChange={(e) => setReport(prev => ({ ...prev, resolution_requested: e.target.value }))}
-                placeholder="Describe what outcome you're hoping for (refund, replacement, repair, etc.)"
-                rows={3}
+                placeholder="What would you like to see happen to resolve this issue?"
+                rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                maxLength={500}
               />
-            </div>
-
-            {/* Contact Preference */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                How would you prefer to be contacted about this issue?
-              </label>
-              <div className="space-y-2">
-                {[
-                  { value: 'email', label: 'Email', description: 'We\'ll send updates to your registered email' },
-                  { value: 'phone', label: 'Phone', description: 'We\'ll call you for urgent matters' },
-                  { value: 'message', label: 'In-app Messages', description: 'We\'ll contact you through the platform messaging system' }
-                ].map((option) => (
-                  <label key={option.value} className="flex items-start">
-                    <input
-                      type="radio"
-                      name="contact_preference"
-                      value={option.value}
-                      checked={report.contact_preference === option.value}
-                      onChange={(e) => setReport(prev => ({ ...prev, contact_preference: e.target.value as any }))}
-                      className="mt-1 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                    />
-                    <div className="ml-3">
-                      <div className="text-sm font-medium text-gray-900">{option.label}</div>
-                      <div className="text-sm text-gray-500">{option.description}</div>
-                    </div>
-                  </label>
-                ))}
+              <div className="text-right text-xs text-gray-500 mt-1">
+                {report.resolution_requested.length}/500
               </div>
             </div>
+
 
             {/* Submit Button */}
             <div className="flex items-center justify-between pt-6 border-t border-gray-200">

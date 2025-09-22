@@ -6,7 +6,7 @@ import { fcmService } from '@/lib/notifications/fcm';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
