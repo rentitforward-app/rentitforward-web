@@ -133,6 +133,8 @@ function BookingDetailsContent({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<string>('');
+  const [existingReview, setExistingReview] = useState<any>(null);
+  const [reviewCheckLoading, setReviewCheckLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
@@ -159,6 +161,11 @@ function BookingDetailsContent({ params }: PageProps) {
         }
         
         setBooking(bookingDetails);
+        
+        // After booking is loaded, check for existing review
+        if (bookingDetails && currentUser) {
+          await checkExistingReview(bookingDetails, currentUser);
+        }
       } catch (err) {
         console.error('Error loading booking:', err);
         setError('Failed to load booking details');
@@ -169,6 +176,52 @@ function BookingDetailsContent({ params }: PageProps) {
 
     loadData();
   }, [params, router]);
+
+  // Function to check if user has already reviewed this booking
+  const checkExistingReview = async (bookingData: any, userData: any) => {
+    // Return confirmation status
+    const renterConfirmedReturn = bookingData.return_confirmed_by_renter || false;
+    const ownerConfirmedReturn = bookingData.return_confirmed_by_owner || false;
+    const bothReturnConfirmed = renterConfirmedReturn && ownerConfirmedReturn;
+    
+    // Only check for reviews if booking is completed OR both parties confirmed return
+    if (bookingData.status !== 'completed' && !bothReturnConfirmed) {
+      setReviewCheckLoading(false);
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      
+      const { data: reviewData, error } = await supabase
+        .from('reviews')
+        .select(`
+          id,
+          rating,
+          comment,
+          created_at,
+          type,
+          profiles:reviewer_id (
+            id,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('booking_id', bookingData.id)
+        .eq('reviewer_id', userData.id)
+        .single();
+
+      if (reviewData) {
+        setExistingReview(reviewData);
+      } else {
+        setExistingReview(null);
+      }
+    } catch (error) {
+      console.error('Error checking existing review:', error);
+    } finally {
+      setReviewCheckLoading(false);
+    }
+  };
 
   if (loading) {
     return <BookingDetailsSkeleton />;
@@ -552,6 +605,118 @@ function BookingDetailsContent({ params }: PageProps) {
                           </p>
                         )}
                       </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Review Section */}
+              {(() => {
+                const renterConfirmedReturn = booking.return_confirmed_by_renter || false;
+                const ownerConfirmedReturn = booking.return_confirmed_by_owner || false;
+                const bothReturnConfirmed = renterConfirmedReturn && ownerConfirmedReturn;
+                const canShowReview = booking.status === 'completed' || bothReturnConfirmed;
+                const canLeaveReview = canShowReview && !existingReview && !reviewCheckLoading;
+
+                if (!canShowReview) return null;
+
+                return (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="p-6">
+                      <div className="flex items-center mb-6">
+                        <div className="h-8 w-8 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
+                          <CheckCircle className="h-4 w-4 text-yellow-600" />
+                        </div>
+                        <h2 className="text-lg font-semibold text-gray-900">Review Experience</h2>
+                      </div>
+                      
+                      {existingReview ? (
+                        /* Show existing review */
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-start gap-4">
+                            {/* Profile Image */}
+                            {existingReview.profiles?.avatar_url ? (
+                              <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                                <Image
+                                  src={existingReview.profiles.avatar_url}
+                                  alt={existingReview.profiles.full_name}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M9.049 2.927C9.349 2.019 10.651 2.019 10.951 2.927L12.424 7.257H17.034C17.955 7.257 18.298 8.373 17.576 8.943L13.988 11.479L15.461 15.809C15.761 16.717 14.853 17.476 14.131 16.906L10.5 14.37L6.869 16.906C6.147 17.476 5.239 16.717 5.539 15.809L7.012 11.479L3.424 8.943C2.702 8.373 3.045 7.257 3.966 7.257H8.576L9.049 2.927Z"/>
+                                </svg>
+                              </div>
+                            )}
+                            
+                            <div className="flex-1 min-w-0">
+                              {/* Header */}
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-semibold text-gray-900">Your Review</h4>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <svg
+                                      key={star}
+                                      className={`w-5 h-5 ${
+                                        star <= existingReview.rating 
+                                          ? 'text-yellow-400 fill-current' 
+                                          : 'text-gray-300'
+                                      }`}
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <path d="M9.049 2.927C9.349 2.019 10.651 2.019 10.951 2.927L12.424 7.257H17.034C17.955 7.257 18.298 8.373 17.576 8.943L13.988 11.479L15.461 15.809C15.761 16.717 14.853 17.476 14.131 16.906L10.5 14.37L6.869 16.906C6.147 17.476 5.239 16.717 5.539 15.809L7.012 11.479L3.424 8.943C2.702 8.373 3.045 7.257 3.966 7.257H8.576L9.049 2.927Z"/>
+                                    </svg>
+                                  ))}
+                                  <span className="text-base font-semibold text-gray-700 ml-2">
+                                    {existingReview.rating}/5
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Comment */}
+                              {existingReview.comment && (
+                                <p className="text-gray-700 mb-3 leading-relaxed">
+                                  {existingReview.comment}
+                                </p>
+                              )}
+                              
+                              {/* Date */}
+                              <p className="text-sm text-gray-500">
+                                Reviewed on {new Date(existingReview.created_at).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : canLeaveReview ? (
+                        /* Show review button */
+                        <div className="text-center">
+                          <p className="text-gray-600 mb-4">
+                            Your rental experience is complete! Share your review to help other renters.
+                          </p>
+                          <Link href={`/bookings/${booking.id}/reviews`}>
+                            <button className="bg-[#44D62C] hover:bg-[#3AB827] text-white font-semibold py-3 px-6 rounded-lg flex items-center mx-auto transition-colors">
+                              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9.049 2.927C9.349 2.019 10.651 2.019 10.951 2.927L12.424 7.257H17.034C17.955 7.257 18.298 8.373 17.576 8.943L13.988 11.479L15.461 15.809C15.761 16.717 14.853 17.476 14.131 16.906L10.5 14.37L6.869 16.906C6.147 17.476 5.239 16.717 5.539 15.809L7.012 11.479L3.424 8.943C2.702 8.373 3.045 7.257 3.966 7.257H8.576L9.049 2.927Z"/>
+                              </svg>
+                              Leave a Review
+                            </button>
+                          </Link>
+                        </div>
+                      ) : (
+                        /* Loading state */
+                        <div className="text-center text-gray-500">
+                          <div className="animate-pulse">Checking review status...</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

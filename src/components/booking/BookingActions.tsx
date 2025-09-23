@@ -125,6 +125,7 @@ export function BookingActions({
                    booking.status === 'payment_required';
 
 
+
   return (
     <div className="space-y-3">
       {/* Note: Pickup/Return button is now in the main page under "Pickup Confirmation" section */}
@@ -156,6 +157,7 @@ export function BookingActions({
 
       {/* Divider for better visual separation */}
       <div className="border-t border-gray-200 my-4"></div>
+
 
       {/* Existing Actions */}
       <div className="space-y-3">
