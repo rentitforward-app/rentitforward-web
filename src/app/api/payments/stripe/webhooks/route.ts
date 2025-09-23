@@ -554,7 +554,7 @@ async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
     // Find associated booking
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, status')
+      .select('id, status, listing_id, start_date, end_date')
       .eq('stripe_payment_intent_id', paymentIntent.id)
       .single();
 
@@ -563,28 +563,45 @@ async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
       return;
     }
 
-    // Update booking status
-    const { error: updateError } = await supabase
+    // Delete the booking since payment failed (like mobile app)
+    // This frees up the dates for other users and prevents bad UX
+    const { error: deleteError } = await supabase
       .from('bookings')
-      .update({ 
-        status: 'payment_failed',
-        payment_failed_at: new Date().toISOString(),
-      } as any)
+      .delete()
       .eq('id', booking.id);
 
-    if (updateError) {
-      console.error('[Webhook] Error updating booking status:', updateError);
-      return;
+    if (deleteError) {
+      console.error('[Webhook] Error deleting failed payment booking:', deleteError);
+      
+      // Fallback: mark as failed if delete fails
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ 
+          status: 'payment_failed',
+          payment_failed_at: new Date().toISOString(),
+        } as any)
+        .eq('id', booking.id);
+
+      if (updateError) {
+        console.error('[Webhook] Error updating booking status as fallback:', updateError);
+      }
+    } else {
+      console.log(`[Webhook] Deleted failed payment booking ${booking.id}, dates freed up for listing ${booking.listing_id}`);
+      
+      // Log the cleanup for record keeping
+      console.log(`[Webhook] Freed up dates ${booking.start_date} to ${booking.end_date} for listing ${booking.listing_id}`);
     }
 
-    // Update payments row
+    // Still record payment failure for analytics/troubleshooting
     await upsertPaymentByIntent({
       bookingId: booking.id,
       paymentIntentId: paymentIntent.id,
       status: 'failed',
+      metadata: {
+        booking_deleted: deleteError ? false : true,
+        failure_reason: paymentIntent.last_payment_error?.message || 'Payment failed',
+      },
     });
-
-    console.log(`[Webhook] Booking ${booking.id} marked as payment failed`);
 
   } catch (error) {
     console.error('[Webhook] Error handling payment_intent.payment_failed:', error);

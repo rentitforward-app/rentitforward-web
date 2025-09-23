@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
         shipping_address_collection: {
           allowed_countries: ['AU'],
         },
-        expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
+          expires_at: Math.floor(Date.now() / 1000) + (23 * 60 * 60), // 23 hours (must be less than 24)
       };
 
       // Use customer ID if we have one, otherwise use email
@@ -386,7 +386,7 @@ export async function POST(request: NextRequest) {
           shipping_address_collection: {
             allowed_countries: ['AU'],
           },
-          expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60),
+          expires_at: Math.floor(Date.now() / 1000) + (23 * 60 * 60), // 23 hours (must be less than 24)
         };
 
         // Use customer ID if we have one, otherwise use email

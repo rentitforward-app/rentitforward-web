@@ -131,7 +131,7 @@ async function BookingDetailsContent({ params }: PageProps) {
 
   const startDate = new Date(booking.start_date);
   const endDate = new Date(booking.end_date);
-  const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const duration = booking.total_days;
 
   return (
     <DashboardWrapper>

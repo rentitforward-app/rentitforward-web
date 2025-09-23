@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
@@ -29,6 +29,7 @@ interface ReturnImage {
   id: string;
   url: string;
   uploadedAt: string;
+  uploaded_by?: string; // User ID who uploaded this photo
   metadata?: {
     timestamp: string;
     location?: {
@@ -65,6 +66,7 @@ interface BookingDetails {
   damage_report?: string;
   damage_reported_by?: string;
   damage_reported_at?: string;
+  owner_notes?: string;
   listings: {
     id: string;
     title: string;
@@ -94,6 +96,7 @@ export default function ReturnVerificationPage() {
   const [photos, setPhotos] = useState<ReturnImage[]>([]);
   const [showDamageReport, setShowDamageReport] = useState(false);
   const [damageReport, setDamageReport] = useState('');
+  const [ownerNotes, setOwnerNotes] = useState('');
 
   const supabase = createClient();
 
@@ -127,7 +130,7 @@ export default function ReturnVerificationPage() {
   });
 
   // Initialize photos and damage report from booking data
-  useState(() => {
+  useEffect(() => {
     if (booking?.return_images) {
       setPhotos(booking.return_images);
     }
@@ -135,7 +138,10 @@ export default function ReturnVerificationPage() {
       setDamageReport(booking.damage_report);
       setShowDamageReport(true);
     }
-  });
+    if (booking?.owner_notes) {
+      setOwnerNotes(booking.owner_notes);
+    }
+  }, [booking]);
 
   const isRenter = user?.id === booking?.renter_id;
   const isOwner = user?.id === booking?.owner_id;
@@ -186,14 +192,14 @@ export default function ReturnVerificationPage() {
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
-        .from('booking-images')
+        .from('booking-confirmations')
         .upload(fileName, file);
 
       if (error) throw error;
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('booking-images')
+        .from('booking-confirmations')
         .getPublicUrl(fileName);
 
       // Create new photo object
@@ -201,6 +207,7 @@ export default function ReturnVerificationPage() {
         id: tempId,
         url: publicUrl,
         uploadedAt: new Date().toISOString(),
+        uploaded_by: user.id, // Track who uploaded this photo
         metadata: {
           timestamp: new Date().toISOString(),
           ...(location ? { location } : {})
@@ -216,16 +223,32 @@ export default function ReturnVerificationPage() {
     }
   };
 
-  // Remove photo
+  // Remove photo (only allow removal of own photos)
   const removePhoto = async (photoId: string, url: string) => {
+    if (!user) return;
+    
     try {
+      // Find the photo to check ownership
+      const photoToRemove = photos.find(p => p.id === photoId);
+      if (!photoToRemove) return;
+      
+      // Only allow deletion of photos uploaded by current user
+      // For backward compatibility: if uploaded_by is missing, assume it belongs to renter
+      const photoOwner = photoToRemove.uploaded_by || booking?.renter_id;
+      
+      if (photoOwner !== user.id) {
+        const ownerName = photoOwner === booking?.renter_id ? 'renter' : 'owner';
+        alert(`You can only delete photos you uploaded. This photo was uploaded by the ${ownerName}.`);
+        return;
+      }
+      
       // Extract filename from URL
       const urlParts = url.split('/');
       const fileName = urlParts[urlParts.length - 1];
       
       // Delete from storage
       await supabase.storage
-        .from('booking-images')
+        .from('booking-confirmations')
         .remove([fileName]);
 
       // Remove from local state
@@ -266,11 +289,16 @@ export default function ReturnVerificationPage() {
         updateData.return_confirmed_at = new Date().toISOString();
       }
 
-      // Add damage report if provided
-      if (damageReport.trim()) {
+      // Add damage report if provided (only renter can create/edit damage report)
+      if (isRenter && damageReport.trim()) {
         updateData.damage_report = damageReport.trim();
         updateData.damage_reported_by = user.id;
         updateData.damage_reported_at = new Date().toISOString();
+      }
+      
+      // Add owner notes if provided (only owner can add notes)
+      if (isOwner && ownerNotes.trim()) {
+        updateData.owner_notes = ownerNotes.trim();
       }
 
       // Check if both parties have now confirmed return
@@ -505,7 +533,7 @@ export default function ReturnVerificationPage() {
             {booking.pickup_images && booking.pickup_images.length > 0 ? (
               <div className="grid grid-cols-2 gap-2">
                 {booking.pickup_images.map((photo) => (
-                  <div key={photo.id} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                  <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                     <Image
                       src={photo.url}
                       alt="Pickup photo"
@@ -561,7 +589,7 @@ export default function ReturnVerificationPage() {
               <div className="grid grid-cols-2 gap-2">
                 {photos.map((photo) => (
                   <div key={photo.id} className="relative group">
-                    <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                       <Image
                         src={photo.url}
                         alt="Return photo"
@@ -570,13 +598,28 @@ export default function ReturnVerificationPage() {
                       />
                     </div>
                     
-                    {/* Remove button */}
-                    <button
-                      onClick={() => removePhoto(photo.id, photo.url)}
-                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                    {/* Remove button - only show for photos uploaded by current user */}
+                    {(() => {
+                      // For backward compatibility: if uploaded_by is missing, assume it belongs to renter
+                      const photoOwner = photo.uploaded_by || booking?.renter_id;
+                      return photoOwner === user?.id;
+                    })() && (
+                      <button
+                        onClick={() => removePhoto(photo.id, photo.url)}
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                    
+                    {/* Owner indicator */}
+                    <div className="absolute top-1 left-1 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs">
+                      {(() => {
+                        // For backward compatibility: if uploaded_by is missing, assume it belongs to renter
+                        const photoOwner = photo.uploaded_by || booking?.renter_id;
+                        return photoOwner === booking?.renter_id ? 'Renter' : 'Owner';
+                      })()}
+                    </div>
                     
                     {/* Photo metadata */}
                     {photo.metadata && (
@@ -625,27 +668,49 @@ export default function ReturnVerificationPage() {
             Damage Report
           </CardTitle>
           <p className="text-sm text-gray-600">
-            Report any damage or issues with the item (optional)
+            {isRenter ? 'Report any damage or issues with the item (optional)' : 'Review damage report and add your notes (optional)'}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Button
-              variant={showDamageReport ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowDamageReport(!showDamageReport)}
-            >
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              {showDamageReport ? 'Hide' : 'Report'} Damage
-            </Button>
-            {showDamageReport && (
-              <span className="text-sm text-orange-600">
-                Please describe any damage or issues found
-              </span>
-            )}
-          </div>
+          {/* Existing Damage Report (if any) */}
+          {booking?.damage_report && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Flag className="w-4 h-4 text-orange-600" />
+                <span className="text-sm font-medium text-orange-800">Damage Report by Renter</span>
+              </div>
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <p className="text-sm text-orange-800 whitespace-pre-wrap">{booking.damage_report}</p>
+                {booking.damage_reported_at && (
+                  <p className="text-xs text-orange-600 mt-2">
+                    Reported on {new Date(booking.damage_reported_at).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
-          {showDamageReport && (
+          {/* Renter: Create new damage report */}
+          {isRenter && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant={showDamageReport ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowDamageReport(!showDamageReport)}
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                {showDamageReport ? 'Hide' : booking?.damage_report ? 'Edit' : 'Report'} Damage
+              </Button>
+              {showDamageReport && (
+                <span className="text-sm text-orange-600">
+                  Please describe any damage or issues found
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Renter: Damage report form */}
+          {isRenter && showDamageReport && (
             <div className="space-y-3">
               <Textarea
                 value={damageReport}
@@ -666,6 +731,59 @@ export default function ReturnVerificationPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Owner: Add notes to damage report */}
+          {isOwner && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDamageReport(!showDamageReport)}
+                >
+                  <Package className="w-4 h-4 mr-2" />
+                  {showDamageReport ? 'Hide' : 'Add'} Owner Notes
+                </Button>
+              </div>
+
+              {showDamageReport && (
+                <div className="space-y-3">
+                  <Textarea
+                    value={ownerNotes}
+                    onChange={(e) => setOwnerNotes(e.target.value)}
+                    placeholder="Add your notes about the item condition, damage assessment, or any other observations..."
+                    rows={4}
+                    className="w-full"
+                  />
+                  
+                  {ownerNotes.length > 0 && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <Package className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm text-blue-800">
+                          <p className="font-medium">Owner Notes Will Be Saved</p>
+                          <p>Your notes will be added to the return verification record.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Show existing owner notes */}
+          {booking?.owner_notes && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">Owner Notes</span>
+              </div>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 whitespace-pre-wrap">{booking.owner_notes}</p>
+              </div>
             </div>
           )}
         </CardContent>

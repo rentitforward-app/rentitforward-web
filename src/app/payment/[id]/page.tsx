@@ -162,12 +162,7 @@ export default function PaymentPage() {
     });
   };
 
-  const calculateDuration = () => {
-    if (!booking) return 0;
-    const start = new Date(booking.start_date);
-    const end = new Date(booking.end_date);
-    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  };
+  // Use total_days from database instead of calculating
 
   if (isLoading) {
     return (
@@ -196,7 +191,7 @@ export default function PaymentPage() {
     );
   }
 
-  const duration = calculateDuration();
+  const duration = booking.total_days;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

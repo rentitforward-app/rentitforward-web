@@ -1,6 +1,8 @@
-import { Suspense } from 'react';
-import { notFound, redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+'use client';
+
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -29,7 +31,7 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import DashboardWrapper from '@/components/DashboardWrapper';
-import { BookingActions, MapActions, PickupButton } from '@/components/booking/BookingActions';
+import { BookingActions, MapActions } from '@/components/booking/BookingActions';
 import { format } from 'date-fns';
 
 interface PageProps {
@@ -37,7 +39,7 @@ interface PageProps {
 }
 
 async function getBookingDetails(bookingId: string, userId: string) {
-  const supabase = await createClient();
+  const supabase = createClient();
   
   const { data: booking, error } = await supabase
     .from('bookings')
@@ -78,7 +80,7 @@ async function getBookingDetails(bookingId: string, userId: string) {
 }
 
 async function getCurrentUser() {
-  const supabase = await createClient();
+  const supabase = createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   
   if (error || !user) {
@@ -124,18 +126,69 @@ function BookingDetailsSkeleton() {
   );
 }
 
-async function BookingDetailsContent({ params }: PageProps) {
-  const resolvedParams = await params;
-  const user = await getCurrentUser();
-  
-  if (!user) {
-    redirect('/login?redirectTo=' + encodeURIComponent(`/bookings/${resolvedParams.id}`));
+function BookingDetailsContent({ params }: PageProps) {
+  const router = useRouter();
+  const [booking, setBooking] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [bookingId, setBookingId] = useState<string>('');
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        
+        // Resolve params
+        const resolvedParams = await params;
+        setBookingId(resolvedParams.id);
+        
+        // Get current user
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+          router.push('/login?redirectTo=' + encodeURIComponent(`/bookings/${resolvedParams.id}`));
+          return;
+        }
+        setUser(currentUser);
+
+        // Get booking details
+        const bookingDetails = await getBookingDetails(resolvedParams.id, currentUser.id);
+        if (!bookingDetails) {
+          setError('Booking not found');
+          return;
+        }
+        
+        setBooking(bookingDetails);
+      } catch (err) {
+        console.error('Error loading booking:', err);
+        setError('Failed to load booking details');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [params, router]);
+
+  if (loading) {
+    return <BookingDetailsSkeleton />;
   }
 
-  const booking = await getBookingDetails(resolvedParams.id, user.id);
-  
-  if (!booking) {
-    notFound();
+  if (error) {
+    return (
+      <DashboardWrapper>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Error</h1>
+            <p className="text-gray-600">{error}</p>
+          </div>
+        </div>
+      </DashboardWrapper>
+    );
+  }
+
+  if (!booking || !user) {
+    return <BookingDetailsSkeleton />;
   }
 
   const getStatusColor = (status: string) => {
@@ -174,7 +227,7 @@ async function BookingDetailsContent({ params }: PageProps) {
 
   const startDate = new Date(booking.start_date);
   const endDate = new Date(booking.end_date);
-  const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const duration = booking.total_days;
   
   // Determine if current user is the owner or renter
   const isOwner = booking.owner_id === user.id;
@@ -194,6 +247,117 @@ async function BookingDetailsContent({ params }: PageProps) {
   const canConfirmPickup = isWithinPickupPeriod && booking.status === 'confirmed';
   const canReturn = isAfterPickupPeriod && (booking.status === 'active' || booking.status === 'picked_up');
   const hasBeenPickedUp = booking.status === 'active' || booking.status === 'picked_up';
+
+  // Calculate pickup confirmation states
+  const isWithinOrAfterRentalPeriod = today >= startOfPickupPeriod;
+  
+  // Pickup confirmation status
+  const renterConfirmedPickup = booking.pickup_confirmed_by_renter || false;
+  const ownerConfirmedPickup = booking.pickup_confirmed_by_owner || false;
+  const bothPickupConfirmed = renterConfirmedPickup && ownerConfirmedPickup;
+  const currentUserPickupConfirmed = (isRenter && renterConfirmedPickup) || (isOwner && ownerConfirmedPickup);
+  const otherPartyPickupConfirmed = (isRenter && ownerConfirmedPickup) || (isOwner && renterConfirmedPickup);
+  
+  // Return confirmation status
+  const renterConfirmedReturn = booking.return_confirmed_by_renter || false;
+  const ownerConfirmedReturn = booking.return_confirmed_by_owner || false;
+  const bothReturnConfirmed = renterConfirmedReturn && ownerConfirmedReturn;
+  const currentUserReturnConfirmed = (isRenter && renterConfirmedReturn) || (isOwner && ownerConfirmedReturn);
+  const otherPartyReturnConfirmed = (isRenter && ownerConfirmedReturn) || (isOwner && renterConfirmedReturn);
+
+  // Show pickup button logic
+  const showPickupButton = booking.status === 'confirmed' || booking.status === 'payment_required' || bothPickupConfirmed || currentUserReturnConfirmed;
+  
+  // Get pickup button configuration
+  const getPickupButtonConfig = () => {
+    let pickupButtonText = '';
+    let pickupButtonNote = '';
+    let buttonAction = null;
+    let isDisabled = false;
+    let buttonIcon = Package;
+    let buttonColor = 'bg-green-600 hover:bg-green-700 text-white';
+    
+    // Return confirmation states (highest priority)
+    if (currentUserReturnConfirmed && !otherPartyReturnConfirmed) {
+      // Current user confirmed return, waiting for other party
+      const otherPartyName = isRenter ? 'owner' : 'renter';
+      pickupButtonText = `Waiting for ${otherPartyName} return confirmation`;
+      pickupButtonNote = `You've confirmed the return. Waiting for the ${otherPartyName} to verify and confirm return.`;
+      isDisabled = true;
+      buttonIcon = CheckCircle;
+      buttonColor = 'bg-gray-500 text-white cursor-not-allowed';
+    } else if (!currentUserReturnConfirmed && otherPartyReturnConfirmed) {
+      // Other party confirmed return, current user needs to confirm
+      const otherPartyName = isRenter ? 'owner' : 'renter';
+      pickupButtonText = 'Verify Return';
+      pickupButtonNote = `The ${otherPartyName} has confirmed return. Please verify the item and confirm.`;
+      buttonAction = () => window.location.href = `/bookings/${booking.id}/return-verification`;
+      buttonIcon = Flag;
+      buttonColor = 'bg-blue-600 hover:bg-blue-700 text-white';
+    } else if (bothReturnConfirmed) {
+      // Both confirmed return - booking completed
+      pickupButtonText = 'Return Completed';
+      pickupButtonNote = 'Both parties have confirmed return. The rental is now complete.';
+      isDisabled = true;
+      buttonIcon = CheckCircle;
+      buttonColor = 'bg-gray-500 text-white cursor-not-allowed';
+    } 
+    // Return available states
+    else if (bothPickupConfirmed && isWithinOrAfterRentalPeriod && booking.status !== 'completed' && !currentUserReturnConfirmed) {
+      pickupButtonText = 'Verify Return';
+      pickupButtonNote = 'The rental period is active. You can now verify and confirm the return of the item.';
+      buttonAction = () => window.location.href = `/bookings/${booking.id}/return-verification`;
+      buttonIcon = Flag;
+      buttonColor = 'bg-blue-600 hover:bg-blue-700 text-white';
+    } 
+    // Pickup confirmation states
+    else if (bothPickupConfirmed && !isWithinOrAfterRentalPeriod) {
+      // Both confirmed pickup but return not yet available
+      pickupButtonText = 'Pickup Confirmed';
+      pickupButtonNote = 'Both parties have confirmed pickup. Return verification will be available during the rental period.';
+      isDisabled = true;
+      buttonIcon = CheckCircle;
+      buttonColor = 'bg-gray-500 text-white cursor-not-allowed';
+    } else if (currentUserPickupConfirmed && !otherPartyPickupConfirmed) {
+      // Current user confirmed pickup, waiting for other party
+      const otherPartyName = isRenter ? 'owner' : 'renter';
+      pickupButtonText = `Waiting for ${otherPartyName} confirmation`;
+      pickupButtonNote = `You've confirmed pickup. Waiting for the ${otherPartyName} to verify and confirm pickup.`;
+      isDisabled = true;
+      buttonIcon = CheckCircle;
+      buttonColor = 'bg-gray-500 text-white cursor-not-allowed';
+    } else if (!currentUserPickupConfirmed && otherPartyPickupConfirmed) {
+      // Other party confirmed pickup, current user needs to confirm
+      const otherPartyName = isRenter ? 'owner' : 'renter';
+      pickupButtonText = 'Verify Pickup';
+      pickupButtonNote = `The ${otherPartyName} has confirmed pickup. Please verify the item and confirm.`;
+      buttonAction = () => window.location.href = `/bookings/${booking.id}/pickup-verification`;
+    } 
+    // Initial pickup states
+    else if (today < startOfPickupPeriod) {
+      pickupButtonText = 'Verify Pickup (Not Available Yet)';
+      const daysUntil = Math.ceil((startOfPickupPeriod.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      pickupButtonNote = `Pickup verification will be available starting ${startDate.toLocaleDateString()} at 12:00 AM (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
+      isDisabled = true;
+      buttonColor = 'bg-gray-300 text-gray-500 cursor-not-allowed';
+    } else if (isAfterPickupPeriod && !bothPickupConfirmed) {
+      pickupButtonText = 'Pickup Date Passed';
+      pickupButtonNote = 'Pickup date has passed. Contact support if you need assistance.';
+      isDisabled = true;
+      buttonColor = 'bg-gray-300 text-gray-500 cursor-not-allowed';
+    } else if (isWithinPickupPeriod && booking.status !== 'confirmed') {
+      pickupButtonText = 'Complete Payment First';
+      pickupButtonNote = 'Complete payment first to enable pickup verification.';
+      isDisabled = true;
+      buttonColor = 'bg-gray-300 text-gray-500 cursor-not-allowed';
+    } else {
+      pickupButtonText = 'Verify Pickup';
+      pickupButtonNote = 'Verify the item pickup to start the rental period.';
+      buttonAction = () => window.location.href = `/bookings/${booking.id}/pickup-verification`;
+    }
+
+    return { pickupButtonText, pickupButtonNote, buttonAction, isDisabled, buttonIcon, buttonColor };
+  };
 
   return (
     <DashboardWrapper>
@@ -357,16 +521,41 @@ async function BookingDetailsContent({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* Pickup Button Section */}
-              <PickupButton 
-                booking={{
-                  id: booking.id,
-                  status: booking.status,
-                  start_date: booking.start_date,
-                  end_date: booking.end_date
-                }}
-                canConfirmPickup={canConfirmPickup}
-              />
+              {/* Pickup Confirmation Section */}
+              {showPickupButton && (() => {
+                const pickupConfig = getPickupButtonConfig();
+                const ButtonIcon = pickupConfig.buttonIcon;
+                
+                return (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="p-6">
+                      <div className="flex items-center mb-4">
+                        <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                          <Package className="h-4 w-4 text-green-600" />
+                        </div>
+                        <h2 className="text-lg font-semibold text-gray-900">Pickup Confirmation</h2>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Button 
+                          className={`w-full font-semibold ${pickupConfig.buttonColor}`}
+                          onClick={pickupConfig.buttonAction || undefined}
+                          disabled={pickupConfig.isDisabled}
+                        >
+                          <ButtonIcon className="w-4 h-4 mr-2" />
+                          {pickupConfig.pickupButtonText}
+                        </Button>
+                        
+                        {pickupConfig.pickupButtonNote && (
+                          <p className="text-xs text-gray-600 text-center">
+                            {pickupConfig.pickupButtonNote}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Pickup Location & Map */}
               {booking.pickup_location && (
@@ -617,9 +806,5 @@ async function BookingDetailsContent({ params }: PageProps) {
 }
 
 export default function BookingPage({ params }: PageProps) {
-  return (
-    <Suspense fallback={<BookingDetailsSkeleton />}>
-      <BookingDetailsContent params={params} />
-    </Suspense>
-  );
+  return <BookingDetailsContent params={params} />;
 }

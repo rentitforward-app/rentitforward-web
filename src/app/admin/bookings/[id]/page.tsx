@@ -179,13 +179,7 @@ export default function AdminBookingDetails() {
     }).format(amount);
   };
 
-  const calculateDuration = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
+  // Use total_days from database instead of calculating
 
   if (adminLoading || isLoading) {
     return (
@@ -280,7 +274,7 @@ export default function AdminBookingDetails() {
             <div>
               <p className="text-sm font-medium text-gray-500">Duration</p>
               <p className="text-2xl font-bold text-gray-900">
-                {calculateDuration(booking.start_date, booking.end_date)} days
+                {booking.total_days} days
               </p>
             </div>
             <Clock className="w-8 h-8 text-purple-600" />
@@ -439,7 +433,7 @@ export default function AdminBookingDetails() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Duration</label>
-                    <p className="text-gray-900">{calculateDuration(booking.start_date, booking.end_date)} days</p>
+                    <p className="text-gray-900">{booking.total_days} days</p>
                   </div>
                 </div>
                 <div className="space-y-4">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -58,12 +58,21 @@ export default function PaymentPage() {
 
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const bookingId = params.id as string;
 
   useEffect(() => {
     initializePage();
   }, [params.id]);
+
+  useEffect(() => {
+    // Handle payment cancellation
+    const cancelled = searchParams.get('cancelled');
+    if (cancelled === 'true') {
+      handlePaymentCancellation();
+    }
+  }, [searchParams]);
 
   const initializePage = async () => {
     // First check user authentication
@@ -144,6 +153,37 @@ export default function PaymentPage() {
       router.push('/bookings');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePaymentCancellation = async () => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Delete the booking since payment was cancelled (like mobile app)
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', bookingId)
+        .eq('renter_id', user.id);
+
+      if (error) {
+        console.error('Error deleting cancelled booking:', error);
+        toast.error('Payment cancelled, but could not clean up booking. Please contact support.');
+      } else {
+        console.log('Cancelled booking deleted successfully');
+        toast.error('Payment was cancelled. The dates are now available for other users.');
+      }
+    } catch (error) {
+      console.error('Failed to delete cancelled booking:', error);
+      toast.error('Payment cancelled, but could not clean up booking. Please contact support.');
+    } finally {
+      // Redirect to bookings page after a short delay
+      setTimeout(() => {
+        router.push('/bookings');
+      }, 2000);
     }
   };
 

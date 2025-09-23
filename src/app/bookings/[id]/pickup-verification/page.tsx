@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
@@ -104,11 +104,11 @@ export default function PickupVerificationPage() {
   });
 
   // Initialize photos from booking data
-  useState(() => {
+  useEffect(() => {
     if (booking?.pickup_images) {
       setPhotos(booking.pickup_images);
     }
-  });
+  }, [booking]);
 
   const isRenter = user?.id === booking?.renter_id;
   const isOwner = user?.id === booking?.owner_id;
@@ -159,14 +159,14 @@ export default function PickupVerificationPage() {
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
-        .from('booking-images')
+        .from('booking-confirmations')
         .upload(fileName, file);
 
       if (error) throw error;
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('booking-images')
+        .from('booking-confirmations')
         .getPublicUrl(fileName);
 
       // Create new photo object
@@ -198,7 +198,7 @@ export default function PickupVerificationPage() {
       
       // Delete from storage
       await supabase.storage
-        .from('booking-images')
+        .from('booking-confirmations')
         .remove([fileName]);
 
       // Remove from local state
@@ -210,8 +210,19 @@ export default function PickupVerificationPage() {
 
   // Submit verification
   const handleSubmitVerification = async () => {
-    if (!booking || !user || photos.length === 0) {
-      alert('Please take at least one photo before confirming pickup.');
+    if (!booking || !user) {
+      alert('Missing booking or user information.');
+      return;
+    }
+
+    // Only require photos for renter, owner can confirm without taking photos
+    if (isRenter && photos.length < 3) {
+      alert('Please take at least 3 verification photos to continue.');
+      return;
+    }
+
+    if (photos.length > 8) {
+      alert('Please limit to 8 photos maximum.');
       return;
     }
 
@@ -386,167 +397,175 @@ export default function PickupVerificationPage() {
   const canModifyPhotos = isRenter;
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href={`/bookings/${bookingId}`}>
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Pickup Verification</h1>
-          <p className="text-gray-600">{booking.listings.title}</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center">
+          <Link href={`/bookings/${bookingId}`} className="mr-4">
+            <ArrowLeft className="w-6 h-6 text-gray-700" />
+          </Link>
+          <h1 className="text-lg font-semibold text-gray-900">Pickup Verification</h1>
         </div>
-      </div>
 
-      {/* Status Badge */}
-      <div className="flex gap-2">
-        <Badge variant={booking.pickup_confirmed_by_renter ? "default" : "secondary"}>
-          {booking.pickup_confirmed_by_renter ? "Renter Confirmed" : "Awaiting Renter"}
-        </Badge>
-        <Badge variant={booking.pickup_confirmed_by_owner ? "default" : "secondary"}>
-          {booking.pickup_confirmed_by_owner ? "Owner Confirmed" : "Awaiting Owner"}
-        </Badge>
-      </div>
+        <div className="p-6 space-y-6">
+          {/* Booking Info Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{booking.listings.title}</h2>
+            <p className="text-sm text-gray-600">
+              {new Date(booking.start_date).toLocaleDateString()} - {new Date(booking.end_date).toLocaleDateString()}
+            </p>
+          </div>
 
-      {/* Pickup Photos Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Camera className="w-5 h-5" />
-            Pickup Photos
-          </CardTitle>
-          <p className="text-sm text-gray-600">
-            {canModifyPhotos 
-              ? "Take photos to document the item condition at pickup" 
-              : "Review the pickup photos taken by the renter"
-            }
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Photo Upload (only for renter) */}
-          {canModifyPhotos && (
-            <div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={(e) => handlePhotoUpload(e.target.files)}
-                accept="image/*"
-                className="hidden"
-              />
-              <Button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingImages.length > 0}
-                variant="outline"
-                className="w-full"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                {uploadingImages.length > 0 ? 'Uploading...' : 'Add Photo'}
-              </Button>
+          {/* Instructions Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-green-600 p-6">
+            <div className="flex items-center mb-4">
+              <Camera className="w-6 h-6 text-green-600 mr-3" />
+              <h3 className="text-base font-semibold text-green-600">Verification Instructions</h3>
             </div>
-          )}
+            <div className="text-sm text-gray-600 leading-relaxed space-y-1">
+              <p>1. Take 3-8 clear photos of the item</p>
+              <p>2. Include close-ups of any existing damage or wear</p>
+              <p>3. Match the angles from the listing photos when possible</p>
+              <p>4. Photos are automatically timestamped and location-tagged</p>
+              <p>5. Both parties must complete verification to confirm pickup</p>
+            </div>
+          </div>
 
-          {/* Photos Grid */}
-          {photos.length > 0 && (
-            <div className="grid grid-cols-2 gap-4">
-              {photos.map((photo) => (
-                <div key={photo.id} className="relative group">
-                  <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+          {/* Reference Photos Section */}
+          {booking.listings.images && booking.listings.images.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-base font-semibold text-gray-900 mb-4">Reference Photos (From Listing)</h3>
+              <div className="flex space-x-3 overflow-x-auto pb-2">
+                {booking.listings.images.map((imageUrl, index) => (
+                  <div key={index} className="flex-shrink-0">
                     <Image
-                      src={photo.url}
-                      alt="Pickup photo"
-                      fill
-                      className="object-cover"
+                      src={imageUrl}
+                      alt={`Listing photo ${index + 1}`}
+                      width={120}
+                      height={120}
+                      className="rounded-lg object-cover"
                     />
                   </div>
-                  
-                  {/* Remove button (only for renter) */}
-                  {canModifyPhotos && (
-                    <button
-                      onClick={() => removePhoto(photo.id, photo.url)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                  
-                  {/* Photo metadata */}
-                  {photo.metadata && (
-                    <div className="mt-2 text-xs text-gray-500 space-y-1">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {new Date(photo.metadata.timestamp).toLocaleString()}
-                      </div>
-                      {photo.metadata.location && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          Location recorded
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Uploading indicators */}
-          {uploadingImages.map((id) => (
-            <div key={id} className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
-              <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-              <span className="text-sm text-blue-700">Uploading photo...</span>
-            </div>
-          ))}
-
-          {photos.length === 0 && uploadingImages.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No pickup photos yet</p>
-              {canModifyPhotos && (
-                <p className="text-sm">Add photos to document the pickup</p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Permission info for owner */}
-      {isOwner && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="pt-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <p className="text-sm text-blue-800">
-                  <strong>Owner Note:</strong> Only the renter can add or remove photos. You can review the photos and confirm pickup once you've verified the item condition.
-                </p>
+                ))}
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Submit Button */}
-      <Card>
-        <CardContent className="pt-6">
-          <Button 
-            onClick={handleSubmitVerification}
-            disabled={isSubmitting || photos.length === 0}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Confirming...' : 'Confirm Pickup'}
-          </Button>
-          
-          {photos.length === 0 && (
-            <p className="text-sm text-red-600 mt-2 text-center">
-              Please add at least one photo before confirming pickup
-            </p>
           )}
-        </CardContent>
-      </Card>
+
+          {/* Photo Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-base font-semibold text-gray-900">Verification Photos ({photos.length}/8)</h3>
+              {/* Only show add button for renter */}
+              {canModifyPhotos && (
+                <>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={(e) => handlePhotoUpload(e.target.files)}
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                  />
+                  <Button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImages.length > 0 || photos.length >= 8}
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm font-semibold"
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    Take Photo
+                  </Button>
+                </>
+              )}
+              {/* Show info for owner */}
+              {isOwner && (
+                <div className="bg-gray-100 px-3 py-2 rounded-lg">
+                  <p className="text-sm text-gray-600 italic">Photos taken by renter during pickup</p>
+                </div>
+              )}
+            </div>
+            {/* Photos Grid */}
+            {photos.length > 0 && (
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                {photos.map((photo) => (
+                  <div key={photo.id} className="relative">
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+                      <Image
+                        src={photo.url}
+                        alt="Pickup verification photo"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    
+                    {/* Remove button (only for renter) */}
+                    {canModifyPhotos && (
+                      <button
+                        onClick={() => removePhoto(photo.id, photo.url)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    
+                    {/* Photo info */}
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-gray-500">
+                        {photo.metadata ? new Date(photo.metadata.timestamp).toLocaleTimeString() : new Date(photo.uploadedAt).toLocaleTimeString()}
+                      </span>
+                      {photo.metadata?.location && (
+                        <MapPin className="w-3 h-3 text-green-600" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Uploading indicators */}
+            {uploadingImages.map((id) => (
+              <div key={id} className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg mb-4">
+                <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                <span className="text-sm text-blue-700">Uploading photo...</span>
+              </div>
+            ))}
+
+            {/* Empty state */}
+            {photos.length === 0 && uploadingImages.length === 0 && (
+              <div className="text-center py-12">
+                <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 font-medium">No photos taken yet</p>
+                <p className="text-gray-400 text-sm mt-1">Take at least 3 verification photos</p>
+              </div>
+            )}
+          </div>
+
+          {/* Submit Button Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <Button 
+              onClick={handleSubmitVerification}
+              disabled={isSubmitting || (isRenter && photos.length < 3)}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 text-base"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                  Confirming...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  {isRenter ? `Confirm Pickup (${photos.length}/8 photos)` : 'Confirm Pickup'}
+                </>
+              )}
+            </Button>
+            
+            <p className="text-sm text-gray-600 mt-3 text-center">
+              This will confirm that you have verified the item condition at pickup.
+              {isRenter && photos.length < 3 && ' You need at least 3 photos to continue.'}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

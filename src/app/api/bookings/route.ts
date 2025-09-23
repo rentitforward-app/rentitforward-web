@@ -186,6 +186,10 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Create booking with expiration for payment (like mobile app)
+    const expirationTime = new Date();
+    expirationTime.setMinutes(expirationTime.getMinutes() + 30); // 30 minutes from now
+
     // Create booking record with comprehensive payment data
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -208,11 +212,12 @@ export async function POST(request: NextRequest) {
         owner_commission_amount: paymentBreakdown.ownerCommissionAmount,
         owner_net_earnings: paymentBreakdown.ownerNetEarnings,
         platform_total_revenue: paymentBreakdown.platformTotalRevenue,
-        status: 'pending',
+        status: 'payment_required',
         delivery_method: bookingData.delivery_method,
         delivery_address: bookingData.delivery_address || null,
         pickup_address: bookingData.pickup_location || null,
         special_instructions: bookingData.pickup_instructions || null,
+        expires_at: expirationTime.toISOString(),
       })
       .select()
       .single();
@@ -302,12 +307,12 @@ export async function POST(request: NextRequest) {
         on_behalf_of: ownerProfile.stripe_account_id,
       });
 
-      // Update booking with payment intent ID
+      // Update booking with payment intent ID  
       await supabase
         .from('bookings')
         .update({ 
           stripe_payment_intent_id: paymentIntent.id,
-          payment_status: 'pending'
+          payment_status: 'processing'
         } as any)
         .eq('id', booking.id);
 
@@ -351,7 +356,7 @@ export async function POST(request: NextRequest) {
         booking: { 
           ...booking, 
           stripe_payment_intent_id: paymentIntent.id,
-          payment_status: 'pending'
+          payment_status: 'processing'
         },
         payment_breakdown: paymentBreakdown,
         client_secret: paymentIntent.client_secret,
