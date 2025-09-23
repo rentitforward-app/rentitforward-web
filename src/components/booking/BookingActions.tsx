@@ -11,7 +11,8 @@ import {
   Download,
   Navigation,
   MapPin,
-  X
+  X,
+  CheckCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { CancelBookingModal } from './CancelBookingModal';
@@ -27,6 +28,10 @@ interface BookingActionsProps {
     start_date: string;
     end_date: string;
     total_amount?: number;
+    pickup_confirmed_by_renter?: boolean;
+    pickup_confirmed_by_owner?: boolean;
+    return_confirmed_by_renter?: boolean;
+    return_confirmed_by_owner?: boolean;
     listings?: {
       title: string;
     };
@@ -38,6 +43,7 @@ interface BookingActionsProps {
     };
   };
   isOwner: boolean;
+  userId: string;
   canConfirmPickup: boolean;
   canReturn: boolean;
 }
@@ -45,6 +51,7 @@ interface BookingActionsProps {
 export function BookingActions({ 
   booking, 
   isOwner, 
+  userId,
   canConfirmPickup, 
   canReturn 
 }: BookingActionsProps) {
@@ -68,44 +75,37 @@ export function BookingActions({
   const isWithinPickupPeriod = today >= startOfPickupPeriod && today <= endOfPickupPeriod;
   const isBeforePickupPeriod = today < startOfPickupPeriod;
   const isAfterPickupPeriod = today > endOfPickupPeriod;
-  const showPickupButton = booking.status === 'confirmed' || booking.status === 'payment_required';
+  const isWithinOrAfterRentalPeriod = today >= startOfPickupPeriod;
+
+  // Calculate confirmation state (matching mobile app logic)
+  const isRenter = userId === booking.renter_id;
+  
+  // Pickup confirmation status
+  const renterConfirmedPickup = booking.pickup_confirmed_by_renter || false;
+  const ownerConfirmedPickup = booking.pickup_confirmed_by_owner || false;
+  const bothPickupConfirmed = renterConfirmedPickup && ownerConfirmedPickup;
+  const currentUserPickupConfirmed = (isRenter && renterConfirmedPickup) || (isOwner && ownerConfirmedPickup);
+  const otherPartyPickupConfirmed = (isRenter && ownerConfirmedPickup) || (isOwner && renterConfirmedPickup);
+  
+  // Return confirmation status
+  const renterConfirmedReturn = booking.return_confirmed_by_renter || false;
+  const ownerConfirmedReturn = booking.return_confirmed_by_owner || false;
+  const bothReturnConfirmed = renterConfirmedReturn && ownerConfirmedReturn;
+  const currentUserReturnConfirmed = (isRenter && renterConfirmedReturn) || (isOwner && ownerConfirmedReturn);
+  const otherPartyReturnConfirmed = (isRenter && ownerConfirmedReturn) || (isOwner && renterConfirmedReturn);
+
+  // Button logic (matching mobile app)
+  const canReturnNew = bothPickupConfirmed && isWithinOrAfterRentalPeriod && booking.status !== 'completed' && !currentUserReturnConfirmed;
+  const showPickupButton = booking.status === 'confirmed' || booking.status === 'payment_required' || canReturnNew || bothPickupConfirmed || currentUserReturnConfirmed;
 
   const handleConfirmPickup = async () => {
-    setIsPickupLoading(true);
-    try {
-      const response = await fetch(`/api/bookings/${booking.id}/confirm-pickup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (response.ok) {
-        window.location.reload();
-      } else {
-        alert('Failed to confirm pickup. Please try again.');
-      }
-    } catch (error) {
-      alert('Error confirming pickup. Please try again.');
-    } finally {
-      setIsPickupLoading(false);
-    }
+    // Navigate to pickup verification page instead of direct API call
+    window.location.href = `/bookings/${booking.id}/pickup-verification`;
   };
 
   const handleConfirmReturn = async () => {
-    setIsReturnLoading(true);
-    try {
-      const response = await fetch(`/api/bookings/${booking.id}/confirm-return`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (response.ok) {
-        window.location.reload();
-      } else {
-        alert('Failed to confirm return. Please try again.');
-      }
-    } catch (error) {
-      alert('Error confirming return. Please try again.');
-    } finally {
-      setIsReturnLoading(false);
-    }
+    // Navigate to return verification page instead of direct API call
+    window.location.href = `/bookings/${booking.id}/return-verification`;
   };
 
   const handleReportIssue = () => {
@@ -136,39 +136,122 @@ export function BookingActions({
                    booking.status === 'confirmed' || 
                    booking.status === 'payment_required';
 
-  const getPickupButtonText = () => {
-    if (isPickupLoading) return 'Confirming...';
-    if (isBeforePickupPeriod) return 'Confirm Pickup (Not Available Yet)';
-    if (isAfterPickupPeriod) return 'Pickup Date Passed';
-    return 'Confirm Pickup';
+  // Get button text and note based on complex state (matching mobile app logic)
+  const getPickupButtonTextAndNote = () => {
+    let pickupButtonText = '';
+    let pickupButtonNote = '';
+    
+    // Return confirmation states (highest priority)
+    if (currentUserReturnConfirmed && !otherPartyReturnConfirmed) {
+      // Current user confirmed return, waiting for other party
+      const otherPartyName = isRenter ? 'owner' : 'renter';
+      pickupButtonText = `Waiting for ${otherPartyName} return confirmation`;
+      pickupButtonNote = `You've confirmed the return. Waiting for the ${otherPartyName} to verify and confirm return.`;
+    } else if (!currentUserReturnConfirmed && otherPartyReturnConfirmed) {
+      // Other party confirmed return, current user needs to confirm
+      const otherPartyName = isRenter ? 'owner' : 'renter';
+      pickupButtonText = 'Verify Return';
+      pickupButtonNote = `The ${otherPartyName} has confirmed return. Please verify the item and confirm.`;
+    } else if (bothReturnConfirmed) {
+      // Both confirmed return - booking completed
+      pickupButtonText = 'Return Completed';
+      pickupButtonNote = 'Both parties have confirmed return. The rental is now complete.';
+    } 
+    // Return available states
+    else if (canReturnNew) {
+      pickupButtonText = 'Verify Return';
+      pickupButtonNote = 'The rental period is active. You can now verify and confirm the return of the item.';
+    } 
+    // Pickup confirmation states
+    else if (bothPickupConfirmed && !canReturnNew) {
+      // Both confirmed pickup but return not yet available
+      pickupButtonText = 'Pickup Confirmed';
+      pickupButtonNote = 'Both parties have confirmed pickup. Return verification will be available during the rental period.';
+    } else if (currentUserPickupConfirmed && !otherPartyPickupConfirmed) {
+      // Current user confirmed pickup, waiting for other party
+      const otherPartyName = isRenter ? 'owner' : 'renter';
+      pickupButtonText = `Waiting for ${otherPartyName} confirmation`;
+      pickupButtonNote = `You've confirmed pickup. Waiting for the ${otherPartyName} to verify and confirm pickup.`;
+    } else if (!currentUserPickupConfirmed && otherPartyPickupConfirmed) {
+      // Other party confirmed pickup, current user needs to confirm
+      const otherPartyName = isRenter ? 'owner' : 'renter';
+      pickupButtonText = 'Verify Pickup';
+      pickupButtonNote = `The ${otherPartyName} has confirmed pickup. Please verify the item and confirm.`;
+    } 
+    // Initial pickup states
+    else if (isBeforePickupPeriod) {
+      pickupButtonText = 'Verify Pickup (Not Available Yet)';
+      const daysUntil = Math.ceil((startOfPickupPeriod.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      pickupButtonNote = `Pickup verification will be available starting ${startDate.toLocaleDateString()} at 12:00 AM (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
+    } else if (isAfterPickupPeriod && !bothPickupConfirmed) {
+      pickupButtonText = 'Pickup Date Passed';
+      pickupButtonNote = 'Pickup date has passed. Contact support if you need assistance.';
+    } else if (isWithinPickupPeriod && booking.status !== 'confirmed') {
+      pickupButtonText = 'Complete Payment First';
+      pickupButtonNote = 'Complete payment first to enable pickup verification.';
+    } else {
+      pickupButtonText = 'Verify Pickup';
+      pickupButtonNote = 'Verify the item pickup to start the rental period.';
+    }
+
+    return { pickupButtonText, pickupButtonNote };
   };
 
-  const getPickupButtonNote = () => {
-    if (isBeforePickupPeriod) {
-      const daysUntil = Math.ceil((startOfPickupPeriod.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return `Pickup button will be active starting ${startDate.toLocaleDateString()} at 12:00 AM (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
+  const { pickupButtonText, pickupButtonNote } = getPickupButtonTextAndNote();
+
+  // Get the action function (return or pickup)
+  const getPickupButtonAction = () => {
+    if (canReturnNew || (!currentUserReturnConfirmed && otherPartyReturnConfirmed)) {
+      return handleConfirmReturn;
     }
-    if (isAfterPickupPeriod) {
-      return 'Pickup date has passed. Contact support if you need assistance.';
-    }
-    if (isWithinPickupPeriod && !canConfirmPickup) {
-      return 'Complete payment first to enable pickup confirmation.';
-    }
-    return null;
+    return handleConfirmPickup;
+  };
+
+  // Check if button should be disabled
+  const isPickupButtonDisabled = () => {
+    if (isBeforePickupPeriod) return true;
+    if (isAfterPickupPeriod && !bothPickupConfirmed) return true;
+    if (booking.status !== 'confirmed' && !bothPickupConfirmed && !canReturnNew) return true;
+    if (bothReturnConfirmed) return true;
+    if (currentUserPickupConfirmed && !otherPartyPickupConfirmed && !canReturnNew) return true;
+    if (currentUserReturnConfirmed && !otherPartyReturnConfirmed) return true;
+    return false;
   };
 
   return (
     <div className="space-y-3">
-      {/* Return Button */}
-      {canReturn && (
-        <Button 
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-          onClick={handleConfirmReturn}
-          disabled={isReturnLoading}
-        >
-          <Flag className="w-4 h-4 mr-2" />
-          {isReturnLoading ? 'Confirming...' : 'Confirm Return'}
-        </Button>
+      {/* Main Verification Button (Pickup/Return) */}
+      {showPickupButton && (
+        <div className="space-y-2">
+          <Button 
+            className={`w-full font-semibold ${
+              canReturnNew || (!currentUserReturnConfirmed && otherPartyReturnConfirmed)
+                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                : bothReturnConfirmed 
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : currentUserPickupConfirmed || currentUserReturnConfirmed
+                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            }`}
+            onClick={getPickupButtonAction()}
+            disabled={isPickupButtonDisabled()}
+          >
+            {canReturnNew || (!currentUserReturnConfirmed && otherPartyReturnConfirmed) ? (
+              <Flag className="w-4 h-4 mr-2" />
+            ) : bothReturnConfirmed ? (
+              <CheckCircle className="w-4 h-4 mr-2" />
+            ) : (
+              <Package className="w-4 h-4 mr-2" />
+            )}
+            {pickupButtonText}
+          </Button>
+          
+          {pickupButtonNote && (
+            <p className="text-xs text-gray-600 text-center px-2">
+              {pickupButtonNote}
+            </p>
+          )}
+        </div>
       )}
 
       {/* Cancel Booking Button */}
@@ -284,7 +367,7 @@ export function PickupButton({
       if (response.ok) {
         window.location.reload();
       } else {
-        alert('Failed to confirm pickup. Please try again.');
+        alert('Failed to verify pickup. Please try again.');
       }
     } catch (error) {
       alert('Error confirming pickup. Please try again.');
@@ -294,10 +377,10 @@ export function PickupButton({
   };
 
   const getPickupButtonText = () => {
-    if (isPickupLoading) return 'Confirming...';
-    if (isBeforePickupPeriod) return 'Confirm Pickup (Not Available Yet)';
+    if (isPickupLoading) return 'Verifying...';
+    if (isBeforePickupPeriod) return 'Verify Pickup (Not Available Yet)';
     if (isAfterPickupPeriod) return 'Pickup Date Passed';
-    return 'Confirm Pickup';
+    return 'Verify Pickup';
   };
 
   const getPickupButtonNote = () => {

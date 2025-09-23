@@ -11,11 +11,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's last viewed timestamp from preferences
-    const { data: preferences, error: preferencesError } = await supabase
-      .from('preferences')
+    // Get user's last viewed timestamp from profiles
+    const { data: profile, error: preferencesError } = await supabase
+      .from('profiles')
       .select('notifications_last_viewed_at')
-      .eq('user_id', user.id)
+      .eq('id', user.id)
       .single();
 
     if (preferencesError && preferencesError.code !== 'PGRST116') {
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const lastViewedAt = preferences?.notifications_last_viewed_at;
+    const lastViewedAt = profile?.notifications_last_viewed_at;
 
     let unreadCount = 0;
 

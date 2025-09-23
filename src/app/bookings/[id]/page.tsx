@@ -525,6 +525,10 @@ async function BookingDetailsContent({ params }: PageProps) {
                     start_date: booking.start_date,
                     end_date: booking.end_date,
                     total_amount: booking.total_amount,
+                    pickup_confirmed_by_renter: booking.pickup_confirmed_by_renter,
+                    pickup_confirmed_by_owner: booking.pickup_confirmed_by_owner,
+                    return_confirmed_by_renter: booking.return_confirmed_by_renter,
+                    return_confirmed_by_owner: booking.return_confirmed_by_owner,
                     listings: {
                       title: booking.listings.title
                     },
@@ -536,6 +540,7 @@ async function BookingDetailsContent({ params }: PageProps) {
                     }
                   }}
                   isOwner={isOwner}
+                  userId={user.id}
                   canConfirmPickup={canConfirmPickup}
                   canReturn={canReturn}
                 />

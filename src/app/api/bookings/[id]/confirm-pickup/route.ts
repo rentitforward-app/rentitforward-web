@@ -56,14 +56,39 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Update booking status to 'active' (picked up)
+    // Determine if the current user is the renter or owner
+    const isRenter = booking.renter_id === user.id;
+    const isOwner = booking.owner_id === user.id;
+    
+    // Update booking with the appropriate confirmation status
+    const updateData: any = {
+      pickup_confirmed_at: new Date().toISOString(),
+    };
+    
+    if (isRenter) {
+      updateData.pickup_confirmed_by_renter = true;
+    } else if (isOwner) {
+      updateData.pickup_confirmed_by_owner = true;
+    }
+    
+    // Check if both parties have confirmed (if this confirmation completes the pickup)
+    const { data: currentBooking } = await supabase
+      .from('bookings')
+      .select('pickup_confirmed_by_renter, pickup_confirmed_by_owner')
+      .eq('id', id)
+      .single();
+    
+    const renterConfirmed = isRenter ? true : (currentBooking?.pickup_confirmed_by_renter || false);
+    const ownerConfirmed = isOwner ? true : (currentBooking?.pickup_confirmed_by_owner || false);
+    
+    // If both parties have now confirmed, update status to 'in_progress'
+    if (renterConfirmed && ownerConfirmed) {
+      updateData.status = 'in_progress';
+    }
+
     const { error: updateError } = await supabase
       .from('bookings')
-      .update({ 
-        status: 'active',
-        pickup_confirmed_at: new Date().toISOString(),
-        pickup_confirmed_by: user.id
-      })
+      .update(updateData)
       .eq('id', id);
 
     if (updateError) {

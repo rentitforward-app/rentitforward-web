@@ -20,17 +20,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's notification preferences from profiles table
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('notification_preferences')
-      .eq('id', user.id)
+    // Get user's notification preferences from notification_preferences table
+    const { data: preferencesData, error: preferencesError } = await supabase
+      .from('notification_preferences')
+      .select('*')
+      .eq('user_id', user.id)
       .single();
-
-    if (profileError) {
-      console.error('Error fetching notification preferences:', profileError);
-      return NextResponse.json({ error: 'Failed to fetch preferences' }, { status: 500 });
-    }
 
     // Default preferences if none exist
     const defaultPreferences: NotificationPreferences = {
@@ -43,7 +38,48 @@ export async function GET(request: NextRequest) {
       push_reminders: true,
     };
 
-    const preferences = profile?.notification_preferences || defaultPreferences;
+    let preferences: NotificationPreferences;
+    
+    if (preferencesError || !preferencesData) {
+      // If no preferences exist, create default ones
+      const { data: insertedPrefs, error: insertError } = await supabase
+        .from('notification_preferences')
+        .insert({
+          user_id: user.id,
+          booking_notifications: defaultPreferences.email_bookings,
+          message_notifications: defaultPreferences.email_messages,
+          marketing_notifications: defaultPreferences.email_marketing,
+          push_notifications: defaultPreferences.push_notifications,
+        })
+        .select()
+        .single();
+      
+      if (insertError) {
+        console.error('Error creating default notification preferences:', insertError);
+        preferences = defaultPreferences;
+      } else {
+        preferences = {
+          email_bookings: insertedPrefs.booking_notifications,
+          email_messages: insertedPrefs.message_notifications,
+          email_marketing: insertedPrefs.marketing_notifications,
+          push_notifications: insertedPrefs.push_notifications,
+          push_bookings: insertedPrefs.booking_notifications,
+          push_messages: insertedPrefs.message_notifications,
+          push_reminders: insertedPrefs.push_notifications,
+        };
+      }
+    } else {
+      // Map from database columns to expected API format
+      preferences = {
+        email_bookings: preferencesData.booking_notifications || defaultPreferences.email_bookings,
+        email_messages: preferencesData.message_notifications || defaultPreferences.email_messages,
+        email_marketing: preferencesData.marketing_notifications || defaultPreferences.email_marketing,
+        push_notifications: preferencesData.push_notifications || defaultPreferences.push_notifications,
+        push_bookings: preferencesData.booking_notifications || defaultPreferences.push_bookings,
+        push_messages: preferencesData.message_notifications || defaultPreferences.push_messages,
+        push_reminders: preferencesData.push_notifications || defaultPreferences.push_reminders,
+      };
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -84,14 +120,22 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Update user's notification preferences
+    // Map API format to database columns
+    const dbPreferences = {
+      booking_notifications: validatedPreferences.email_bookings ?? validatedPreferences.push_bookings,
+      message_notifications: validatedPreferences.email_messages ?? validatedPreferences.push_messages,
+      marketing_notifications: validatedPreferences.email_marketing,
+      push_notifications: validatedPreferences.push_notifications ?? validatedPreferences.push_reminders,
+      updated_at: new Date().toISOString()
+    };
+
+    // Update user's notification preferences in the notification_preferences table
     const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ 
-        notification_preferences: validatedPreferences,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
+      .from('notification_preferences')
+      .upsert({
+        user_id: user.id,
+        ...dbPreferences
+      });
 
     if (updateError) {
       console.error('Error updating notification preferences:', updateError);
