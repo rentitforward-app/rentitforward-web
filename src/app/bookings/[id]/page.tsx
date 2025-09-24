@@ -278,6 +278,40 @@ function BookingDetailsContent({ params }: PageProps) {
     }
   };
 
+  const getStatusDescription = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return 'Your booking is confirmed and ready for pickup';
+      case 'pending':
+        return 'Waiting for host approval';
+      case 'payment_required':
+        return 'Complete payment to confirm your booking';
+      case 'cancelled':
+        return 'This booking has been cancelled';
+      case 'completed':
+        return 'Rental completed successfully';
+      default:
+        return '';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return CheckCircle;
+      case 'pending':
+        return Clock;
+      case 'payment_required':
+        return AlertCircle;
+      case 'cancelled':
+        return XCircle;
+      case 'completed':
+        return CheckCircle;
+      default:
+        return AlertCircle;
+    }
+  };
+
   const startDate = new Date(booking.start_date);
   const endDate = new Date(booking.end_date);
   const duration = booking.total_days;
@@ -430,53 +464,22 @@ function BookingDetailsContent({ params }: PageProps) {
             </div>
 
             {/* Header Content */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                  Booking Details
-                </h1>
-                <p className="text-gray-600">
-                  {isOwner ? 'Managing as Owner' : 'Viewing as Renter'} • ID: {booking.id.slice(-8).toUpperCase()}
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                {booking.status === 'confirmed' && (
-                  <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  </div>
-                )}
-                {booking.status === 'pending' && (
-                  <div className="h-10 w-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-yellow-600" />
-                  </div>
-                )}
-                {booking.status === 'payment_required' && (
-                  <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center">
-                    <AlertCircle className="h-5 w-5 text-orange-600" />
-                  </div>
-                )}
-                {booking.status === 'cancelled' && (
-                  <div className="h-10 w-10 bg-red-100 rounded-full flex items-center justify-center">
-                    <XCircle className="h-5 w-5 text-red-600" />
-                  </div>
-                )}
-                {booking.status === 'completed' && (
-                  <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="h-5 w-5 text-blue-600" />
-                  </div>
-                )}
-                <Badge className={`${getStatusColor(booking.status)} px-3 py-1 text-sm font-medium`}>
-                  {getStatusText(booking.status)}
-                </Badge>
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                Booking Details
+              </h1>
+              <p className="text-gray-600">
+                {isOwner ? 'Managing as Owner' : 'Viewing as Renter'} • ID: {booking.id.slice(-8).toUpperCase()}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Main Content */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
+          {/* Top Spacing */}
+          <div className="h-6"></div>
+          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
@@ -518,6 +521,27 @@ function BookingDetailsContent({ params }: PageProps) {
                           <Shield className="w-4 h-4 mr-2 text-gray-400" />
                           <span className="capitalize">{booking.listings.category}</span>
                         </div>
+                      </div>
+                      
+                      {/* Booking Status - Now with context */}
+                      <div className="mt-6 pt-4 border-t border-gray-200">
+                        <div className="flex items-center gap-3 mb-2">
+                          {(() => {
+                            const StatusIcon = getStatusIcon(booking.status);
+                            return (
+                              <StatusIcon className="w-5 h-5 text-gray-600" />
+                            );
+                          })()}
+                          <span className="text-sm font-medium text-gray-700">Booking Status:</span>
+                          <Badge className={`${getStatusColor(booking.status)} px-3 py-1 text-sm font-medium`}>
+                            {getStatusText(booking.status)}
+                          </Badge>
+                        </div>
+                        {getStatusDescription(booking.status) && (
+                          <p className="text-sm text-gray-600 italic">
+                            {getStatusDescription(booking.status)}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
