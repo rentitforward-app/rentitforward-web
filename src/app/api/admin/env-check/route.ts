@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
           '1. Sign up for Resend at https://resend.com',
           '2. Create an API key in your Resend dashboard',
           '3. Add RESEND_API_KEY to your environment variables',
-          '4. Optionally set RESEND_FROM_EMAIL (defaults to noreply@rentitforward.com)',
+          '4. Optionally set RESEND_FROM_EMAIL (defaults to "Rent it Forward <noreply@rentitforward.com>")',
         ] : null,
         fcm: missing.fcm.length > 0 ? [
           '1. Go to Firebase Console: https://console.firebase.google.com',

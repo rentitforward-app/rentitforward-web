@@ -51,7 +51,7 @@ export class EmailService {
   private fromEmail: string;
 
   private constructor() {
-    this.fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@rentitforward.com';
+    this.fromEmail = process.env.RESEND_FROM_EMAIL || 'Rent it Forward <noreply@rentitforward.com>';
   }
 
   public static getInstance(): EmailService {

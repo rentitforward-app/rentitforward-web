@@ -13,8 +13,8 @@ export default function Header() {
   // Show loading state while determining authentication
   if (loading) {
     return (
-      <header className="bg-white border-b border-gray-200">
-        <div className="px-4 lg:px-6">
+      <header className="bg-white border-b border-gray-200 w-full">
+        <div className="w-full px-4 lg:px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo - Use consistent href during loading to prevent hydration mismatch */}
             <Link href="/" className="flex items-center flex-shrink-0">
@@ -45,8 +45,8 @@ export default function Header() {
 
   // Default header for non-authenticated users
   return (
-    <header className="bg-white shadow-sm border-b relative z-50">
-      <nav className="container mx-auto px-4 lg:px-6">
+    <header className="bg-white shadow-sm border-b relative z-50 w-full">
+      <nav className="w-full px-4 lg:px-6">
         <div className="flex items-center justify-between py-4">
           {/* Logo */}
           <Link href="/" className="flex items-center flex-shrink-0">
@@ -70,6 +70,12 @@ export default function Header() {
             </Link>
             <Link href="/about" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
               About
+            </Link>
+            <Link href="/contact" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
+              Contact
+            </Link>
+            <Link href="/faq" className="text-gray-700 hover:text-green-600 transition-colors font-medium">
+              FAQ
             </Link>
           </div>
           
@@ -126,6 +132,20 @@ export default function Header() {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   About
+                </Link>
+                <Link 
+                  href="/contact" 
+                  className="block text-gray-700 hover:text-green-600 transition-colors font-medium py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Contact
+                </Link>
+                <Link 
+                  href="/faq" 
+                  className="block text-gray-700 hover:text-green-600 transition-colors font-medium py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  FAQ
                 </Link>
               </div>
               

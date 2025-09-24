@@ -37,7 +37,7 @@ class EmailService {
 
   constructor() {
     this.provider = process.env.EMAIL_PROVIDER || 'console';
-    this.fromEmail = process.env.FROM_EMAIL || 'noreply@rentitforward.com';
+    this.fromEmail = process.env.FROM_EMAIL || 'Rent it Forward <noreply@rentitforward.com>';
     
     // Debug logging
     console.log('📧 Email Service Configuration:');

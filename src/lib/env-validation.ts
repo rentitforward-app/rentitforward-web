@@ -57,7 +57,7 @@ export function validateEnvironmentConfig(): EnvValidationResult {
   }
   
   if (!resendFromEmail) {
-    warnings.push('RESEND_FROM_EMAIL is not set - using default noreply@rentitforward.com');
+    warnings.push('RESEND_FROM_EMAIL is not set - using default "Rent it Forward <noreply@rentitforward.com>"');
   }
 
   // Firebase FCM Configuration (Server-side)

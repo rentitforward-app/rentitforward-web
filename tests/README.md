@@ -67,7 +67,7 @@ The tests expect these environment variables to be configured:
 
 #### Email (Resend)
 - `RESEND_API_KEY`: Resend API key for email notifications
-- `RESEND_FROM_EMAIL`: From email address (optional, defaults to noreply@rentitforward.com.au)
+- `RESEND_FROM_EMAIL`: From email address (optional, defaults to "Rent it Forward <noreply@rentitforward.com.au>")
 
 #### Firebase Cloud Messaging (FCM)
 - `FIREBASE_PROJECT_ID`: Firebase project ID

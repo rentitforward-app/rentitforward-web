@@ -69,10 +69,10 @@ export default function AboutPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <Card variant="elevated" className="text-center">
               <CardContent>
-                <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-primary" />
+                <div className="flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-gray-700" />
                 </div>
-                <h3 className="text-xl font-semibold text-secondary mb-3">Community First</h3>
+                <h3 className="text-xl font-semibold text-gray-700 mb-3">Community First</h3>
                 <p className="text-gray-600">
                   Building stronger local connections through sharing and trust.
                 </p>
@@ -81,10 +81,10 @@ export default function AboutPage() {
             
             <Card variant="elevated" className="text-center">
               <CardContent>
-                <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <Leaf className="w-8 h-8 text-primary" />
+                <div className="flex items-center justify-center mx-auto mb-4">
+                  <Leaf className="w-8 h-8 text-gray-700" />
                 </div>
-                <h3 className="text-xl font-semibold text-secondary mb-3">Sustainability</h3>
+                <h3 className="text-xl font-semibold text-gray-700 mb-3">Sustainability</h3>
                 <p className="text-gray-600">
                   Reducing waste and environmental impact through collaborative consumption.
                 </p>
@@ -93,10 +93,10 @@ export default function AboutPage() {
             
             <Card variant="elevated" className="text-center">
               <CardContent>
-                <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <Shield className="w-8 h-8 text-primary" />
+                <div className="flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-gray-700" />
                 </div>
-                <h3 className="text-xl font-semibold text-secondary mb-3">Trust & Safety</h3>
+                <h3 className="text-xl font-semibold text-gray-700 mb-3">Trust & Safety</h3>
                 <p className="text-gray-600">
                   Ensuring secure transactions and verified community members.
                 </p>
@@ -105,10 +105,10 @@ export default function AboutPage() {
             
             <Card variant="elevated" className="text-center">
               <CardContent>
-                <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <Target className="w-8 h-8 text-primary" />
+                <div className="flex items-center justify-center mx-auto mb-4">
+                  <Target className="w-8 h-8 text-gray-700" />
                 </div>
-                <h3 className="text-xl font-semibold text-secondary mb-3">Accessibility</h3>
+                <h3 className="text-xl font-semibold text-gray-700 mb-3">Accessibility</h3>
                 <p className="text-gray-600">
                   Making tools and resources available to everyone in the community.
                 </p>

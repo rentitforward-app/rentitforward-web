@@ -99,7 +99,7 @@ export class UnifiedEmailService {
   private fromEmail: string;
 
   private constructor() {
-    this.fromEmail = process.env.FROM_EMAIL || 'noreply@rentitforward.com.au';
+    this.fromEmail = process.env.FROM_EMAIL || 'Rent it Forward <noreply@rentitforward.com.au>';
   }
 
   public static getInstance(): UnifiedEmailService {

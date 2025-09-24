@@ -81,11 +81,12 @@ export function createReviewRequestEmail(data: ReviewRequestEmailData): EmailTem
       <title>${subject}</title>
       <style>
         .container { max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .header { background-color: #44D62C; color: white; padding: 20px; text-align: center; }
-        .content { padding: 30px; background-color: #ffffff; }
-        .button { background-color: #44D62C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; }
-        .button:hover { background-color: #3AB827; }
-        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 14px; }
+        .header { background: linear-gradient(135deg, #44D62C 0%, #37B02A 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .logo { max-width: 180px; height: auto; margin-bottom: 15px; }
+        .content { padding: 30px; background-color: #ffffff; border: 1px solid #e5e7eb; }
+        .button { background-color: #44D62C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; transition: background-color 0.2s; }
+        .button:hover { background-color: #37B02A; }
+        .footer { background-color: #f9fafb; padding: 20px; text-align: center; color: #6b7280; font-size: 14px; border-radius: 0 0 8px 8px; }
         .rating-stars { color: #ffc107; font-size: 20px; margin: 10px 0; }
         .highlight { background-color: #f0fdf4; padding: 15px; border-left: 4px solid #44D62C; margin: 20px 0; }
       </style>
@@ -93,6 +94,7 @@ export function createReviewRequestEmail(data: ReviewRequestEmailData): EmailTem
     <body>
       <div class="container">
         <div class="header">
+          <img src="https://rentitforward.com.au/images/RentitForward-Main-Logo.svg" alt="Rent it Forward" class="logo" />
           <h1>🌟 How was your experience?</h1>
         </div>
         
@@ -134,8 +136,10 @@ export function createReviewRequestEmail(data: ReviewRequestEmailData): EmailTem
         </div>
         
         <div class="footer">
-          <p>This email was sent by Rent It Forward</p>
-          <p>If you no longer wish to receive review request emails, you can update your preferences in your account settings.</p>
+          <p><strong>Rent it Forward</strong> - Share More, Buy Less</p>
+          <p>Building communities, one rental at a time.</p>
+          <p>📧 <a href="mailto:hello@rentitforward.com.au" style="color: #44D62C;">hello@rentitforward.com.au</a> | 🌐 <a href="https://rentitforward.com.au" style="color: #44D62C;">rentitforward.com.au</a></p>
+          <p style="font-size: 12px; margin-top: 15px;">If you no longer wish to receive review request emails, you can update your preferences in your account settings.</p>
         </div>
       </div>
     </body>
@@ -196,6 +200,7 @@ export function createReviewResponseEmail(data: ReviewResponseEmailData): EmailT
     <body>
       <div class="container">
         <div class="header">
+          <img src="https://rentitforward.com.au/images/RentitForward-Main-Logo.svg" alt="Rent it Forward" class="logo" />
           <h1>💬 New Response to Your Review</h1>
         </div>
         
@@ -220,7 +225,9 @@ export function createReviewResponseEmail(data: ReviewResponseEmailData): EmailT
         </div>
         
         <div class="footer">
-          <p>This email was sent by Rent It Forward</p>
+          <p><strong>Rent it Forward</strong> - Share More, Buy Less</p>
+          <p>Building communities, one rental at a time.</p>
+          <p>📧 <a href="mailto:hello@rentitforward.com.au" style="color: #44D62C;">hello@rentitforward.com.au</a> | 🌐 <a href="https://rentitforward.com.au" style="color: #44D62C;">rentitforward.com.au</a></p>
         </div>
       </div>
     </body>
@@ -270,6 +277,7 @@ export function createReviewReminderEmail(data: ReviewReminderEmailData): EmailT
     <body>
       <div class="container">
         <div class="header">
+          <img src="https://rentitforward.com.au/images/RentitForward-Main-Logo.svg" alt="Rent it Forward" class="logo" />
           <h1>⏰ Review Reminder</h1>
         </div>
         
@@ -298,8 +306,10 @@ export function createReviewReminderEmail(data: ReviewReminderEmailData): EmailT
         </div>
         
         <div class="footer">
-          <p>This email was sent by Rent It Forward</p>
-          <p>You can unsubscribe from reminder emails in your account settings.</p>
+          <p><strong>Rent it Forward</strong> - Share More, Buy Less</p>
+          <p>Building communities, one rental at a time.</p>
+          <p>📧 <a href="mailto:hello@rentitforward.com.au" style="color: #44D62C;">hello@rentitforward.com.au</a> | 🌐 <a href="https://rentitforward.com.au" style="color: #44D62C;">rentitforward.com.au</a></p>
+          <p style="font-size: 12px; margin-top: 15px;">You can unsubscribe from reminder emails in your account settings.</p>
         </div>
       </div>
     </body>
@@ -362,6 +372,7 @@ export function createListingApprovalEmail(data: ListingApprovalEmailData): Emai
     <body>
       <div class="container">
         <div class="header">
+          <img src="https://rentitforward.com.au/images/RentitForward-Main-Logo.svg" alt="Rent it Forward" class="logo" />
           <h1>🎉 Listing Approved!</h1>
         </div>
         
@@ -406,7 +417,9 @@ export function createListingApprovalEmail(data: ListingApprovalEmailData): Emai
         </div>
         
         <div class="footer">
-          <p>This email was sent by Rent It Forward</p>
+          <p><strong>Rent it Forward</strong> - Share More, Buy Less</p>
+          <p>Building communities, one rental at a time.</p>
+          <p>📧 <a href="mailto:hello@rentitforward.com.au" style="color: #44D62C;">hello@rentitforward.com.au</a> | 🌐 <a href="https://rentitforward.com.au" style="color: #44D62C;">rentitforward.com.au</a></p>
           <p>Happy sharing! 🌱</p>
         </div>
       </div>
@@ -477,6 +490,7 @@ export function createListingRejectionEmail(data: ListingRejectionEmailData): Em
     <body>
       <div class="container">
         <div class="header">
+          <img src="https://rentitforward.com.au/images/RentitForward-Main-Logo.svg" alt="Rent it Forward" class="logo" />
           <h1>📝 Listing Needs Updates</h1>
         </div>
         
@@ -515,7 +529,9 @@ export function createListingRejectionEmail(data: ListingRejectionEmailData): Em
         </div>
         
         <div class="footer">
-          <p>This email was sent by Rent It Forward</p>
+          <p><strong>Rent it Forward</strong> - Share More, Buy Less</p>
+          <p>Building communities, one rental at a time.</p>
+          <p>📧 <a href="mailto:hello@rentitforward.com.au" style="color: #44D62C;">hello@rentitforward.com.au</a> | 🌐 <a href="https://rentitforward.com.au" style="color: #44D62C;">rentitforward.com.au</a></p>
           <p>We're here to help you succeed! 🚀</p>
         </div>
       </div>
@@ -594,6 +610,7 @@ export function createListingDisableEmail(data: ListingDisableEmailData): EmailT
     <body>
       <div class="container">
         <div class="header">
+          <img src="https://rentitforward.com.au/images/RentitForward-Main-Logo.svg" alt="Rent it Forward" class="logo" />
           <h1>⚠️ Listing Disabled</h1>
         </div>
         
@@ -635,8 +652,10 @@ export function createListingDisableEmail(data: ListingDisableEmailData): EmailT
         </div>
         
         <div class="footer">
-          <p>© 2024 Rent It Forward. All rights reserved.</p>
-          <p>This email was sent regarding your listing activity.</p>
+          <p><strong>Rent it Forward</strong> - Share More, Buy Less</p>
+          <p>Building communities, one rental at a time.</p>
+          <p>📧 <a href="mailto:hello@rentitforward.com.au" style="color: #44D62C;">hello@rentitforward.com.au</a> | 🌐 <a href="https://rentitforward.com.au" style="color: #44D62C;">rentitforward.com.au</a></p>
+          <p style="font-size: 12px; margin-top: 15px;">© 2025 Rent it Forward. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -702,6 +721,7 @@ export function createListingReapprovalEmail(data: ListingReapprovalEmailData): 
     <body>
       <div class="container">
         <div class="header">
+          <img src="https://rentitforward.com.au/images/RentitForward-Main-Logo.svg" alt="Rent it Forward" class="logo" />
           <h1>🎉 Listing Re-approved!</h1>
         </div>
         
@@ -747,8 +767,10 @@ export function createListingReapprovalEmail(data: ListingReapprovalEmailData): 
         </div>
         
         <div class="footer">
-          <p>© 2024 Rent It Forward. All rights reserved.</p>
-          <p>This email was sent regarding your listing activity.</p>
+          <p><strong>Rent it Forward</strong> - Share More, Buy Less</p>
+          <p>Building communities, one rental at a time.</p>
+          <p>📧 <a href="mailto:hello@rentitforward.com.au" style="color: #44D62C;">hello@rentitforward.com.au</a> | 🌐 <a href="https://rentitforward.com.au" style="color: #44D62C;">rentitforward.com.au</a></p>
+          <p style="font-size: 12px; margin-top: 15px;">© 2025 Rent it Forward. All rights reserved.</p>
         </div>
       </div>
     </body>
