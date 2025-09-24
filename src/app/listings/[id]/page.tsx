@@ -22,7 +22,8 @@ import {
   DollarSign,
   Info,
   Eye,
-  Send
+  Send,
+  Share2
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { format, addDays, parseISO } from 'date-fns';
@@ -384,6 +385,50 @@ export default function ListingDetailPage() {
     }
   };
 
+  const handleShare = async () => {
+    if (!listing) return;
+
+    const shareUrl = `https://rentitforward.com.au/listings/${listing.id}`;
+    const shareTitle = `${listing.title} - Rent It Forward`;
+    const shareText = `Check out this ${listing.title} for rent on Rent It Forward!\n\n${formatPrice(listing.price_per_day)}/day in ${listing.city}, ${listing.state}`;
+
+    // Check if Web Share API is supported
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        console.log('Listing shared successfully');
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error sharing listing:', error);
+          fallbackShare(shareUrl, shareTitle, shareText);
+        }
+      }
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      fallbackShare(shareUrl, shareTitle, shareText);
+    }
+  };
+
+  const fallbackShare = (url: string, title: string, text: string) => {
+    // Try to copy to clipboard
+    if (navigator.clipboard) {
+      const shareMessage = `${text}\n\n${url}`;
+      navigator.clipboard.writeText(shareMessage).then(() => {
+        toast.success('Link copied to clipboard!');
+      }).catch(() => {
+        // If clipboard fails, show a modal or alert with the link
+        toast.success('Share link: ' + url);
+      });
+    } else {
+      // Last resort - show the URL
+      toast.success('Share this link: ' + url);
+    }
+  };
+
   const openMessageModal = () => {
     if (!user) {
       toast.error('Please log in to send a message');
@@ -655,16 +700,27 @@ export default function ListingDetailPage() {
 
                 </div>
                 
-                <button
-                  onClick={toggleFavorite}
-                  className="p-2 rounded-full hover:bg-gray-100"
-                >
-                  <Heart
-                    className={`h-6 w-6 ${
-                      isFavorite ? 'text-red-500 fill-current' : 'text-gray-400'
-                    }`}
-                  />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleShare}
+                    className="p-2 rounded-full hover:bg-gray-100"
+                    title="Share this listing"
+                  >
+                    <Share2 className="h-6 w-6 text-gray-400 hover:text-gray-600" />
+                  </button>
+                  
+                  <button
+                    onClick={toggleFavorite}
+                    className="p-2 rounded-full hover:bg-gray-100"
+                    title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    <Heart
+                      className={`h-6 w-6 ${
+                        isFavorite ? 'text-red-500 fill-current' : 'text-gray-400'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
 
               <div className="mb-6">
