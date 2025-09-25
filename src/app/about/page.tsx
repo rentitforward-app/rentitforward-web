@@ -37,20 +37,20 @@ export default function AboutPage() {
       <section className="py-16 bg-white">
         <div className="max-w-screen-2xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <Card variant="elevated" padding="lg">
+            <Card variant="elevated" padding="lg" className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
               <CardContent className="p-0">
-                <h3 className="text-2xl font-bold text-secondary mb-4">Our Mision</h3>
-                <p className="text-gray-600 text-lg leading-relaxed">
+                <h3 className="text-2xl font-bold text-blue-900 mb-4">Our Mission</h3>
+                <p className="text-blue-800 text-lg leading-relaxed">
                 To create a sustainable sharing economy where Australians can access what they need 
                 without the burden of ownership, while building stronger communities and reducing 
                 environmental impact.
                 </p>
               </CardContent>
             </Card>
-            <Card variant="elevated" padding="lg">
+            <Card variant="elevated" padding="lg" className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
               <CardContent className="p-0">
-                <h3 className="text-2xl font-bold text-secondary mb-4">Our Vision</h3>
-                <p className="text-gray-600 text-lg leading-relaxed">
+                <h3 className="text-2xl font-bold text-purple-900 mb-4">Our Vision</h3>
+                <p className="text-purple-800 text-lg leading-relaxed">
                   A world where communities thrive through sharing, where every household 
                   has access to the tools and items they need, and where sustainable 
                   practices are the norm, not the exception.
@@ -67,49 +67,53 @@ export default function AboutPage() {
           <h2 className="text-3xl font-bold text-center text-secondary mb-12">Our Core Values</h2>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <Card variant="elevated" className="text-center">
+            {/* Community First - Orange theme */}
+            <Card variant="elevated" className="text-center bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-shadow">
               <CardContent>
                 <div className="flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-gray-700" />
+                  <Users className="w-8 h-8 text-orange-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-3">Community First</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-semibold text-orange-900 mb-3">Community First</h3>
+                <p className="text-orange-800">
                   Building stronger local connections through sharing and trust.
                 </p>
               </CardContent>
             </Card>
             
-            <Card variant="elevated" className="text-center">
+            {/* Sustainability - Green theme */}
+            <Card variant="elevated" className="text-center bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-shadow">
               <CardContent>
                 <div className="flex items-center justify-center mx-auto mb-4">
-                  <Leaf className="w-8 h-8 text-gray-700" />
+                  <Leaf className="w-8 h-8 text-green-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-3">Sustainability</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-semibold text-green-900 mb-3">Sustainability</h3>
+                <p className="text-green-800">
                   Reducing waste and environmental impact through collaborative consumption.
                 </p>
               </CardContent>
             </Card>
             
-            <Card variant="elevated" className="text-center">
+            {/* Trust & Safety - Blue theme */}
+            <Card variant="elevated" className="text-center bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-shadow">
               <CardContent>
                 <div className="flex items-center justify-center mx-auto mb-4">
-                  <Shield className="w-8 h-8 text-gray-700" />
+                  <Shield className="w-8 h-8 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-3">Trust & Safety</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-semibold text-blue-900 mb-3">Trust & Safety</h3>
+                <p className="text-blue-800">
                   Ensuring secure transactions and verified community members.
                 </p>
               </CardContent>
             </Card>
             
-            <Card variant="elevated" className="text-center">
+            {/* Accessibility - Purple theme */}
+            <Card variant="elevated" className="text-center bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-shadow">
               <CardContent>
                 <div className="flex items-center justify-center mx-auto mb-4">
-                  <Target className="w-8 h-8 text-gray-700" />
+                  <Target className="w-8 h-8 text-purple-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-3">Accessibility</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-semibold text-purple-900 mb-3">Accessibility</h3>
+                <p className="text-purple-800">
                   Making tools and resources available to everyone in the community.
                 </p>
               </CardContent>
