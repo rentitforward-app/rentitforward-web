@@ -33,6 +33,7 @@ import Image from 'next/image';
 import DashboardWrapper from '@/components/DashboardWrapper';
 import { BookingActions, MapActions } from '@/components/booking/BookingActions';
 import { format } from 'date-fns';
+import { isUserAdmin } from '@/lib/admin';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -256,6 +257,8 @@ function BookingDetailsContent({ params }: PageProps) {
         return 'bg-red-100 text-red-800';
       case 'completed':
         return 'bg-blue-100 text-blue-800';
+      case 'disputed':
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -273,6 +276,8 @@ function BookingDetailsContent({ params }: PageProps) {
         return 'Cancelled';
       case 'completed':
         return 'Completed';
+      case 'disputed':
+        return 'Disputed';
       default:
         return status.charAt(0).toUpperCase() + status.slice(1);
     }
@@ -290,6 +295,8 @@ function BookingDetailsContent({ params }: PageProps) {
         return 'This booking has been cancelled';
       case 'completed':
         return 'Rental completed successfully';
+      case 'disputed':
+        return 'Damage reports need resolution before payment can be processed';
       default:
         return '';
     }
@@ -331,11 +338,7 @@ function BookingDetailsContent({ params }: PageProps) {
   const isWithinPickupPeriod = today >= startOfPickupPeriod && today <= endOfPickupPeriod;
   const isAfterPickupPeriod = today > endOfPickupPeriod;
   
-  const canConfirmPickup = isWithinPickupPeriod && booking.status === 'confirmed';
-  const canReturn = isAfterPickupPeriod && (booking.status === 'active' || booking.status === 'picked_up');
-  const hasBeenPickedUp = booking.status === 'active' || booking.status === 'picked_up';
-
-  // Calculate pickup confirmation states
+  // Calculate pickup confirmation states first
   const isWithinOrAfterRentalPeriod = today >= startOfPickupPeriod;
   
   // Pickup confirmation status
@@ -352,8 +355,19 @@ function BookingDetailsContent({ params }: PageProps) {
   const currentUserReturnConfirmed = (isRenter && renterConfirmedReturn) || (isOwner && ownerConfirmedReturn);
   const otherPartyReturnConfirmed = (isRenter && ownerConfirmedReturn) || (isOwner && renterConfirmedReturn);
 
+  // Admin override for testing - allow confirmation regardless of date/state
+  const isAdmin = isUserAdmin(user);
+  const canConfirmPickup = isAdmin ? 
+    (!currentUserPickupConfirmed) : 
+    (isWithinPickupPeriod && booking.status === 'confirmed');
+  const canReturn = isAdmin ? 
+    (!currentUserReturnConfirmed) : 
+    (isAfterPickupPeriod && (booking.status === 'active' || booking.status === 'picked_up'));
+  const hasBeenPickedUp = booking.status === 'active' || booking.status === 'picked_up';
+
   // Show pickup button logic
-  const showPickupButton = booking.status === 'confirmed' || booking.status === 'payment_required' || bothPickupConfirmed || currentUserReturnConfirmed;
+  // Admin override: always show button for testing
+  const showPickupButton = isAdmin || booking.status === 'confirmed' || booking.status === 'payment_required' || bothPickupConfirmed || currentUserReturnConfirmed;
   
   // Get pickup button configuration
   const getPickupButtonConfig = () => {
@@ -364,8 +378,68 @@ function BookingDetailsContent({ params }: PageProps) {
     let buttonIcon = Package;
     let buttonColor = 'bg-green-600 hover:bg-green-700 text-white';
     
+    // Disable if booking is completed or disputed - no further action needed
+    if (booking.status === 'completed' || booking.status === 'disputed') {
+      if (booking.status === 'completed') {
+        pickupButtonText = 'Rental Completed';
+        pickupButtonNote = 'This rental has been completed successfully.';
+      } else {
+        pickupButtonText = 'Dispute Resolution Required';
+        pickupButtonNote = 'Damage reports need to be resolved before this booking can be completed.';
+      }
+      isDisabled = true;
+      buttonIcon = CheckCircle;
+      buttonColor = 'bg-gray-500 text-white cursor-not-allowed';
+      return { pickupButtonText, pickupButtonNote, buttonAction, isDisabled, buttonIcon, buttonColor };
+    }
+    
+    // Admin override for testing - provide admin-specific flow
+    // PRIORITY: Pickup first, then return (proper flow)
+    if (isAdmin) {
+      if (canConfirmPickup && !currentUserPickupConfirmed) {
+        pickupButtonText = 'Verify Pickup (Admin Test)';
+        pickupButtonNote = 'Admin testing: Pickup verification available regardless of date/state restrictions.';
+        buttonAction = () => window.location.href = `/bookings/${booking.id}/pickup-verification`;
+        buttonIcon = Package;
+      } else if (currentUserPickupConfirmed && !otherPartyPickupConfirmed) {
+        pickupButtonText = 'Waiting for other party pickup confirmation (Admin)';
+        pickupButtonNote = 'Admin testing: You\'ve confirmed pickup, waiting for other party.';
+        isDisabled = true;
+        buttonIcon = CheckCircle;
+        buttonColor = 'bg-gray-500 text-white cursor-not-allowed';
+      } else if (bothPickupConfirmed && canReturn && !currentUserReturnConfirmed) {
+        pickupButtonText = 'Verify Return (Admin Test)';
+        pickupButtonNote = 'Admin testing: Return verification available regardless of date restrictions.';
+        buttonAction = () => window.location.href = `/bookings/${booking.id}/return-verification`;
+        buttonIcon = Flag;
+        buttonColor = 'bg-blue-600 hover:bg-blue-700 text-white';
+      } else if (currentUserReturnConfirmed && !otherPartyReturnConfirmed) {
+        pickupButtonText = 'Waiting for other party return confirmation (Admin)';
+        pickupButtonNote = 'Admin testing: You\'ve confirmed return, waiting for other party.';
+        isDisabled = true;
+        buttonIcon = CheckCircle;
+        buttonColor = 'bg-gray-500 text-white cursor-not-allowed';
+      } else if (bothReturnConfirmed) {
+        pickupButtonText = 'Return Completed (Admin Test)';
+        pickupButtonNote = 'Admin testing: Both parties confirmed return.';
+        isDisabled = true;
+        buttonIcon = CheckCircle;
+        buttonColor = 'bg-gray-500 text-white cursor-not-allowed';
+      } else if (bothPickupConfirmed) {
+        pickupButtonText = 'Pickup Confirmed - Return Available (Admin Test)';
+        pickupButtonNote = 'Admin testing: Both parties confirmed pickup. Return verification now available.';
+        buttonAction = () => window.location.href = `/bookings/${booking.id}/return-verification`;
+        buttonIcon = Flag;
+        buttonColor = 'bg-blue-600 hover:bg-blue-700 text-white';
+      } else {
+        pickupButtonText = 'Verify Pickup (Admin Test)';
+        pickupButtonNote = 'Admin testing: Start with pickup verification first.';
+        buttonAction = () => window.location.href = `/bookings/${booking.id}/pickup-verification`;
+        buttonIcon = Package;
+      }
+    }
     // Return confirmation states (highest priority)
-    if (currentUserReturnConfirmed && !otherPartyReturnConfirmed) {
+    else if (currentUserReturnConfirmed && !otherPartyReturnConfirmed) {
       // Current user confirmed return, waiting for other party
       const otherPartyName = isRenter ? 'owner' : 'renter';
       pickupButtonText = `Waiting for ${otherPartyName} return confirmation`;
@@ -442,6 +516,7 @@ function BookingDetailsContent({ params }: PageProps) {
       pickupButtonNote = 'Verify the item pickup to start the rental period.';
       buttonAction = () => window.location.href = `/bookings/${booking.id}/pickup-verification`;
     }
+
 
     return { pickupButtonText, pickupButtonNote, buttonAction, isDisabled, buttonIcon, buttonColor };
   };
@@ -639,7 +714,7 @@ function BookingDetailsContent({ params }: PageProps) {
                 const renterConfirmedReturn = booking.return_confirmed_by_renter || false;
                 const ownerConfirmedReturn = booking.return_confirmed_by_owner || false;
                 const bothReturnConfirmed = renterConfirmedReturn && ownerConfirmedReturn;
-                const canShowReview = booking.status === 'completed' || bothReturnConfirmed;
+                const canShowReview = (booking.status === 'completed' || bothReturnConfirmed) && booking.status !== 'disputed';
                 const canLeaveReview = canShowReview && !existingReview && !reviewCheckLoading;
 
                 if (!canShowReview) return null;
@@ -907,6 +982,10 @@ function BookingDetailsContent({ params }: PageProps) {
                     pickup_confirmed_by_owner: booking.pickup_confirmed_by_owner,
                     return_confirmed_by_renter: booking.return_confirmed_by_renter,
                     return_confirmed_by_owner: booking.return_confirmed_by_owner,
+                    pickup_images: booking.pickup_images,
+                    return_images: booking.return_images,
+                    damage_report: booking.damage_report,
+                    owner_notes: booking.owner_notes,
                     listings: {
                       title: booking.listings.title
                     },

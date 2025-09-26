@@ -24,6 +24,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
+import { isUserAdmin } from '@/lib/admin';
 
 interface ReturnImage {
   id: string;
@@ -145,6 +146,7 @@ export default function ReturnVerificationPage() {
 
   const isRenter = user?.id === booking?.renter_id;
   const isOwner = user?.id === booking?.owner_id;
+  const isAdmin = isUserAdmin(user);
 
   // Get user's current location
   const getCurrentLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
@@ -476,7 +478,7 @@ export default function ReturnVerificationPage() {
     );
   }
 
-  if (!isRenter && !isOwner) {
+  if (!isRenter && !isOwner && !isAdmin) {
     return (
       <div className="max-w-4xl mx-auto p-6">
         <Card>
@@ -532,8 +534,8 @@ export default function ReturnVerificationPage() {
           <CardContent>
             {booking.pickup_images && booking.pickup_images.length > 0 ? (
               <div className="grid grid-cols-2 gap-2">
-                {booking.pickup_images.map((photo) => (
-                  <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+                {booking.pickup_images.map((photo, index) => (
+                  <div key={`pickup-${photo.id}-${index}`} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                     <Image
                       src={photo.url}
                       alt="Pickup photo"
@@ -587,8 +589,8 @@ export default function ReturnVerificationPage() {
             {/* Photos Grid */}
             {photos.length > 0 && (
               <div className="grid grid-cols-2 gap-2">
-                {photos.map((photo) => (
-                  <div key={photo.id} className="relative group">
+                {photos.map((photo, index) => (
+                  <div key={`return-${photo.id}-${index}`} className="relative group">
                     <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                       <Image
                         src={photo.url}

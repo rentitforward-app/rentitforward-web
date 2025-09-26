@@ -20,6 +20,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
+import { isUserAdmin } from '@/lib/admin';
 
 interface PickupImage {
   id: string;
@@ -112,6 +113,7 @@ export default function PickupVerificationPage() {
 
   const isRenter = user?.id === booking?.renter_id;
   const isOwner = user?.id === booking?.owner_id;
+  const isAdmin = isUserAdmin(user);
 
   // Get user's current location
   const getCurrentLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
@@ -378,7 +380,7 @@ export default function PickupVerificationPage() {
     );
   }
 
-  if (!isRenter && !isOwner) {
+  if (!isRenter && !isOwner && !isAdmin) {
     return (
       <div className="max-w-2xl mx-auto p-6">
         <Card>
@@ -394,7 +396,8 @@ export default function PickupVerificationPage() {
   }
 
   // Only allow renter to take/delete photos, owner can only view and confirm
-  const canModifyPhotos = isRenter;
+  // Admin override: allow photo modification for testing
+  const canModifyPhotos = isRenter || isAdmin;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -486,8 +489,8 @@ export default function PickupVerificationPage() {
             {/* Photos Grid */}
             {photos.length > 0 && (
               <div className="grid grid-cols-2 gap-4 mb-4">
-                {photos.map((photo) => (
-                  <div key={photo.id} className="relative">
+                {photos.map((photo, index) => (
+                  <div key={`pickup-photo-${photo.id}-${index}`} className="relative">
                     <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                       <Image
                         src={photo.url}

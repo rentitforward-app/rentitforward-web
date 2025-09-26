@@ -12,7 +12,9 @@ import {
   Navigation,
   MapPin,
   X,
-  CheckCircle
+  CheckCircle,
+  Images,
+  FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import { CancelBookingModal } from './CancelBookingModal';
@@ -32,6 +34,20 @@ interface BookingActionsProps {
     pickup_confirmed_by_owner?: boolean;
     return_confirmed_by_renter?: boolean;
     return_confirmed_by_owner?: boolean;
+    pickup_images?: Array<{
+      id: string;
+      url: string;
+      user_type: string;
+      uploaded_at: string;
+    }>;
+    return_images?: Array<{
+      id: string;
+      url: string;
+      user_type: string;
+      uploaded_at: string;
+    }>;
+    damage_report?: string;
+    owner_notes?: string;
     listings?: {
       title: string;
     };
@@ -124,11 +140,34 @@ export function BookingActions({
                    booking.status === 'confirmed' || 
                    booking.status === 'payment_required';
 
+  // Check if there are verification photos or reports to show
+  const hasVerificationData = (
+    (booking.pickup_images && booking.pickup_images.length > 0) ||
+    (booking.return_images && booking.return_images.length > 0) ||
+    booking.damage_report ||
+    booking.owner_notes
+  );
+
+  // Check if there are damage reports specifically
+  const hasDamageReports = booking.damage_report || booking.owner_notes;
+
 
 
   return (
     <div className="space-y-3">
       {/* Note: Pickup/Return button is now in the main page under "Pickup Confirmation" section */}
+
+      {/* View Verification Photos & Reports Button */}
+      {hasVerificationData && (
+        <Button 
+          variant="outline" 
+          className="w-full justify-start border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300"
+          onClick={() => window.location.href = `/bookings/${booking.id}/verification-photos`}
+        >
+          <Images className="w-4 h-4 mr-2" />
+          View Verification Photos & Reports
+        </Button>
+      )}
 
       {/* Cancel Booking Button */}
       {canCancel && (
@@ -145,15 +184,26 @@ export function BookingActions({
       {/* Divider for better visual separation */}
       <div className="border-t border-gray-200 my-4"></div>
 
-      {/* Report Button */}
-      <Button 
-        variant="outline" 
-        className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-        onClick={handleReportIssue}
-      >
-        <AlertTriangle className="w-4 h-4 mr-2" />
-        Report Issue
-      </Button>
+      {/* Report Issue / View Damage Reports Button */}
+      {(booking.status === 'completed' || booking.status === 'disputed') && hasDamageReports ? (
+        <Button 
+          variant="outline" 
+          className="w-full justify-start border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
+          onClick={() => window.location.href = `/bookings/${booking.id}/damage-reports`}
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          View Damage Reports
+        </Button>
+      ) : (
+        <Button 
+          variant="outline" 
+          className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+          onClick={handleReportIssue}
+        >
+          <AlertTriangle className="w-4 h-4 mr-2" />
+          Report Issue
+        </Button>
+      )}
 
       {/* Divider for better visual separation */}
       <div className="border-t border-gray-200 my-4"></div>

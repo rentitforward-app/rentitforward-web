@@ -129,13 +129,17 @@ export default function RootLayout({
                 color: '#fff',
               },
               success: {
+                duration: 4000,
                 style: {
-                  background: '#44D62C',
+                  background: '#10B981',
+                  color: 'white',
                 },
               },
               error: {
+                duration: 4000,
                 style: {
-                  background: '#f87171',
+                  background: '#EF4444',
+                  color: 'white',
                 },
               },
             }}

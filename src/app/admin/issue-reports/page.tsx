@@ -66,6 +66,13 @@ interface IssueReport {
   reporter_phone?: string;
   other_party_name: string;
   other_party_email: string;
+  
+  // Additional fields for damage reports
+  is_damage_report?: boolean;
+  damage_type?: 'renter_damage_report' | 'owner_notes';
+  reporter_avatar?: string;
+  listing_location?: string;
+  listing_city?: string;
 }
 
 interface ReportStats {
@@ -107,13 +114,102 @@ export default function AdminIssueReportsPage() {
 
   const loadReports = async () => {
     try {
-      const { data, error } = await supabase
+      // Load formal issue reports
+      const { data: issueReports, error: issueError } = await supabase
         .from('issue_reports_with_details')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setReports(data || []);
+      if (issueError) throw issueError;
+
+      // Load damage reports from bookings
+      const { data: damageReports, error: damageError } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          status,
+          damage_report,
+          damage_reported_by,
+          damage_reported_at,
+          owner_notes,
+          created_at,
+          updated_at,
+          start_date,
+          end_date,
+          total_amount,
+          owner_id,
+          renter_id,
+          listings!listing_id (
+            id,
+            title,
+            location,
+            city
+          ),
+          owner:profiles!owner_id (
+            id,
+            full_name,
+            email,
+            avatar_url
+          ),
+          renter:profiles!renter_id (
+            id,
+            full_name,
+            email,
+            avatar_url
+          )
+        `)
+        .or('damage_report.not.is.null,owner_notes.not.is.null')
+        .order('updated_at', { ascending: false });
+
+      if (damageError) throw damageError;
+
+      // Transform damage reports to match issue report format
+      const transformedDamageReports = (damageReports || []).map(booking => ({
+        id: `damage-${booking.id}`,
+        booking_id: booking.id,
+        reporter_id: booking.damage_report ? booking.renter_id : booking.owner_id,
+        reporter_role: booking.damage_report ? 'renter' : 'owner',
+        issue_type: 'damage',
+        severity: 'medium',
+        title: booking.damage_report ? 'Damage Report' : 'Owner Notes',
+        description: booking.damage_report || booking.owner_notes || '',
+        occurred_at: booking.damage_reported_at || booking.updated_at,
+        location: `${booking.listings?.location || ''}, ${booking.listings?.city || ''}`.trim().replace(/^,\s*/, ''),
+        financial_impact: true,
+        estimated_cost: 0,
+        resolution_requested: booking.damage_report ? 'Damage assessment and resolution' : 'Review and response',
+        resolution_provided: booking.damage_report && booking.owner_notes ? booking.owner_notes : null,
+        photos: [],
+        contact_preference: 'message',
+        status: booking.status === 'disputed' ? 'investigating' : booking.status === 'completed' ? 'resolved' : 'open',
+        assigned_to: null,
+        created_at: booking.damage_reported_at || booking.updated_at,
+        updated_at: booking.updated_at,
+        booking_start_date: booking.start_date,
+        booking_end_date: booking.end_date,
+        booking_total_amount: booking.total_amount,
+        booking_status: booking.status,
+        listing_title: booking.listings?.title || 'Unknown Item',
+        listing_category: 'rental',
+        listing_images: [],
+        listing_location: booking.listings?.location || '',
+        listing_city: booking.listings?.city || '',
+        reporter_name: booking.damage_report ? booking.renter?.full_name : booking.owner?.full_name,
+        reporter_email: booking.damage_report ? booking.renter?.email : booking.owner?.email,
+        reporter_phone: null,
+        reporter_avatar: booking.damage_report ? booking.renter?.avatar_url : booking.owner?.avatar_url,
+        other_party_name: booking.damage_report ? booking.owner?.full_name : booking.renter?.full_name,
+        other_party_email: booking.damage_report ? booking.owner?.email : booking.renter?.email,
+        // Add flag to identify as damage report
+        is_damage_report: true,
+        damage_type: booking.damage_report ? 'renter_damage_report' : 'owner_notes'
+      }));
+
+      // Combine and sort all reports by creation date
+      const allReports = [...(issueReports || []), ...transformedDamageReports]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setReports(allReports);
     } catch (error) {
       console.error('Error loading reports:', error);
       toast.error('Failed to load issue reports');
@@ -182,30 +278,55 @@ export default function AdminIssueReportsPage() {
 
   const updateReportStatus = async (reportId: string, newStatus: string, adminNotes?: string) => {
     try {
-      const updateData: any = { 
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
+      // Check if this is a damage report (ID starts with 'damage-')
+      const isDamageReport = reportId.startsWith('damage-');
+      
+      if (isDamageReport) {
+        // For damage reports, update the booking status instead
+        const bookingId = reportId.replace('damage-', '');
+        const bookingUpdateData: any = {};
+        
+        if (newStatus === 'resolved' || newStatus === 'closed') {
+          bookingUpdateData.status = 'completed';
+        } else if (newStatus === 'investigating') {
+          bookingUpdateData.status = 'disputed';
+        }
+        
+        if (Object.keys(bookingUpdateData).length > 0) {
+          const { error } = await supabase
+            .from('bookings')
+            .update(bookingUpdateData)
+            .eq('id', bookingId);
+          
+          if (error) throw error;
+        }
+      } else {
+        // For regular issue reports, update the issue_reports table
+        const updateData: any = { 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        };
 
-      if (newStatus === 'resolved' || newStatus === 'closed') {
-        updateData.resolved_at = new Date().toISOString();
+        if (newStatus === 'resolved' || newStatus === 'closed') {
+          updateData.resolved_at = new Date().toISOString();
+        }
+
+        if (adminNotes) {
+          updateData.admin_notes = adminNotes;
+        }
+
+        const { error } = await supabase
+          .from('issue_reports')
+          .update(updateData)
+          .eq('id', reportId);
+
+        if (error) throw error;
       }
-
-      if (adminNotes) {
-        updateData.admin_notes = adminNotes;
-      }
-
-      const { error } = await supabase
-        .from('issue_reports')
-        .update(updateData)
-        .eq('id', reportId);
-
-      if (error) throw error;
 
       // Update local state
       setReports(prev => prev.map(report => 
         report.id === reportId 
-          ? { ...report, ...updateData }
+          ? { ...report, status: newStatus, updated_at: new Date().toISOString() }
           : report
       ));
 
@@ -416,6 +537,12 @@ export default function AdminIssueReportsPage() {
                         </p>
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
+                        {report.is_damage_report && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Damage Report
+                          </span>
+                        )}
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityColor(report.severity)}`}>
                           {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)}
                         </span>
@@ -480,6 +607,19 @@ export default function AdminIssueReportsPage() {
                           <Eye className="w-4 h-4 mr-1" />
                           View Details
                         </Button>
+                        
+                        {report.is_damage_report && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              window.open(`/bookings/${report.booking_id}`, '_blank');
+                            }}
+                          >
+                            <FileText className="w-4 h-4 mr-1" />
+                            View Booking
+                          </Button>
+                        )}
                         
                         {report.status === 'open' && (
                           <Button
