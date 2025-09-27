@@ -18,6 +18,11 @@ interface PricingBreakdownProps {
   onInsuranceChange?: (enabled: boolean) => void;
   securityDeposit?: number;
   deliveryMethod?: 'pickup' | 'delivery';
+  deliveryMethodRegister?: any;
+  deliveryAddressRegister?: any;
+  deliveryMethodError?: any;
+  showDeliveryAddress?: boolean;
+  notesRegister?: any;
   pointsBalance?: number;
   pointsApplied?: number;
   onPointsAppliedChange?: (points: number) => void;
@@ -46,6 +51,11 @@ export function PricingBreakdown({
   onInsuranceChange,
   securityDeposit = 0,
   deliveryMethod = 'pickup',
+  deliveryMethodRegister,
+  deliveryAddressRegister,
+  deliveryMethodError,
+  showDeliveryAddress = false,
+  notesRegister,
   pointsBalance = 0,
   pointsApplied = 0,
   onPointsAppliedChange,
@@ -110,26 +120,41 @@ export function PricingBreakdown({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <DollarSign className="h-5 w-5" />
-          Price Breakdown
+          Booking Details
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* No dates selected message */}
+        {duration === 0 && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700 text-center">
+              Select dates to see pricing details
+            </p>
+          </div>
+        )}
+        
         {/* Base Rental Cost */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-sm">Rental fee</span>
-            <span className="font-medium">{formatPrice(pricing.baseAmount)}</span>
+            <span className="font-medium">
+              {duration > 0 ? formatPrice(pricing.baseAmount) : formatPrice(0)}
+            </span>
           </div>
           <div className="text-xs text-gray-500">
-            {hasWeeklyRate && weeklyRate && duration >= 7 ? (
-              <>
-                {Math.floor(duration / 7)} week{Math.floor(duration / 7) !== 1 ? 's' : ''} × {formatPrice(weeklyRate)}
-                {duration % 7 > 0 && (
-                  <> + {duration % 7} day{duration % 7 !== 1 ? 's' : ''} × {formatPrice(basePrice)}</>
-                )}
-              </>
+            {duration > 0 ? (
+              hasWeeklyRate && weeklyRate && duration >= 7 ? (
+                <>
+                  {Math.floor(duration / 7)} week{Math.floor(duration / 7) !== 1 ? 's' : ''} × {formatPrice(weeklyRate)}
+                  {duration % 7 > 0 && (
+                    <> + {duration % 7} day{duration % 7 !== 1 ? 's' : ''} × {formatPrice(basePrice)}</>
+                  )}
+                </>
+              ) : (
+                <>{duration} day{duration !== 1 ? 's' : ''} × {formatPrice(basePrice)}</>
+              )
             ) : (
-              <>{duration} day{duration !== 1 ? 's' : ''} × {formatPrice(basePrice)}</>
+              <>0 days × {formatPrice(basePrice)}</>
             )}
           </div>
         </div>
@@ -138,7 +163,9 @@ export function PricingBreakdown({
         <div className="space-y-1">
           <div className="flex justify-between items-center">
             <span className="text-sm">Service fee</span>
-            <span className="font-medium">{formatPrice(pricing.serviceFee)}</span>
+            <span className="font-medium">
+              {duration > 0 ? formatPrice(pricing.serviceFee) : formatPrice(0)}
+            </span>
           </div>
           <div className="flex justify-end">
             <Badge variant="outline" className="text-xs">
@@ -198,7 +225,7 @@ export function PricingBreakdown({
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Protection fee</span>
                   <span className={`font-medium ${hasInsurance ? 'text-green-700' : 'text-gray-500'}`}>
-                    {hasInsurance ? formatPrice(pricing.insuranceFee) : formatPrice(0)}
+                    {hasInsurance && duration > 0 ? formatPrice(pricing.insuranceFee) : formatPrice(0)}
                   </span>
                 </div>
                 <div className="flex justify-start">
@@ -262,6 +289,55 @@ export function PricingBreakdown({
           </div>
         )}
 
+        {/* Delivery Method Section */}
+        {deliveryMethodRegister && (
+          <div className="space-y-4">
+            <Separator />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Delivery Method
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="pickup"
+                    {...deliveryMethodRegister}
+                    className="mr-2"
+                  />
+                  Pickup
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="delivery"
+                    {...deliveryMethodRegister}
+                    className="mr-2"
+                  />
+                  Delivery (+$20)
+                </label>
+              </div>
+              {deliveryMethodError && (
+                <p className="text-red-500 text-sm mt-1">{deliveryMethodError.message}</p>
+              )}
+            </div>
+            
+            {showDeliveryAddress && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Delivery Address
+                </label>
+                <textarea
+                  {...deliveryAddressRegister}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  rows={2}
+                  placeholder="Enter delivery address..."
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         <Separator />
 
         {/* Total */}
@@ -269,6 +345,24 @@ export function PricingBreakdown({
           <span>Total</span>
           <span>{formatPrice(Math.max(0, pricing.totalRenterPays))}</span>
         </div>
+
+        {/* Notes Section */}
+        {notesRegister && (
+          <>
+            <Separator />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes for Host (Optional)
+              </label>
+              <textarea
+                {...notesRegister}
+                className="w-full p-2 border border-gray-300 rounded-lg"
+                rows={3}
+                placeholder="Any special requests or information..."
+              />
+            </div>
+          </>
+        )}
 
         {/* Owner Earnings (if requested) */}
         {showOwnerEarnings && (

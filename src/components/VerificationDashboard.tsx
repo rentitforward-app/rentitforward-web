@@ -243,11 +243,11 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
       </Card>
 
       {/* Connect Account Setup */}
-      <Card id="seller-account">
+      <Card id="owner-account">
         <CardHeader>
           <CardTitle className="flex items-center">
             <CreditCard className="w-5 h-5 mr-2" />
-            Seller Account
+            Owner Account
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -255,7 +255,7 @@ export const VerificationDashboard = ({ className }: VerificationDashboardProps)
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Stripe Connect Account</p>
-                <p className="text-sm text-gray-600">Required for receiving payments as a sharer</p>
+                <p className="text-sm text-gray-600">Required for receiving payments for owner / sharer</p>
               </div>
               <div className="flex items-center space-x-2">
                 {status?.connected ? (

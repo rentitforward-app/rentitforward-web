@@ -160,10 +160,10 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
     }
   }, [isOpen]);
 
-  // Show pricing when dates are selected
+  // Always show pricing breakdown (like mobile)
   useEffect(() => {
-    setShowPricing(!!(selectedDates.startDate && selectedDates.endDate));
-  }, [selectedDates]);
+    setShowPricing(true);
+  }, []);
 
   const onSubmitBooking = async (data: BookingForm) => {
     if (!user || !listing) {
@@ -395,97 +395,48 @@ export function PaymentBookingModal({ isOpen, onClose, listing, user }: PaymentB
                   />
                 </div>
                 
-                {/* Right Column - Form & Pricing */}
+                {/* Right Column - Combined Booking & Pricing */}
                 <div className="space-y-6">
-                  {/* Pricing Breakdown */}
-                  {showPricing && (
-                    <PricingBreakdown
-                      basePrice={pricePerDay}
-                      duration={totalDays}
-                      hasInsurance={includeInsurance}
-                      onInsuranceChange={setIncludeInsurance}
-                      hasWeeklyRate={false}
-                      weeklyRate={0}
-                      securityDeposit={listing.deposit ? parseFloat(listing.deposit.toString()) : 0}
-                    />
-                  )}
-                  
-                  {/* Booking Form */}
-                  {showPricing && (
-                    <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
-                      <h3 className="font-semibold">Booking Details</h3>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Delivery Method
-                        </label>
-                        <div className="space-y-2">
-                          <label className="flex items-center">
-                            <input
-                              type="radio"
-                              value="pickup"
-                              {...register('deliveryMethod')}
-                              className="mr-2"
-                            />
-                            Pickup
-                          </label>
-                          <label className="flex items-center">
-                            <input
-                              type="radio"
-                              value="delivery"
-                              {...register('deliveryMethod')}
-                              className="mr-2"
-                            />
-                            Delivery (+$20)
-                          </label>
-                        </div>
-                        {errors.deliveryMethod && (
-                          <p className="text-red-500 text-sm mt-1">{errors.deliveryMethod.message}</p>
-                        )}
-                      </div>
-                      
-                      {watchDeliveryMethod === 'delivery' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Delivery Address
-                          </label>
-                          <textarea
-                            {...register('deliveryAddress')}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            rows={2}
-                            placeholder="Enter delivery address..."
-                          />
-                        </div>
-                      )}
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Notes for Host (Optional)
-                        </label>
-                        <textarea
-                          {...register('notes')}
-                          className="w-full p-2 border border-gray-300 rounded-lg"
-                          rows={3}
-                          placeholder="Any special requests or information..."
-                        />
-                      </div>
-                      
-                      <Button
-                        type="submit"
-                        disabled={isCreatingBooking || !selectedDates.startDate || !selectedDates.endDate}
-                        className="w-full bg-[#44D62C] hover:bg-[#3AB827] text-white py-3"
-                      >
-                        {isCreatingBooking ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Creating Booking...
-                          </div>
-                        ) : (
-                          `Proceed to Payment - $${totalAmount.toFixed(2)}`
-                        )}
-                      </Button>
+                  {/* Combined Form and Pricing */}
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+                    {/* Pricing Breakdown Section */}
+                    <div className="p-4">
+                      <PricingBreakdown
+                        basePrice={pricePerDay}
+                        duration={totalDays}
+                        hasInsurance={includeInsurance}
+                        onInsuranceChange={setIncludeInsurance}
+                        hasWeeklyRate={false}
+                        weeklyRate={0}
+                        securityDeposit={listing.deposit ? parseFloat(listing.deposit.toString()) : 0}
+                        deliveryMethod={watchDeliveryMethod}
+                        deliveryMethodRegister={register('deliveryMethod')}
+                        deliveryAddressRegister={register('deliveryAddress')}
+                        deliveryMethodError={errors.deliveryMethod}
+                        showDeliveryAddress={watchDeliveryMethod === 'delivery'}
+                        notesRegister={register('notes')}
+                        className="border-0 shadow-none bg-transparent p-0"
+                      />
                     </div>
-                  )}
+                  </div>
+                  
+                  {/* Submit Button */}
+                  <Button
+                    type="submit"
+                    disabled={isCreatingBooking || !selectedDates.startDate || !selectedDates.endDate}
+                    className="w-full bg-[#44D62C] hover:bg-[#3AB827] text-white py-3 mb-6"
+                  >
+                    {isCreatingBooking ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating Booking...
+                      </div>
+                    ) : !selectedDates.startDate || !selectedDates.endDate ? (
+                      'Select dates to continue'
+                    ) : (
+                      `Proceed to Payment - $${totalAmount.toFixed(2)}`
+                    )}
+                  </Button>
                 </div>
               </div>
             </form>

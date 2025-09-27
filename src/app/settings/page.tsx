@@ -43,7 +43,7 @@ interface SecuritySettings {
 
 interface UserProfile {
   id: string;
-  full_name: string;
+  full_name: string | null;
   email: string;
   verified: boolean;
   stripe_onboarded: boolean;
@@ -90,28 +90,63 @@ export default function SettingsPage() {
 
   const loadProfile = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Error getting user:', userError);
+        throw userError;
+      }
       
       if (!user) {
         router.push('/login');
         return;
       }
 
-      const { data: profile, error } = await supabase
+      console.log('Fetching profile for user:', user.id);
+      const { data: profileData, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email, verified, stripe_onboarded, notification_preferences')
+        .select('*')
         .eq('id', user.id)
         .single();
 
-      if (error) throw error;
-      setProfile(profile);
-      
+      if (error) {
+        console.error('Profile query error:', error);
+        throw error;
+      }
+
+      if (!profileData) {
+        console.error('No profile data found');
+        throw new Error('No profile data found');
+      }
+
+      console.log('Profile data received:', profileData);
+
+      setProfile({
+        id: profileData.id,
+        full_name: profileData.full_name,
+        email: profileData.email || user.email,
+        verified: profileData.is_verified || false,
+        stripe_onboarded: profileData.stripe_onboarding_complete || false,
+      });
+
       // Load notification preferences
-      if (profile.notification_preferences) {
-        setNotifications(prev => ({
-          ...prev,
-          ...profile.notification_preferences
-        }));
+      try {
+        const response = await fetch('/api/notifications/preferences');
+        if (response.ok) {
+          const { preferences } = await response.json();
+          if (preferences) {
+            setNotifications(prev => ({
+              ...prev,
+              ...preferences
+            }));
+          }
+        } else {
+          const errorText = await response.text();
+          console.error('Failed to load notification preferences:', errorText);
+        }
+      } catch (notificationError) {
+        console.error('Error loading notification preferences:', notificationError);
+        // Don't throw here - just use defaults
       }
     } catch (error) {
       console.error('Error loading profile:', error);
