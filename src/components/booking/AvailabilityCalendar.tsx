@@ -212,43 +212,48 @@ export function AvailabilityCalendar({
           border: '2px solid white',
           boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
         }}
+        data-status={dateAvailability.status}
       />
     );
   }, [availability]);
 
   // Get tile class name for styling
   const getTileClassName = useCallback((date: Date) => {
-    if (!selectedRange.startDate) return '';
+    const classes: string[] = [];
 
-    const isStart = selectedRange.startDate && date.getTime() === selectedRange.startDate.getTime();
-    const isEnd = selectedRange.endDate && date.getTime() === selectedRange.endDate.getTime();
-    const isInRange = selectedRange.startDate && selectedRange.endDate && 
-      date > selectedRange.startDate && date < selectedRange.endDate;
-    const isHovered = hoveredDate && selectedRange.startDate && !selectedRange.endDate &&
-      date >= selectedRange.startDate && date <= hoveredDate;
-
-    // Check if date is booked/unavailable
+    // Always compute booked/unavailable state
     const dateStr = format(date, 'yyyy-MM-dd');
+    const dateAvailability = availability?.find(a => a.date === dateStr);
+    const isBooked = dateAvailability?.status === 'booked';
     const isUnavailable = availability && !isDateAvailable(dateStr, availability);
 
-    if (isStart && isEnd) {
-      // Single day selection
-      return 'custom-selected-single';
+    if (isBooked) {
+      classes.push('custom-booked');
     }
-    if (isStart) {
-      return 'custom-selected-start';
+
+    // Selection-related classes only if a selection is in progress
+    if (selectedRange.startDate) {
+      const isStart = selectedRange.startDate && date.getTime() === selectedRange.startDate.getTime();
+      const isEnd = selectedRange.endDate && date.getTime() === selectedRange.endDate.getTime();
+      const isInRange = selectedRange.startDate && selectedRange.endDate &&
+        date > selectedRange.startDate && date < selectedRange.endDate;
+      const isHovered = hoveredDate && selectedRange.startDate && !selectedRange.endDate &&
+        date >= selectedRange.startDate && date <= hoveredDate;
+
+      if (isStart && isEnd) {
+        classes.push('custom-selected-single');
+      } else if (isStart) {
+        classes.push('custom-selected-start');
+      } else if (isEnd) {
+        classes.push('custom-selected-end');
+      } else if (isInRange) {
+        classes.push(isUnavailable ? 'custom-range-booked' : 'custom-range-available');
+      } else if (isHovered) {
+        classes.push('custom-hovered');
+      }
     }
-    if (isEnd) {
-      return 'custom-selected-end';
-    }
-    if (isInRange) {
-      // For range dates, show light green even if booked (but with warning)
-      return isUnavailable ? 'custom-range-booked' : 'custom-range-available';
-    }
-    if (isHovered) {
-      return 'custom-hovered';
-    }
-    return '';
+
+    return classes.join(' ');
   }, [selectedRange, hoveredDate, availability]);
 
   // Clear selection handler
@@ -324,7 +329,7 @@ export function AvailabilityCalendar({
         )}
 
         {/* Calendar Component */}
-        <div className="calendar-container -mx-2">
+        <div className="calendar-container -mx-2 mt-2">
           <style dangerouslySetInnerHTML={{
             __html: `
               .calendar-container .react-calendar__tile {
@@ -333,6 +338,7 @@ export function AvailabilityCalendar({
                 font-size: 0.75rem;
                 background: white !important;
                 border: 1px solid #e5e7eb !important;
+                color: #374151 !important;
               }
               .calendar-container .react-calendar__tile:hover {
                 background: #f9fafb !important;
@@ -342,12 +348,6 @@ export function AvailabilityCalendar({
                 background: white !important;
               }
               
-              /* Ensure disabled weekend dates are greyed out like disabled weekdays */
-              .calendar-container .react-calendar__tile--disabled.react-calendar__month-view__days__day--weekend {
-                background-color: #f9fafb !important;
-                color: #d1d5db !important;
-                cursor: not-allowed !important;
-              }
               
               /* Custom selection styles */
               .calendar-container .custom-selected-single {
@@ -420,11 +420,35 @@ export function AvailabilityCalendar({
                 box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
               }
               
-              /* Disabled dates */
+              /* Disabled dates - match mobile grey background */
               .calendar-container .react-calendar__tile--disabled {
-                background-color: #f9fafb !important;
-                color: #d1d5db !important;
+                background-color: #f3f4f6 !important;
+                color: #9ca3af !important;
                 cursor: not-allowed !important;
+                border-color: #e5e7eb !important;
+              }
+              
+              /* ALL disabled dates should be grey first */
+              .calendar-container .react-calendar__tile--disabled {
+                background-color: #f3f4f6 !important;
+                color: #9ca3af !important;
+                cursor: not-allowed !important;
+                border-color: #e5e7eb !important;
+              }
+              
+              /* Extra rule: when disabled attribute exists, ensure grey unless marked as booked */
+              .calendar-container .react-calendar__tile[disabled]:not(.custom-booked) {
+                background-color: #f3f4f6 !important;
+                color: #9ca3af !important;
+              }
+              
+              /* Override ONLY for booked dates - they should be light red */
+              .calendar-container .react-calendar__tile--disabled.custom-booked,
+              .calendar-container .react-calendar__tile.custom-booked {
+                background-color: #fecaca !important;
+                color: #b91c1c !important;
+                cursor: not-allowed !important;
+                border-color: #fca5a5 !important;
               }
               
               .calendar-container .react-calendar__navigation {
@@ -437,6 +461,19 @@ export function AvailabilityCalendar({
               .calendar-container .react-calendar__month-view__weekdays {
                 font-size: 0.7rem;
                 font-weight: 500;
+              }
+              
+              /* Booked dates should always be light red - MUST BE LAST for highest priority */
+              .calendar-container .custom-booked,
+              .calendar-container .react-calendar__tile--disabled.custom-booked,
+              .calendar-container .react-calendar__tile.custom-booked,
+              .calendar-container .react-calendar__tile--disabled.react-calendar__month-view__days__day--weekend.custom-booked,
+              .calendar-container .react-calendar__tile[disabled].custom-booked,
+              .calendar-container .react-calendar__tile--disabled:not(.custom-selected-single):not(.custom-selected-start):not(.custom-selected-end).custom-booked {
+                background-color: #fecaca !important;
+                color: #b91c1c !important;
+                cursor: not-allowed !important;
+                border-color: #fca5a5 !important;
               }
             `
           }} />
@@ -490,32 +527,21 @@ export function AvailabilityCalendar({
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-            <span>Selected</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-green-300 rounded-full"></div>
-            <span>Range</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-            <span>Booked</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-yellow-200 border border-yellow-400 rounded-full relative">
-              <span className="absolute -top-1 -right-1 text-[8px] bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center">⚠</span>
+        <div className="mt-4">
+          <p className="text-sm font-medium text-gray-900 mb-2">Legend</p>
+          <div className="flex items-center justify-center gap-4 text-xs text-gray-600">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-green-600 rounded-full"></div>
+              <span>Selected</span>
             </div>
-            <span>Range + Booked</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-            <span>Pending</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-            <span>Blocked</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-green-300 rounded-full"></div>
+              <span>Range</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+              <span>Booked</span>
+            </div>
           </div>
         </div>
 
