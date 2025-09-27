@@ -12,12 +12,20 @@ import {
 } from 'lucide-react';
 // Define cancellation reasons locally since shared package import is failing
 const BookingCancellationReason = {
-  USER_REQUESTED: 'user_requested',
-  OWNER_CANCELLED: 'owner_cancelled',
-  ITEM_UNAVAILABLE: 'item_unavailable',
+  // Renter reasons
+  CHANGE_OF_PLANS: 'change_of_plans',
+  NO_LONGER_NEED_ITEM: 'no_longer_need_item',
+  FOUND_ALTERNATIVE_RENTAL: 'found_alternative_rental',
+  
+  // Owner reasons
+  ITEM_NO_LONGER_AVAILABLE: 'item_no_longer_available',
+  ITEM_DAMAGED: 'item_damaged',
+  EMERGENCY_SITUATION: 'emergency_situation',
+  DOUBLE_BOOKED: 'double_booked',
+  
+  // General reasons
   PAYMENT_FAILED: 'payment_failed',
   POLICY_VIOLATION: 'policy_violation',
-  DAMAGE_REPORTED: 'damage_reported',
   OTHER: 'other'
 } as const;
 
@@ -37,11 +45,25 @@ interface CancelBookingModalProps {
   isRenter: boolean;
 }
 
-const cancellationReasons = [
-  { value: BookingCancellationReason.USER_REQUESTED, label: 'Change of plans' },
-  { value: BookingCancellationReason.ITEM_UNAVAILABLE, label: 'Item no longer available' },
-  { value: BookingCancellationReason.OTHER, label: 'Other reason' }
-];
+// Define role-specific cancellation reasons
+const getCancellationReasons = (isRenter: boolean) => {
+  if (isRenter) {
+    return [
+      { value: BookingCancellationReason.CHANGE_OF_PLANS, label: 'Change of plans' },
+      { value: BookingCancellationReason.NO_LONGER_NEED_ITEM, label: 'No longer need the item' },
+      { value: BookingCancellationReason.FOUND_ALTERNATIVE_RENTAL, label: 'Found an alternative rental' },
+      { value: BookingCancellationReason.OTHER, label: 'Other reason' }
+    ];
+  } else {
+    return [
+      { value: BookingCancellationReason.ITEM_NO_LONGER_AVAILABLE, label: 'Item no longer available' },
+      { value: BookingCancellationReason.ITEM_DAMAGED, label: 'Item damaged' },
+      { value: BookingCancellationReason.EMERGENCY_SITUATION, label: 'Emergency situation' },
+      { value: BookingCancellationReason.DOUBLE_BOOKED, label: 'Double booked' },
+      { value: BookingCancellationReason.OTHER, label: 'Other reason' }
+    ];
+  }
+};
 
 export function CancelBookingModal({ 
   isOpen, 
@@ -192,7 +214,7 @@ export function CancelBookingModal({
               disabled={isLoading}
             >
               <option value="">Select a reason</option>
-              {cancellationReasons.map((reason) => (
+              {getCancellationReasons(isRenter).map((reason) => (
                 <option key={reason.value} value={reason.value}>
                   {reason.label}
                 </option>

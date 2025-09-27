@@ -35,12 +35,37 @@ interface RouteParams {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const supabase = await createClient();
+    // Check for Authorization header (mobile clients)
+    const authHeader = request.headers.get('authorization');
+    let supabase;
+    let user;
     
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Mobile client with Authorization header
+      const token = authHeader.replace('Bearer ', '');
+      
+      // Create a client with the provided token
+      const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+      supabase = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      
+      // Set the session using the token
+      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token);
+      if (tokenError || !tokenUser) {
+        console.error('Token authentication failed:', tokenError);
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      user = tokenUser;
+    } else {
+      // Web client with cookies
+      supabase = await createClient();
+      const { data: { user: cookieUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !cookieUser) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      user = cookieUser;
     }
 
     const { reason, note } = await request.json();
